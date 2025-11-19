@@ -39,3 +39,36 @@ This directory contains the official patterns for **separated API applications**
 4.  **Validate via Classes**: Use `FormRequest` classes for all validation.
 5.  **Standardized Responses**: Follow the consistent JSON structure (`data`, `meta`, etc.).
 6.  **MANDATORY TESTS**: Every new API endpoint MUST have corresponding Feature tests. No endpoint is complete without tests. See [Testing Patterns](backend/api-testing-patterns.md).
+
+## 🏗️ Project-Specific Structure
+
+This project uses **separated API routes** for mobile and business endpoints. See project-specific documentation:
+
+### System Configuration
+- **[Mobile API Structure](system-config/mobile-api-structure.md)**: Mobile API endpoints for regular users (iOS, Android apps)
+- **[Business API Structure](system-config/business-api-structure.md)**: Business API endpoints for managers/web dashboard
+- **[Database Schema](system-config/database-schema.md)**: Complete database structure documentation
+
+### Key Rules for This Project
+
+1. **Separate Route Files**:
+   - Mobile endpoints → `routes/api-mobile.php` under `/api/v1/` prefix
+   - Business endpoints → `routes/api-business.php` under `/business/v1/` prefix
+
+2. **Separate Controller Directories**:
+   - Mobile controllers → `app/Http/Controllers/Api/V1/Mobile/`
+   - Business controllers → `app/Http/Controllers/Api/V1/Business/`
+
+3. **Separate Test Directories**:
+   - Mobile tests → `tests/Feature/Api/Mobile/`
+   - Business tests → `tests/Feature/Api/Business/`
+
+4. **Guard Usage**:
+   - Mobile routes: Use `auth:sanctum` middleware (default)
+   - Business routes: Use `auth:business` middleware
+
+5. **Testing with Sanctum**:
+   - Mobile tests: `Sanctum::actingAs($user)`
+   - Business tests: `Sanctum::actingAs($businessUser, [], 'business')`
+
+For detailed structure information, see the [system-config](system-config/) documentation files.
