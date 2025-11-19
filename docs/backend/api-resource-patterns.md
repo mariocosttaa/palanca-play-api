@@ -33,12 +33,21 @@ class UserResourceGeneral extends JsonResource
             'id' => EasyHashAction::encode($this->id, 'user-id'), // Hashed ID
             'name' => $this->name,
             'email' => $this->email,
-            'status_label' => $this->status_label,
+            // Always include foreign key ID
+            'country_id' => $this->country_id 
+                ? EasyHashAction::encode($this->country_id, 'country-id') 
+                : null,
+            // Include relationship only when eager loaded (prevents N+1)
+            'country' => new CountryResourceGeneral($this->whenLoaded('country')),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }
 }
 ```
+
+**Key Pattern:** Always include both the foreign key ID and the relationship object using `whenLoaded()`. This allows:
+- **Without eager loading**: Only the ID is returned (fast, no extra queries)
+- **With eager loading**: Full relationship object is returned (no N+1 queries)
 
 ### 2. Specific Resource (Detail View)
 **Use for:** `show()`, `store()`, `update()`.
@@ -70,6 +79,35 @@ class UserResourceSpecific extends JsonResource
 
 ## 🚀 Advanced Techniques
 
+### Preventing N+1 Queries in General Resources
+Always include both foreign key IDs and relationships using `whenLoaded()`:
+
+```php
+public function toArray(Request $request): array
+{
+    return [
+        // Always include foreign key ID
+        'country_id' => $this->country_id 
+            ? EasyHashAction::encode($this->country_id, 'country-id') 
+            : null,
+        // Include relationship only when eager loaded
+        'country' => new CountryResourceGeneral($this->whenLoaded('country')),
+        
+        // For collections, use collection() method
+        'bookings' => BookingResourceGeneral::collection($this->whenLoaded('bookings')),
+    ];
+}
+```
+
+**Usage in Controllers:**
+```php
+// Without relationships (only IDs returned)
+User::all(); // Fast, minimal data
+
+// With relationships (full objects returned, no N+1)
+User::with('country')->get(); // Eager loaded, full country object included
+```
+
 ### Conditional Attributes
 Include fields only when necessary or permitted.
 ```php
@@ -100,6 +138,9 @@ Return both raw value (cents) and formatted string.
 | ❌ Bad Pattern | ✅ Good Pattern |
 |----------------|-----------------|
 | `'id' => $this->id` | `'id' => EasyHashAction::encode($this->id, 'type')` |
+| `'country' => new CountryResource($this->country)` (always loads) | `'country' => new CountryResourceGeneral($this->whenLoaded('country'))` (conditional) |
+| Only foreign key ID, no relationship | Both `country_id` AND `country` with `whenLoaded()` |
 | Nested Specific Resources | Nested **General** Resources (prevents infinite loops) |
 | Formatting dates in JS format | `$this->created_at->toISOString()` |
 | Logic/Calculations in Resource | Calculate in Model/Accessor, display in Resource |
+| Loading relationships without eager loading | Use `whenLoaded()` to prevent N+1 queries |
