@@ -134,7 +134,7 @@ Represents organizations or businesses that own and manage courts. This is the c
 
 ### 5. `business_users_tenants`
 
-Junction table managing the many-to-many relationship between business users and tenants. Also stores role information for the relationship.
+Junction table managing the many-to-many relationship between business users and tenants.
 
 **Columns:**
 - `id` (bigint, PK) - Primary key

@@ -36,7 +36,6 @@ class BusinessUser extends Model
     public function tenants()
     {
         return $this->belongsToMany(Tenant::class, 'business_users_tenants')
-            ->withPivot('role')
             ->withTimestamps();
     }
 
