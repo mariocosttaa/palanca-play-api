@@ -8,7 +8,7 @@ use Laravel\Sanctum\Sanctum;
 uses(RefreshDatabase::class);
 
 test('business user can register with valid data', function () {
-    $response = $this->postJson('/api/v1/business-users/register', [
+    $response = $this->postJson('/business/v1/business-users/register', [
         'name' => 'Jane Business',
         'surname' => 'Smith',
         'email' => 'jane.business@example.com',
@@ -40,7 +40,7 @@ test('business user can register with valid data', function () {
 });
 
 test('business user cannot register with invalid email', function () {
-    $response = $this->postJson('/api/v1/business-users/register', [
+    $response = $this->postJson('/business/v1/business-users/register', [
         'name' => 'Jane Business',
         'email' => 'invalid-email',
         'password' => 'password123',
@@ -54,7 +54,7 @@ test('business user cannot register with invalid email', function () {
 test('business user cannot register with duplicate email', function () {
     BusinessUser::factory()->create(['email' => 'existing@example.com']);
 
-    $response = $this->postJson('/api/v1/business-users/register', [
+    $response = $this->postJson('/business/v1/business-users/register', [
         'name' => 'Jane Business',
         'email' => 'existing@example.com',
         'password' => 'password123',
@@ -71,7 +71,7 @@ test('business user can login with valid credentials', function () {
         'password' => Hash::make('password123'),
     ]);
 
-    $response = $this->postJson('/api/v1/business-users/login', [
+    $response = $this->postJson('/business/v1/business-users/login', [
         'email' => 'jane.business@example.com',
         'password' => 'password123',
         'device_name' => 'Test Device',
@@ -95,7 +95,7 @@ test('business user cannot login with invalid credentials', function () {
         'password' => Hash::make('password123'),
     ]);
 
-    $response = $this->postJson('/api/v1/business-users/login', [
+    $response = $this->postJson('/business/v1/business-users/login', [
         'email' => 'jane.business@example.com',
         'password' => 'wrong-password',
     ]);
@@ -106,9 +106,9 @@ test('business user cannot login with invalid credentials', function () {
 
 test('authenticated business user can get their profile', function () {
     $businessUser = BusinessUser::factory()->create();
-    Sanctum::actingAs($businessUser);
+    Sanctum::actingAs($businessUser, [], 'business');
 
-    $response = $this->getJson('/api/v1/business-users/me');
+    $response = $this->getJson('/business/v1/business-users/me');
 
     $response->assertStatus(200)
         ->assertJson(fn ($json) => $json
@@ -122,16 +122,16 @@ test('authenticated business user can get their profile', function () {
 });
 
 test('unauthenticated business user cannot get profile', function () {
-    $response = $this->getJson('/api/v1/business-users/me');
+    $response = $this->getJson('/business/v1/business-users/me');
 
     $response->assertStatus(401);
 });
 
 test('authenticated business user can logout', function () {
     $businessUser = BusinessUser::factory()->create();
-    Sanctum::actingAs($businessUser);
+    Sanctum::actingAs($businessUser, [], 'business');
 
-    $response = $this->postJson('/api/v1/business-users/logout');
+    $response = $this->postJson('/business/v1/business-users/logout');
 
     $response->assertStatus(204);
 
@@ -143,7 +143,7 @@ test('authenticated business user can logout', function () {
 });
 
 test('business user cannot logout without token', function () {
-    $response = $this->postJson('/api/v1/business-users/logout');
+    $response = $this->postJson('/business/v1/business-users/logout');
 
     $response->assertStatus(401);
 });
