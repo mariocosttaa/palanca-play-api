@@ -20,11 +20,9 @@ return new class extends Migration
             $table->boolean('auto_confirm_bookings')->default(false);
             $table->integer('booking_interval_minutes');
             $table->integer('buffer_between_bookings_minutes');
-            $table->foreignId('subscription_plan_id')->nullable()->constrained('subscription_plans')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('subscription_plan_id');
             $table->index(['latitude', 'longitude']);
         });
     }

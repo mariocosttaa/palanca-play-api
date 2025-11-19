@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tenant extends Model
 {
+    /** @use HasFactory<\Database\Factories\TenantFactory> */
     use HasFactory, SoftDeletes, HasHashid;
 
     protected $fillable = [
@@ -19,7 +20,6 @@ class Tenant extends Model
         'auto_confirm_bookings',
         'booking_interval_minutes',
         'buffer_between_bookings_minutes',
-        'subscription_plan_id',
     ];
 
     protected $casts = [
@@ -33,7 +33,7 @@ class Tenant extends Model
     // Relationships
     public function subscriptionPlan()
     {
-        return $this->belongsTo(SubscriptionPlan::class);
+        return $this->hasOne(SubscriptionPlan::class);
     }
 
     public function businessUsers()
