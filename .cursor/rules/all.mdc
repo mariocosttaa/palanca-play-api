@@ -21,6 +21,7 @@ This directory contains the official patterns for **separated API applications**
 - **[Error Handling](backend/api-error-handling-patterns.md)**: Standardized error responses and codes.
 - **[Pagination](backend/api-pagination-patterns.md)**: Collection pagination and meta data.
 - **[File Uploads](backend/api-file-upload-patterns.md)**: Multipart handling, S3/Storage, and secure access.
+- **[Migrations](backend/migration-patterns.md)**: Database schema changes and version control.
 - **[Seeders](backend/seeder-patterns.md)**: Database population patterns.
 - **[Email](backend/email-patterns.md)**: Email templates and Mailable classes.
 - **[PDF](backend/pdf-patterns.md)**: PDF generation service and templates.
