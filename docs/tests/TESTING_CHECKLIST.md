@@ -63,7 +63,8 @@
 
 - Controller: `UserController.php` → Test: `UserTest.php`
 - Controller: `BookingController.php` → Test: `BookingTest.php`
-- Controller: `UserAuthController.php` → Test: `UserAuthTest.php`
+- Controller: `Api\V1\Mobile\Auth\UserAuthController.php` → Test: `Mobile/UserAuthTest.php`
+- Controller: `Api\V1\Business\Auth\BusinessUserAuthController.php` → Test: `Business/BusinessUserAuthTest.php`
 
 ## 🔍 Quick Test Commands
 

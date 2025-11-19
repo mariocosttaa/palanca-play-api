@@ -7,19 +7,89 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
-## About Laravel
+# Padel Booking API
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+A Laravel API for managing padel court bookings with separate endpoints for mobile applications and web management dashboards.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🏗️ API Architecture
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+This project uses **separated API routes** for two distinct client types:
+
+### 📱 Mobile API (`/api/v1/*`)
+**For:** Regular users accessing via mobile apps (iOS, Android)
+
+- **Route File:** `routes/api-mobile.php`
+- **Base URL:** `/api/v1`
+- **Authentication Guard:** `auth:sanctum` (default)
+- **User Model:** `App\Models\User`
+- **Controller:** `App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController`
+
+**Example Endpoints:**
+- `POST /api/v1/users/register` - User registration
+- `POST /api/v1/users/login` - User login
+- `POST /api/v1/users/logout` - User logout
+- `GET /api/v1/users/me` - Get authenticated user profile
+
+### 🌐 Business API (`/business/v1/*`)
+**For:** Business users/managers accessing via web dashboard
+
+- **Route File:** `routes/api-business.php`
+- **Base URL:** `/business/v1`
+- **Authentication Guard:** `auth:business`
+- **User Model:** `App\Models\BusinessUser`
+- **Controller:** `App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController`
+
+**Example Endpoints:**
+- `POST /business/v1/business-users/register` - Business user registration
+- `POST /business/v1/business-users/login` - Business user login
+- `POST /business/v1/business-users/logout` - Business user logout
+- `GET /business/v1/business-users/me` - Get authenticated business user profile
+
+## 📂 Project Structure
+
+```
+routes/
+├── api-mobile.php      # Mobile API routes (regular users)
+└── api-business.php    # Business API routes (managers/web)
+
+app/Http/Controllers/Api/V1/
+├── Mobile/             # Mobile API controllers
+│   └── Auth/
+│       └── UserAuthController.php
+└── Business/           # Business API controllers
+    └── Auth/
+        └── BusinessUserAuthController.php
+
+tests/Feature/Api/
+├── Mobile/             # Tests for mobile API
+│   └── UserAuthTest.php
+└── Business/           # Tests for business API
+    └── BusinessUserAuthTest.php
+```
+
+## 🧪 Testing
+
+Tests are organized by API type:
+
+```bash
+# Run mobile API tests
+php artisan test tests/Feature/Api/Mobile
+
+# Run business API tests
+php artisan test tests/Feature/Api/Business
+
+# Run all API tests
+php artisan test tests/Feature/Api
+```
+
+## 📚 Documentation
+
+- **General Patterns:** See `docs/backend/` for API patterns and conventions
+- **System Configuration:** See `docs/system-config/` for project-specific structure:
+  - [Mobile API Structure](docs/system-config/mobile-api-structure.md)
+  - [Business API Structure](docs/system-config/business-api-structure.md)
+  - [Database Schema](docs/system-config/database-schema.md)
+- **Testing:** See `docs/tests/` for testing patterns and checklists
 
 ## Learning Laravel
 
