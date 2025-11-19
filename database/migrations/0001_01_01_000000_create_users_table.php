@@ -14,11 +14,20 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('surname')->nullable();
             $table->string('email')->unique();
+            $table->boolean('google_login')->default(false);
+            $table->foreignId('country_id')->nullable()->constrained('countries')->nullOnDelete();
+            $table->string('calling_code')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('timezone')->nullable();
+            $table->string('password')->nullable();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->index('country_id');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
