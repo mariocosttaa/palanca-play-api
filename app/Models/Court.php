@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Court extends Model
 {
+    /** @use HasFactory<\Database\Factories\CourtFactory> */
     use HasFactory, SoftDeletes, HasHashid;
 
     protected $table = 'courts';

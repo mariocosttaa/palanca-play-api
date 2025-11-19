@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
+    /** @use HasFactory<\Database\Factories\InvoiceFactory> */
     use HasFactory, HasHashid, HasMoney;
 
     protected $fillable = [

@@ -11,6 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class BusinessUser extends Authenticatable
 {
+    /** @use HasFactory<\Database\Factories\BusinessUserFactory> */
     use HasFactory, Notifiable, SoftDeletes, HasHashid, HasApiTokens;
 
     protected $fillable = [
