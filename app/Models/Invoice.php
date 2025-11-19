@@ -13,12 +13,10 @@ class Invoice extends Model
 
     protected $fillable = [
         'tenant_id',
-        'subscription_plan_id',
         'period',
         'date_start',
         'date_end',
         'price',
-        'is_extra_court',
         'status',
         'metadata',
     ];
@@ -26,8 +24,7 @@ class Invoice extends Model
     protected $casts = [
         'date_start' => 'datetime',
         'date_end' => 'datetime',
-        'price' => 'decimal:2',
-        'is_extra_court' => 'boolean',
+        'price' => 'integer',
         'metadata' => 'array',
     ];
 
@@ -35,11 +32,6 @@ class Invoice extends Model
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);
-    }
-
-    public function subscriptionPlan()
-    {
-        return $this->belongsTo(SubscriptionPlan::class);
     }
 
     // Scopes
@@ -61,11 +53,6 @@ class Invoice extends Model
     public function scopePaid($query)
     {
         return $query->where('status', 'paid');
-    }
-
-    public function scopeExtraCourts($query)
-    {
-        return $query->where('is_extra_court', true);
     }
 
     public function scopeBetweenDates($query, $startDate, $endDate)
