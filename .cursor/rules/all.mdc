@@ -1,0 +1,39 @@
+---
+alwaysApply: true
+---
+
+# API Patterns Documentation
+
+## 📚 Overview
+This directory contains the official patterns for **separated API applications** (Laravel Backend + Frontend).
+
+## 📁 Documentation Index
+
+### Core Patterns
+- **[Controllers](backend/api-controller-patterns.md)**: Naming, RESTful actions, response structure.
+- **[Requests](backend/api-request-patterns.md)**: Validation, authorization, data normalization.
+- **[Resources](backend/api-resource-patterns.md)**: JSON transformation, General vs Specific resources.
+- **[Models](backend/model-patterns.md)**: Data structure, relationships, and business logic.
+- **[Authentication](backend/api-authentication-patterns.md)**: Token handling, middleware, policies.
+- **[Hashids](backend/hashids-patterns.md)**: ID obfuscation logic and encoding/decoding.
+
+### Feature Patterns
+- **[Error Handling](backend/api-error-handling-patterns.md)**: Standardized error responses and codes.
+- **[Pagination](backend/api-pagination-patterns.md)**: Collection pagination and meta data.
+- **[File Uploads](backend/api-file-upload-patterns.md)**: Multipart handling, S3/Storage, and secure access.
+- **[Seeders](backend/seeder-patterns.md)**: Database population patterns.
+- **[Email](backend/email-patterns.md)**: Email templates and Mailable classes.
+- **[PDF](backend/pdf-patterns.md)**: PDF generation service and templates.
+
+### Architecture & Quality
+- **[Security](backend/api-security-patterns.md)**: Rate limiting, CORS, headers, and data protection.
+- **[Testing](backend/api-testing-patterns.md)**: Feature tests and JSON assertions.
+- **[Versioning](backend/api-versioning-patterns.md)**: URL versioning strategy (V1/V2).
+
+## 🏆 The Golden Rules
+
+1.  **Always Return Resources**: Never return raw Eloquent models; always use API Resources.
+2.  **Hash All IDs**: External IDs must be hashed (e.g., `user-id` -> `Xy7z...`). Decode them in Requests.
+3.  **No Tenant ID in Requests**: `tenant_id` comes from middleware/attributes, never from user input.
+4.  **Validate via Classes**: Use `FormRequest` classes for all validation.
+5.  **Standardized Responses**: Follow the consistent JSON structure (`data`, `meta`, etc.).
