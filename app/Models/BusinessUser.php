@@ -4,12 +4,14 @@ namespace App\Models;
 
 use App\Traits\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
-class BusinessUser extends Model
+class BusinessUser extends Authenticatable
 {
-    use HasFactory, SoftDeletes, HasHashid;
+    use HasFactory, Notifiable, SoftDeletes, HasHashid, HasApiTokens;
 
     protected $fillable = [
         'name',
@@ -23,9 +25,18 @@ class BusinessUser extends Model
         'password',
     ];
 
-    protected $casts = [
-        'google_login' => 'boolean',
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'password' => 'hashed',
+            'google_login' => 'boolean',
+        ];
+    }
 
     // Relationships
     public function country()
