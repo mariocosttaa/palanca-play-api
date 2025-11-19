@@ -1,0 +1,25 @@
+<?php
+
+use App\Actions\General\EasyHashAction;
+use App\Models\BusinessUser;
+use App\Models\Tenant;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+
+uses(RefreshDatabase::class);
+
+test('example', function () {
+    // Create a tenant and business user and attach the business user to the tenant
+    $tenant = Tenant::factory()->create();
+    $businessUser = BusinessUser::factory()->create();
+    $businessUser->tenants()->attach($tenant);
+
+    // Act as the business user
+    Sanctum::actingAs($businessUser, [], 'business');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    //LOGIC GOES HERE
+
+
+
+});
