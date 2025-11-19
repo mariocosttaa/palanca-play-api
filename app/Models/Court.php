@@ -11,6 +11,8 @@ class Court extends Model
 {
     use HasFactory, SoftDeletes, HasHashid;
 
+    protected $table = 'courts';
+
     protected $fillable = [
         'court_type_id',
         'type',

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('courts_availabilities', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
-            $table->foreignId('court_id')->nullable()->constrained('court')->cascadeOnDelete();
+            $table->foreignId('court_id')->nullable()->constrained('courts')->cascadeOnDelete();
             $table->foreignId('court_type_id')->nullable()->constrained('courts_type')->cascadeOnDelete();
             $table->string('day_of_week_recurring', 20)->nullable();
             $table->date('specific_date')->nullable();

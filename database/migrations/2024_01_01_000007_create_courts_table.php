@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('court', function (Blueprint $table) {
+        Schema::create('courts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('court_type_id')->constrained('courts_type')->cascadeOnDelete();
             $table->enum('type', ['padel', 'tennis', 'squash', 'badminton', 'other'])->default('padel');
@@ -32,7 +32,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('court');
+        Schema::dropIfExists('courts');
     }
 };
 

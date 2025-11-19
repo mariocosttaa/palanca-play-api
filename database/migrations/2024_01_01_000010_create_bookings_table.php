@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
-            $table->foreignId('court_id')->constrained('court')->cascadeOnDelete();
+            $table->foreignId('court_id')->constrained('courts')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->date('start_date');
             $table->date('end_date');

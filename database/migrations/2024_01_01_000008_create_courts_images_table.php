@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('courts_images', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('court_id')->constrained('court')->cascadeOnDelete();
+            $table->foreignId('court_id')->constrained('courts')->cascadeOnDelete();
             $table->string('path');
             $table->string('alt')->nullable();
             $table->boolean('is_primary')->default(false);
