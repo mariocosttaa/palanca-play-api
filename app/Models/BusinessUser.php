@@ -4,14 +4,12 @@ namespace App\Models;
 
 use App\Traits\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class BusinessUser extends Model
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes, HasHashid;
+    use HasFactory, SoftDeletes, HasHashid;
 
     protected $fillable = [
         'name',
@@ -25,19 +23,9 @@ class User extends Authenticatable
         'password',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
+    protected $casts = [
+        'google_login' => 'boolean',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'google_login' => 'boolean',
-        ];
-    }
 
     // Relationships
     public function country()
@@ -45,9 +33,11 @@ class User extends Authenticatable
         return $this->belongsTo(Country::class);
     }
 
-    public function bookings()
+    public function tenants()
     {
-        return $this->hasMany(Booking::class);
+        return $this->belongsToMany(Tenant::class, 'business_users_tenants')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     // Scopes
@@ -56,3 +46,4 @@ class User extends Authenticatable
         return $query->where('country_id', $countryId);
     }
 }
+
