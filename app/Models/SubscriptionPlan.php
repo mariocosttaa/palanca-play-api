@@ -10,27 +10,24 @@ class SubscriptionPlan extends Model
 {
     use HasFactory, HasHashid;
 
+    protected $table = 'subscription_plan';
+
     protected $fillable = [
-        'name',
-        'slug',
-        'max_courts',
+        'tenant_id',
+        'courts',
         'price',
     ];
 
     protected $casts = [
-        'max_courts' => 'integer',
-        'price' => 'decimal:2',
+        'courts' => 'integer',
+        'price' => 'integer',
     ];
 
     // Relationships
-    public function tenants()
+    public function tenant()
     {
-        return $this->hasMany(Tenant::class);
+        return $this->belongsTo(Tenant::class);
     }
 
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
 }
 

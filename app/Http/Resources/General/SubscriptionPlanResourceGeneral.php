@@ -17,11 +17,10 @@ class SubscriptionPlanResourceGeneral extends JsonResource
     {
         return [
             'id' => EasyHashAction::encode($this->id, 'subscription-plan-id'),
-            'name' => $this->name,
-            'slug' => $this->slug,
-            'max_courts' => $this->max_courts,
+            'tenant_id' => EasyHashAction::encode($this->tenant_id, 'tenant-id'),
+            'tenant' => new TenantResourceGeneral($this->whenLoaded('tenant')),
+            'courts' => $this->courts,
             'price' => $this->price,
-            'price_fmt' => '$' . number_format($this->price, 2),
         ];
     }
 }
