@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\HasHashid;
+use App\Traits\HasMoney;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Invoice extends Model
+{
+    use HasFactory, HasHashid, HasMoney;
+
+    protected $fillable = [
+        'tenant_id',
+        'subscription_plan_id',
+        'period',
+        'date_start',
+        'date_end',
+        'price',
+        'is_extra_court',
+        'status',
+        'metadata',
+    ];
+
+    protected $casts = [
+        'date_start' => 'datetime',
+        'date_end' => 'datetime',
+        'price' => 'decimal:2',
+        'is_extra_court' => 'boolean',
+        'metadata' => 'array',
+    ];
+
+    // Relationships
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function subscriptionPlan()
+    {
+        return $this->belongsTo(SubscriptionPlan::class);
+    }
+
+    // Scopes
+    public function scopeForTenant($query, $tenantId)
+    {
+        return $query->where('tenant_id', $tenantId);
+    }
+
+    public function scopeWithStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'paid');
+    }
+
+    public function scopeExtraCourts($query)
+    {
+        return $query->where('is_extra_court', true);
+    }
+
+    public function scopeBetweenDates($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('date_start', [$startDate, $endDate]);
+    }
+}
+
