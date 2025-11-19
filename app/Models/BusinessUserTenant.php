@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class BusinessUserTenant extends Model
 {
+    /** @use HasFactory<\Database\Factories\BusinessUserTenantFactory> */
     use HasFactory;
 
     protected $fillable = [

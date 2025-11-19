@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SubscriptionPlan extends Model
 {
+    /** @use HasFactory<\Database\Factories\SubscriptionPlanFactory> */
     use HasFactory, HasHashid;
 
     protected $table = 'subscription_plan';

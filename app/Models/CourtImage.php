@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class CourtImage extends Model
 {
+    /** @use HasFactory<\Database\Factories\CourtImageFactory> */
     use HasFactory;
 
     protected $table = 'courts_images';

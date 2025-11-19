@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class CourtAvailability extends Model
 {
+    /** @use HasFactory<\Database\Factories\CourtAvailabilityFactory> */
     use HasFactory;
 
     protected $table = 'courts_availabilities';
