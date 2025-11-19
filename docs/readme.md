@@ -34,3 +34,4 @@ This directory contains the official patterns for **separated API applications**
 3.  **No Tenant ID in Requests**: `tenant_id` comes from middleware/attributes, never from user input.
 4.  **Validate via Classes**: Use `FormRequest` classes for all validation.
 5.  **Standardized Responses**: Follow the consistent JSON structure (`data`, `meta`, etc.).
+6.  **MANDATORY TESTS**: Every new API endpoint MUST have corresponding Feature tests. No endpoint is complete without tests. See [Testing Patterns](backend/api-testing-patterns.md).
