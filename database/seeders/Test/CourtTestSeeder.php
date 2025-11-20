@@ -22,6 +22,7 @@ class CourtTestSeeder extends Seeder
             for ($i = 0; $i < $courtTypesPerTenant; $i++) {
                 $courtType = CourtType::create([
                     'tenant_id' => $tenant->id,
+                    'type' => 'padel',
                     'name' => 'Court Type ' . ($i + 1),
                     'description' => 'Description for Court Type ' . ($i + 1),
                     'interval_time_minutes' => 60,
@@ -32,8 +33,8 @@ class CourtTestSeeder extends Seeder
                 // Create Courts for each Court Type
                 for ($j = 0; $j < $courtsPerType; $j++) {
                     $court = Court::create([
+                        'tenant_id' => $tenant->id,
                         'court_type_id' => $courtType->id,
-                        'type' => 'padel',
                         'name' => 'Court ' . ($j + 1),
                         'number' => (string) ($j + 1),
                         'status' => true,

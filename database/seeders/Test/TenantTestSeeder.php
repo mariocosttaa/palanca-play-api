@@ -18,6 +18,7 @@ class TenantTestSeeder extends Seeder
     {
         // Create tenants
         for ($i = 0; $i < $count; $i++) {
+            // First create the tenant
             $tenant = Tenant::create([
                 'name' => 'Tenant ' . ($i + 1),
                 'address' => '123 Test St',
@@ -28,11 +29,9 @@ class TenantTestSeeder extends Seeder
                 'buffer_between_bookings_minutes' => 0,
             ]);
 
-            // Create a subscription plan for each tenant
-            SubscriptionPlan::create([
+            // Then create the subscription plan for the tenant
+            SubscriptionPlan::factory()->create([
                 'tenant_id' => $tenant->id,
-                'courts' => 5,
-                'price' => 9900,
             ]);
         }
     }

@@ -18,7 +18,7 @@ class CountrySeeder extends Seeder
         }
 
         // Caminho do arquivo JSON
-        $filePath = database_path(path: 'seeders/CountrySeeder.json');
+        $filePath = database_path(path: 'seeders/Default/CountrySeeder.json');
 
         // Lê o conteúdo do arquivo
         $jsonContent = file_get_contents($filePath);
