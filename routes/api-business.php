@@ -1,6 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\Business\TenantController;
+use App\Http\Controllers\Api\V1\Business\CourtTypeController;
+use App\Http\Controllers\Api\V1\Business\CourtController;
+use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -15,28 +20,61 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Public authentication routes
     Route::prefix('business-users')->group(function () {
-        Route::post('/register', [App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController::class, 'register']);
-        Route::post('/login', [App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController::class, 'login']);
+        Route::post('/register', [AuthBusinessUserAuthController::class, 'register']);
+        Route::post('/login', [AuthBusinessUserAuthController::class, 'login']);
     });
 
     // Protected routes - requires authentication with business guard
     Route::middleware('auth:business')->group(function () {
-        // Business User authentication routes
+        // Business User authentication routes (no tenant required)
         Route::prefix('business-users')->group(function () {
-            Route::post('/logout', [App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController::class, 'logout']);
-            Route::get('/me', [App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController::class, 'me']);
+            Route::post('/logout', [AuthBusinessUserAuthController::class, 'logout']);
+            Route::get('/me', [AuthBusinessUserAuthController::class, 'me']);
         });
 
-        // TODO: Add other business user routes here
-        // Example:
-        // Route::prefix('courts')->group(function () {
-        //     Route::get('/', [CourtController::class, 'index']);
-        //     Route::post('/', [CourtController::class, 'store']);
-        // });
-        // Route::prefix('bookings')->group(function () {
-        //     Route::get('/', [BookingController::class, 'index']);
-        //     Route::post('/{booking}/confirm', [BookingController::class, 'confirm']);
-        // });
+        // Tenant routes
+        Route::prefix('business')->group(function () {
+            Route::get('/', [TenantController::class, 'index'])->name('tenant.index');
+            Route::put('/{tenant_id}', [TenantController::class, 'update'])->name('tenant.update');
+        });
+
+        // Tenant-scoped routes - requires tenant access middleware
+        Route::middleware('tenant.show')->group(function () {
+            Route::prefix('business/{tenant_id}')->group(function () {
+
+                // Tenant details
+                Route::get('/', [TenantController::class, 'show'])->name('tenant.show');
+
+                // Court types routes
+                Route::prefix('court-types')->group(function () {
+                    Route::get('/', [CourtTypeController::class, 'index'])->name('court-types.index');
+                    Route::post('/', [CourtTypeController::class, 'create'])->name('court-types.create');
+                    Route::put('/{court_type_id}', [CourtTypeController::class, 'update'])->name('court-types.update');
+                    Route::get('/{court_type_id}', [CourtTypeController::class, 'show'])->name('court-types.show');
+                    Route::delete('/{court_type_id}', [CourtTypeController::class, 'destroy'])->name('court-types.destroy');
+                });
+
+                // Courts routes
+                Route::prefix('courts')->group(function () {
+                    Route::get('/', [CourtController::class, 'index'])->name('courts.index');
+                    Route::post('/', [CourtController::class, 'create'])->name('courts.create');
+                    Route::put('/{court_id}', [CourtController::class, 'update'])->name('courts.update');
+                    Route::get('/{court_id}', [CourtController::class, 'show'])->name('courts.show');
+                    Route::delete('/{court_id}', [CourtController::class, 'destroy'])->name('courts.destroy');
+                });
+
+                // TODO: Add other tenant-scoped routes here
+                // Example:
+                // Route::prefix('courts')->group(function () {
+                //     Route::get('/', [CourtController::class, 'index']);
+                //     Route::post('/', [CourtController::class, 'store']);
+                // });
+                // Route::prefix('bookings')->group(function () {
+                //     Route::get('/', [BookingController::class, 'index']);
+                //     Route::post('/{booking}/confirm', [BookingController::class, 'confirm']);
+                // });
+            });
+        });
     });
 });
 
