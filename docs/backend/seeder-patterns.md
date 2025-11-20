@@ -12,49 +12,38 @@ Populate the database with initial configuration data and dummy test data using 
 ## 📝 Standard Pattern
 
 ### 1. Configuration Seeder (Production)
-Use for fixed data like Roles, Permissions, or Countries.
+Use for fixed data like Roles, Permissions, or Countries. Place these in `database/seeders/Default/`.
+
 ```php
-class RoleSeeder extends Seeder
+class CountrySeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = ['admin', 'manager', 'editor', 'viewer'];
+        $countries = json_decode(file_get_contents(__DIR__ . '/CountrySeeder.json'), true);
 
-        foreach ($roles as $role) {
-            Role::firstOrCreate(['name' => $role], ['guard_name' => 'web']);
+        foreach ($countries as $country) {
+            Country::firstOrCreate(['code' => $country['code']], $country);
         }
     }
 }
 ```
 
-### 2. Dummy Data Seeder (Development)
-Use Factories to generate relationships.
-```php
-class UserSeeder extends Seeder
-{
-    public function run(): void
-    {
-        // Create 1 Main Admin
-        User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin User',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
+### 2. Test Data Seeder (Development/Testing)
+Use for generating fake data for local development or testing. Place these in `database/seeders/Test/`.
 
-        // Create 50 random users with posts
-        User::factory()
-            ->count(50)
-            ->hasPosts(3) // Factory relationship
-            ->create();
+```php
+class UserTestSeeder extends Seeder
+{
+    public function run(int $count = 10): void
+    {
+        User::factory($count)->create();
     }
 }
 ```
 
 ### 3. Main DatabaseSeeder
-Control execution order.
+The `DatabaseSeeder` should only run **default configuration** seeders that are safe for production.
+
 ```php
 class DatabaseSeeder extends Seeder
 {
@@ -62,19 +51,46 @@ class DatabaseSeeder extends Seeder
     {
         // Always run config first
         $this->call([
-            RoleSeeder::class,
             CountrySeeder::class,
+            // Other default seeders...
         ]);
-
-        // Only run dummy data in local/staging
-        if (app()->isLocal()) {
-            $this->call([
-                UserSeeder::class,
-                ProductSeeder::class,
-            ]);
-        }
     }
 }
+```
+
+### 4. TestSeeder (Master Test Seeder)
+The `TestSeeder` orchestrates all test seeders. It is located at `database/seeders/TestSeeder.php`.
+
+```php
+class TestSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // 1. Seed business users
+        $this->call(BusinessUserTestSeeder::class, false, ['count' => 10]);
+
+        // 2. Seed app users
+        $this->call(UserTestSeeder::class, false, ['count' => 10]);
+
+        // ... other test seeders
+    }
+}
+```
+
+## 🚀 Running Seeders
+
+### Default Seeding (Production/Setup)
+Runs only the default configuration seeders (defined in `DatabaseSeeder`).
+
+```bash
+php artisan db:seed
+```
+
+### Test Seeding (Development)
+Runs the test data seeders (defined in `TestSeeder`). This command is a custom extension.
+
+```bash
+php artisan db:seed --test
 ```
 
 ## ⚠️ Anti-Patterns
@@ -85,3 +101,4 @@ class DatabaseSeeder extends Seeder
 | Running `User::truncate()` | Never truncate in seeders (danger for prod) |
 | Nested `foreach` loops for relations | Use Factory states: `User::factory()->hasPosts(5)` |
 | Seeding sensitive real data | Use `faker` for PII (Personally Identifiable Information) |
+| Mixing test data in `DatabaseSeeder` | Keep `DatabaseSeeder` for config only; use `TestSeeder` for fake data |
