@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\CourtTypeEnum;
 use App\Models\CourtType;
 use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -27,12 +28,20 @@ class CourtTypeFactory extends Factory
     {
         return [
             'tenant_id' => Tenant::factory(),
+            'type' => fake()->randomElement(CourtTypeEnum::cases())->value,
             'name' => fake()->words(2, true),
             'description' => fake()->sentence(),
             'interval_time_minutes' => fake()->randomElement([30, 60, 90, 120]),
             'buffer_time_minutes' => fake()->numberBetween(0, 30),
             'status' => true,
         ];
+    }
+
+    public function forType(string|CourtTypeEnum $type): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => $type instanceof CourtTypeEnum ? $type->value : $type,
+        ]);
     }
 
     /**

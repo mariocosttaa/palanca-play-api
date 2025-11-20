@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Court;
 use App\Models\CourtType;
+use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -26,8 +27,8 @@ class CourtFactory extends Factory
     public function definition(): array
     {
         return [
+            'tenant_id' => Tenant::factory(),
             'court_type_id' => CourtType::factory(),
-            'type' => fake()->randomElement(['padel', 'tennis', 'squash', 'badminton', 'other']),
             'name' => fake()->words(2, true),
             'number' => fake()->numberBetween(1, 20),
             'status' => true,
@@ -51,16 +52,6 @@ class CourtFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'court_type_id' => $courtType instanceof CourtType ? $courtType->id : $courtType,
-        ]);
-    }
-
-    /**
-     * Set the court type.
-     */
-    public function ofType(string $type): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'type' => $type,
         ]);
     }
 }

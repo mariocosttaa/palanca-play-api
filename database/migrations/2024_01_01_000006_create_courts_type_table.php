@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('courts_type', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->enum('type', ['football', 'basketball', 'tennis', 'squash', 'badminton', 'padel', 'other'])->default('padel');
             $table->string('name', 255);
             $table->text('description')->nullable();
             $table->integer('interval_time_minutes');
@@ -22,8 +23,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
+            $table->index('type');
             $table->index('tenant_id');
-            $table->index('status');
         });
     }
 

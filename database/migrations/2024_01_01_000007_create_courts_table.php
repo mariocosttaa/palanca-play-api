@@ -13,17 +13,17 @@ return new class extends Migration
     {
         Schema::create('courts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('court_type_id')->constrained('courts_type')->cascadeOnDelete();
-            $table->enum('type', ['padel', 'tennis', 'squash', 'badminton', 'other'])->default('padel');
             $table->string('name')->nullable();
             $table->string('number')->nullable();
             $table->boolean('status')->default(true);
             $table->timestamps();
             $table->softDeletes();
 
+            $table->index('tenant_id');
             $table->index('court_type_id');
             $table->index('status');
-            $table->index(['court_type_id', 'status']);
         });
     }
 
