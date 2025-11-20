@@ -63,14 +63,11 @@ class Tenant extends Model
     }
 
     // Scopes
-    public function scopeForTenant($query, $tenantId)
+    public function scopeForBusinessUser($query, $businessUserId)
     {
-        return $query->where('id', $tenantId);
-    }
-
-    public function scopeWithAutoConfirm($query)
-    {
-        return $query->where('auto_confirm_bookings', true);
+        return $query->whereHas('businessUsers', function ($query) use ($businessUserId) {
+            $query->where('business_users_tenants.business_user_id', $businessUserId);
+        });
     }
 }
 

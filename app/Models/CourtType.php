@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CourtTypeEnum;
 use App\Traits\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ class CourtType extends Model
 
     protected $fillable = [
         'tenant_id',
+        'type',
         'name',
         'description',
         'interval_time_minutes',
@@ -24,10 +26,13 @@ class CourtType extends Model
     ];
 
     protected $casts = [
+        'type' => CourtTypeEnum::class,
+        'status' => 'boolean',
         'interval_time_minutes' => 'integer',
         'buffer_time_minutes' => 'integer',
-        'status' => 'boolean',
     ];
+
+
 
     // Relationships
     public function tenant()

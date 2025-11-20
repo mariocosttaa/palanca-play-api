@@ -15,8 +15,8 @@ class Court extends Model
     protected $table = 'courts';
 
     protected $fillable = [
+        'tenant_id',
         'court_type_id',
-        'type',
         'name',
         'number',
         'status',
@@ -27,6 +27,11 @@ class Court extends Model
     ];
 
     // Relationships
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function courtType()
     {
         return $this->belongsTo(CourtType::class, 'court_type_id');
@@ -50,6 +55,11 @@ class Court extends Model
     public function bookings()
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function scopeForTenant($query, $tenantId)
+    {
+        return $query->where('tenant_id', $tenantId);
     }
 
     // Scopes
