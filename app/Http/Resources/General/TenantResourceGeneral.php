@@ -21,9 +21,6 @@ class TenantResourceGeneral extends JsonResource
             'address' => $this->address,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
-            'subscription_plan_id' => $this->subscription_plan_id
-                ? EasyHashAction::encode($this->subscription_plan_id, 'subscription-plan-id')
-                : null,
             'subscription_plan' => new SubscriptionPlanResourceGeneral($this->whenLoaded('subscriptionPlan')),
             'created_at' => $this->created_at?->toISOString(),
         ];

@@ -17,9 +17,10 @@ class CourtResourceGeneral extends JsonResource
     {
         return [
             'id' => EasyHashAction::encode($this->id, 'court-id'),
+            'tenant_id' => EasyHashAction::encode($this->tenant_id, 'tenant-id'),
+            'tenant' => new TenantResourceGeneral($this->whenLoaded('tenant')),
             'name' => $this->name,
             'number' => $this->number,
-            'type' => $this->type,
             'court_type_id' => EasyHashAction::encode($this->court_type_id, 'court-type-id'),
             'court_type' => new CourtTypeResourceGeneral($this->whenLoaded('courtType')),
             'status' => $this->status,

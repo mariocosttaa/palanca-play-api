@@ -18,9 +18,14 @@ class EasyHashAction
         return $hashids->encode($valueToBeEncode);
     }
 
-    public static function decode(string $valueEncoded, string $type = '', int $minReturnEncode = 21): int|string|null
+    public static function decode(?string $valueEncoded, string $type = '', int $minReturnEncode = 21): int|string|null
     {
         try {
+
+            if (empty($valueEncoded)) {
+                return null;
+            }
+
             $hashids = new Hashids($type, $minReturnEncode);
             $decodedArray = $hashids->decode($valueEncoded);
 
@@ -30,6 +35,7 @@ class EasyHashAction
 
             $decoded = $decodedArray[0] ?? null;
             return is_numeric($decoded) ? (int) $decoded : $decoded;
+
         } catch (\Exception $e) {
             return null;
         }
