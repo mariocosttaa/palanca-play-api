@@ -4,10 +4,12 @@ use App\Models\BusinessUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
 test('business user can register with valid data', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/business/v1/business-users/register', [
         'name' => 'Jane Business',
         'surname' => 'Smith',
@@ -40,6 +42,7 @@ test('business user can register with valid data', function () {
 });
 
 test('business user cannot register with invalid email', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/business/v1/business-users/register', [
         'name' => 'Jane Business',
         'email' => 'invalid-email',
@@ -52,6 +55,7 @@ test('business user cannot register with invalid email', function () {
 });
 
 test('business user cannot register with duplicate email', function () {
+    /** @var TestCase $this */
     BusinessUser::factory()->create(['email' => 'existing@example.com']);
 
     $response = $this->postJson('/business/v1/business-users/register', [
@@ -66,6 +70,7 @@ test('business user cannot register with duplicate email', function () {
 });
 
 test('business user can login with valid credentials', function () {
+    /** @var TestCase $this */
     $businessUser = BusinessUser::factory()->create([
         'email' => 'jane.business@example.com',
         'password' => Hash::make('password123'),
@@ -90,6 +95,7 @@ test('business user can login with valid credentials', function () {
 });
 
 test('business user cannot login with invalid credentials', function () {
+    /** @var TestCase $this */
     BusinessUser::factory()->create([
         'email' => 'jane.business@example.com',
         'password' => Hash::make('password123'),
@@ -105,6 +111,7 @@ test('business user cannot login with invalid credentials', function () {
 });
 
 test('authenticated business user can get their profile', function () {
+    /** @var TestCase $this */
     $businessUser = BusinessUser::factory()->create();
     Sanctum::actingAs($businessUser, [], 'business');
 
@@ -122,12 +129,14 @@ test('authenticated business user can get their profile', function () {
 });
 
 test('unauthenticated business user cannot get profile', function () {
+    /** @var TestCase $this */
     $response = $this->getJson('/business/v1/business-users/me');
 
     $response->assertStatus(401);
 });
 
 test('authenticated business user can logout', function () {
+    /** @var TestCase $this */
     $businessUser = BusinessUser::factory()->create();
     Sanctum::actingAs($businessUser, [], 'business');
 
@@ -143,6 +152,7 @@ test('authenticated business user can logout', function () {
 });
 
 test('business user cannot logout without token', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/business/v1/business-users/logout');
 
     $response->assertStatus(401);
