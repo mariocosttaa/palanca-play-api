@@ -18,7 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'tenant.show' => \App\Http\Middleware\EnsureTenantAccess::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
