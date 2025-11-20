@@ -5,10 +5,12 @@ use App\Models\BusinessUser;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
 test('example', function () {
+    /** @var TestCase $this */
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
