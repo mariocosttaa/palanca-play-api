@@ -42,9 +42,10 @@ class GeneratePostmanCollection extends Command
             'item' => [],
         ];
 
-        // Get all API routes
+        // Get all API routes (both mobile /api/ and business /business/)
         $apiRoutes = collect(Route::getRoutes())->filter(function ($route) {
-            return Str::startsWith($route->uri(), 'api/');
+            $uri = $route->uri();
+            return Str::startsWith($uri, 'api/') || Str::startsWith($uri, 'business/');
         });
 
         // Group routes by prefix/controller
@@ -65,10 +66,35 @@ class GeneratePostmanCollection extends Command
             $controllerName = class_basename($parts[0] ?? '');
             $methodName = $parts[1] ?? '';
 
-            // Extract group name from URI (e.g., api/v1/users -> users)
+            // Extract group name from URI
+            // For mobile: api/v1/users -> users
+            // For business: business/v1/business/{tenant_id}/courts -> courts
             $uriParts = explode('/', $uri);
-            $groupName = $uriParts[count($uriParts) - 2] ?? 'Other';
-            $endpointName = $uriParts[count($uriParts) - 1] ?? 'index';
+
+            // Determine if it's mobile or business API
+            $isBusiness = Str::startsWith($uri, 'business/');
+
+            if ($isBusiness) {
+                // For business routes, group by the resource name (e.g., courts, court-types)
+                // business/v1/business/{tenant_id}/courts -> courts
+                // business/v1/business/{tenant_id}/courts/{court_id} -> courts
+                // business/v1/business/{tenant_id}/court-types -> court-types
+                $lastPart = $uriParts[count($uriParts) - 1] ?? '';
+                $secondLastPart = $uriParts[count($uriParts) - 2] ?? '';
+
+                // If last part is a parameter (starts with {), use second-to-last as group
+                if (Str::startsWith($lastPart, '{')) {
+                    $groupName = $secondLastPart;
+                    $endpointName = $lastPart;
+                } else {
+                    $groupName = $lastPart;
+                    $endpointName = $lastPart;
+                }
+            } else {
+                // For mobile routes
+                $groupName = $uriParts[count($uriParts) - 2] ?? 'Other';
+                $endpointName = $uriParts[count($uriParts) - 1] ?? 'index';
+            }
 
             if (! isset($groupedRoutes[$groupName])) {
                 $groupedRoutes[$groupName] = [];
@@ -83,10 +109,16 @@ class GeneratePostmanCollection extends Command
             ];
         }
 
-        // Build collection items
+        // Separate mobile and business routes
+        $mobileGroups = [];
+        $businessGroups = [];
+
         foreach ($groupedRoutes as $groupName => $routes) {
             $items = [];
+            $isBusinessGroup = false;
+
             foreach ($routes as $route) {
+                $isBusinessGroup = Str::startsWith($route['uri'], 'business/');
                 $item = $this->buildRequestItem($route);
                 if ($item) {
                     $items[] = $item;
@@ -94,11 +126,42 @@ class GeneratePostmanCollection extends Command
             }
 
             if (! empty($items)) {
-                $collection['item'][] = [
+                if ($isBusinessGroup) {
+                    $businessGroups[$groupName] = $items;
+                } else {
+                    $mobileGroups[$groupName] = $items;
+                }
+            }
+        }
+
+        // Add Mobile API section
+        if (!empty($mobileGroups)) {
+            $mobileItems = [];
+            foreach ($mobileGroups as $groupName => $items) {
+                $mobileItems[] = [
                     'name' => $this->formatGroupName($groupName),
                     'item' => $items,
                 ];
             }
+            $collection['item'][] = [
+                'name' => 'Mobile API',
+                'item' => $mobileItems,
+            ];
+        }
+
+        // Add Business API section
+        if (!empty($businessGroups)) {
+            $businessItems = [];
+            foreach ($businessGroups as $groupName => $items) {
+                $businessItems[] = [
+                    'name' => $this->formatGroupName($groupName),
+                    'item' => $items,
+                ];
+            }
+            $collection['item'][] = [
+                'name' => 'Business API',
+                'item' => $businessItems,
+            ];
         }
 
         // Write to file
@@ -153,7 +216,9 @@ class GeneratePostmanCollection extends Command
 
         // Add Authorization header if protected
         if ($isAuth) {
-            $tokenVar = Str::contains($uri, 'business-users') ? 'business_user_token' : 'user_token';
+            // Determine token type based on route
+            $isBusinessRoute = Str::startsWith($uri, 'business/');
+            $tokenVar = $isBusinessRoute ? 'business_user_token' : 'user_token';
             $item['request']['header'][] = [
                 'key' => 'Authorization',
                 'value' => "Bearer {{$tokenVar}}",
@@ -178,7 +243,8 @@ class GeneratePostmanCollection extends Command
 
         // Add token auto-save for login/register endpoints
         if (Str::contains($uri, 'login') || Str::contains($uri, 'register')) {
-            $tokenVar = Str::contains($uri, 'business-users') ? 'business_user_token' : 'user_token';
+            $isBusinessRoute = Str::startsWith($uri, 'business/');
+            $tokenVar = $isBusinessRoute ? 'business_user_token' : 'user_token';
             $item['event'] = [
                 [
                     'listen' => 'test',
@@ -204,6 +270,7 @@ class GeneratePostmanCollection extends Command
     {
         // Example bodies for known endpoints
         $examples = [
+            // Mobile API
             'api/v1/users/register' => json_encode([
                 'name' => 'John Doe',
                 'surname' => 'Doe',
@@ -217,7 +284,8 @@ class GeneratePostmanCollection extends Command
                 'password' => 'password123',
                 'device_name' => 'Postman/Hoppscotch',
             ], JSON_PRETTY_PRINT),
-            'api/v1/business-users/register' => json_encode([
+            // Business API
+            'business/v1/business-users/register' => json_encode([
                 'name' => 'Jane Business',
                 'surname' => 'Smith',
                 'email' => 'jane.business@example.com',
@@ -225,10 +293,26 @@ class GeneratePostmanCollection extends Command
                 'password_confirmation' => 'password123',
                 'device_name' => 'Postman/Hoppscotch',
             ], JSON_PRETTY_PRINT),
-            'api/v1/business-users/login' => json_encode([
+            'business/v1/business-users/login' => json_encode([
                 'email' => 'jane.business@example.com',
                 'password' => 'password123',
                 'device_name' => 'Postman/Hoppscotch',
+            ], JSON_PRETTY_PRINT),
+            // Court Types
+            'business/v1/business/{tenant_id}/court-types' => json_encode([
+                'type' => 'padel',
+                'name' => 'Court Type Example',
+                'description' => 'Example court type description',
+                'interval_time_minutes' => 60,
+                'buffer_time_minutes' => 0,
+                'status' => true,
+            ], JSON_PRETTY_PRINT),
+            // Courts
+            'business/v1/business/{tenant_id}/courts' => json_encode([
+                'court_type_id' => '{{court_type_id_hash}}',
+                'name' => 'Court Example',
+                'number' => '1',
+                'status' => true,
             ], JSON_PRETTY_PRINT),
         ];
 
