@@ -4,10 +4,12 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
 test('user can register with valid data', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/api/v1/users/register', [
         'name' => 'John Doe',
         'surname' => 'Doe',
@@ -40,6 +42,7 @@ test('user can register with valid data', function () {
 });
 
 test('user cannot register with invalid email', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/api/v1/users/register', [
         'name' => 'John Doe',
         'email' => 'invalid-email',
@@ -52,6 +55,7 @@ test('user cannot register with invalid email', function () {
 });
 
 test('user cannot register with mismatched passwords', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/api/v1/users/register', [
         'name' => 'John Doe',
         'email' => 'john.doe@example.com',
@@ -64,6 +68,7 @@ test('user cannot register with mismatched passwords', function () {
 });
 
 test('user cannot register with duplicate email', function () {
+    /** @var TestCase $this */
     User::factory()->create(['email' => 'existing@example.com']);
 
     $response = $this->postJson('/api/v1/users/register', [
@@ -78,6 +83,7 @@ test('user cannot register with duplicate email', function () {
 });
 
 test('user can login with valid credentials', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create([
         'email' => 'john.doe@example.com',
         'password' => Hash::make('password123'),
@@ -102,6 +108,7 @@ test('user can login with valid credentials', function () {
 });
 
 test('user cannot login with invalid credentials', function () {
+    /** @var TestCase $this */
     User::factory()->create([
         'email' => 'john.doe@example.com',
         'password' => Hash::make('password123'),
@@ -117,6 +124,7 @@ test('user cannot login with invalid credentials', function () {
 });
 
 test('authenticated user can get their profile', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     Sanctum::actingAs($user);
 
@@ -134,12 +142,14 @@ test('authenticated user can get their profile', function () {
 });
 
 test('unauthenticated user cannot get profile', function () {
+    /** @var TestCase $this */
     $response = $this->getJson('/api/v1/users/me');
 
     $response->assertStatus(401);
 });
 
 test('authenticated user can logout', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $token = $user->createToken('test-device')->plainTextToken;
 
@@ -157,6 +167,7 @@ test('authenticated user can logout', function () {
 });
 
 test('user cannot logout without token', function () {
+    /** @var TestCase $this */
     $response = $this->postJson('/api/v1/users/logout');
 
     $response->assertStatus(401);

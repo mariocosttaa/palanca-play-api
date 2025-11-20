@@ -41,7 +41,13 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Get the current test case instance.
+ * This helper helps IDEs understand the type of $this in test closures.
+ *
+ * @return \Tests\TestCase
+ */
+function testCase(): \Tests\TestCase
 {
-    // ..
+    return test()->getTestCase();
 }
