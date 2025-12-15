@@ -45,6 +45,24 @@ class CourtController extends Controller
             $this->beginTransactionSafe();
 
             $tenant = $request->tenant;
+
+            // Check subscription plan limits
+            // Check subscription plan limits via valid invoice (injected by middleware)
+            $validInvoice = $request->valid_invoice;
+            
+            // Fallback to subscription plan if no invoice (e.g. for free tier or if middleware didn't block - though it should have)
+            // But user requested to use invoice.
+            $maxCourts = $validInvoice ? $validInvoice->max_courts : ($tenant->subscriptionPlan?->courts ?? 0);
+
+            $currentCourtsCount = $tenant->courts()->count();
+            if ($currentCourtsCount >= $maxCourts) {
+                $this->rollBackSafe();
+                return $this->errorResponse(
+                    message: 'Limite de quadras atingido para o seu plano de subscrição.',
+                    status: 403
+                );
+            }
+
             $court = new Court();
 
             $court->fill($request->validated());

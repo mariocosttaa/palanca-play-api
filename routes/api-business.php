@@ -41,7 +41,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // Tenant-scoped routes - requires tenant access middleware
-        Route::middleware('tenant.show')->group(function () {
+        Route::middleware(['tenant.show', \App\Http\Middleware\CheckTenantSubscription::class, \App\Http\Middleware\BlockSubscriptionCrud::class])->group(function () {
             Route::prefix('business/{tenant_id}')->group(function () {
 
                 // Tenant details
