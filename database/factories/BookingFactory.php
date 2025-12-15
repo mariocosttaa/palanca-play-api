@@ -36,6 +36,7 @@ class BookingFactory extends Factory
             'tenant_id' => Tenant::factory(),
             'court_id' => Court::factory(),
             'user_id' => User::factory(),
+            'currency_id' => \App\Models\Manager\CurrencyModel::factory(),
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
             'start_time' => $startTime,

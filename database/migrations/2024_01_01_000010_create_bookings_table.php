@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('court_id')->constrained('courts')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('currency_id')->constrained('currencies')->cascadeOnDelete();
             $table->date('start_date');
             $table->date('end_date');
             $table->time('start_time');

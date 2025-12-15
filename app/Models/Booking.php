@@ -15,7 +15,9 @@ class Booking extends Model
     protected $fillable = [
         'tenant_id',
         'court_id',
+        'court_id',
         'user_id',
+        'currency_id',
         'start_date',
         'end_date',
         'start_time',
@@ -27,6 +29,7 @@ class Booking extends Model
     ];
 
     protected $casts = [
+        'currency_id' => 'integer',
         'start_date' => 'date',
         'end_date' => 'date',
         'start_time' => 'datetime',
@@ -51,6 +54,11 @@ class Booking extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(\App\Models\Manager\CurrencyModel::class);
     }
 
     // Scopes
