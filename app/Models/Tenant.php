@@ -13,10 +13,14 @@ class Tenant extends Model
     use HasFactory, SoftDeletes, HasHashid;
 
     protected $fillable = [
+        'country_id',
         'name',
+        'logo',
         'address',
         'latitude',
         'longitude',
+        'currency',
+        'timezone',
         'auto_confirm_bookings',
         'booking_interval_minutes',
         'buffer_between_bookings_minutes',
@@ -31,6 +35,11 @@ class Tenant extends Model
     ];
 
     // Relationships
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
+    }
+
     public function subscriptionPlan()
     {
         return $this->hasOne(SubscriptionPlan::class);

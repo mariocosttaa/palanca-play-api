@@ -13,10 +13,14 @@ return new class extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('country_id')->constrained('countries')->cascadeOnDelete();
             $table->string('name', 255);
+            $table->string('logo', 512)->nullable();
             $table->string('address', 512)->nullable();
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 10, 7)->nullable();
+            $table->enum('currency', ['usd', 'aoa', 'eur', 'brl'])->default('aoa');
+            $table->string('timezone')->default('Africa/Luanda');
             $table->boolean('auto_confirm_bookings')->default(false);
             $table->integer('booking_interval_minutes');
             $table->integer('buffer_between_bookings_minutes');

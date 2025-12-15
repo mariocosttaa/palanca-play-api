@@ -66,12 +66,16 @@ class UpdateTenantRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'country_id' => 'required|exists:countries,id',
             'name' => ['required', 'string', 'min:3', 'max:255',
                 Rule::unique('tenants', 'name')->where('id', $this->tenant_id)->ignore($this->tenant_id, 'id')
             ],
+            'logo' => 'nullable|string|max:512',
             'address' => 'required|string|max:512',
             'latitude' => 'nullable|decimal:7',
             'longitude' => 'nullable|decimal:7',
+            'currency' => 'required|in:usd,aoa,eur,brl',
+            'timezone' => 'required|string|max:255',
             'auto_confirm_bookings' => 'required|boolean',
             'booking_interval_minutes' => 'required|integer|min:5|max:120',
             'buffer_between_bookings_minutes' => 'required|integer|min:0|max:120',
@@ -81,15 +85,24 @@ class UpdateTenantRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'country_id.required' => 'O país é obrigatório',
+            'country_id.exists' => 'O país selecionado não é válido',
             'name.required' => 'O nome é obrigatório',
             'name.string' => 'O nome deve ser uma string',
             'name.min' => 'O nome deve ter pelo menos 3 caracteres',
             'name.max' => 'O nome deve ter no máximo 255 caracteres',
             'name.unique' => 'O nome já existe',
+            'logo.string' => 'O logo deve ser uma string',
+            'logo.max' => 'O logo deve ter no máximo 512 caracteres',
             'address.string' => 'O endereço deve ser uma string',
             'address.max' => 'O endereço deve ter no máximo 512 caracteres',
             'latitude.decimal' => 'A latitude deve ser um número decimal',
             'longitude.decimal' => 'A longitude deve ser um número decimal',
+            'currency.required' => 'A moeda é obrigatória',
+            'currency.in' => 'A moeda selecionada não é válida',
+            'timezone.required' => 'O fuso horário é obrigatório',
+            'timezone.string' => 'O fuso horário deve ser uma string',
+            'timezone.max' => 'O fuso horário deve ter no máximo 255 caracteres',
             'auto_confirm_bookings.required' => 'A confirmação de agendamento automática é obrigatória',
             'auto_confirm_bookings.boolean' => 'A confirmação de agendamento automática deve ser um booleano',
             'booking_interval_minutes.required' => 'O intervalo de tempo é obrigatório',
@@ -105,10 +118,14 @@ class UpdateTenantRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'country_id' => 'País',
             'name' => 'Nome',
+            'logo' => 'Logo',
             'address' => 'Endereço',
             'latitude' => 'Latitude',
             'longitude' => 'Longitude',
+            'currency' => 'Moeda',
+            'timezone' => 'Fuso horário',
             'auto_confirm_bookings' => 'Confirmação de agendamento automática',
             'booking_interval_minutes' => 'Intervalo de tempo',
             'buffer_between_bookings_minutes' => 'Buffer entre agendamentos',

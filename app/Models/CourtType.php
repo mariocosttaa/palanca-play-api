@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\General\MoneyAction;
 use App\Enums\CourtTypeEnum;
 use App\Traits\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -61,6 +62,16 @@ class CourtType extends Model
     public function scopeActive($query)
     {
         return $query->where('status', true);
+    }
+
+    // Accessors
+    public function getPriceFormattedAttribute()
+    {
+        return MoneyAction::format(
+            amount: $this->price_per_interval,
+            currency: $this->tenant->currency ?? 'aoa',
+            formatWithSymbol: true
+        );
     }
 }
 
