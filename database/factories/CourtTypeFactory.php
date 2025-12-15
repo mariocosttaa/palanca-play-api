@@ -33,6 +33,7 @@ class CourtTypeFactory extends Factory
             'description' => fake()->sentence(),
             'interval_time_minutes' => fake()->randomElement([30, 60, 90, 120]),
             'buffer_time_minutes' => fake()->numberBetween(0, 30),
+            'price_per_interval' => fake()->numberBetween(1000, 5000),
             'status' => true,
         ];
     }

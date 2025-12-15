@@ -25,6 +25,7 @@ class CourtTypeResourceGeneral extends JsonResource
             'description' => $this->description,
             'interval_time_minutes' => $this->interval_time_minutes,
             'buffer_time_minutes' => $this->buffer_time_minutes,
+            'price_per_interval' => $this->price_per_interval,
             'status' => $this->status,
             'created_at' => $this->created_at?->toISOString(),
         ];

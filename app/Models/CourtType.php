@@ -22,6 +22,7 @@ class CourtType extends Model
         'description',
         'interval_time_minutes',
         'buffer_time_minutes',
+        'price_per_interval',
         'status',
     ];
 
@@ -30,6 +31,7 @@ class CourtType extends Model
         'status' => 'boolean',
         'interval_time_minutes' => 'integer',
         'buffer_time_minutes' => 'integer',
+        'price_per_interval' => 'integer',
     ];
 
 

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->integer('interval_time_minutes');
             $table->integer('buffer_time_minutes');
+            $table->integer('price_per_interval')->default(0);
             $table->boolean('status')->default(true);
             $table->timestamps();
             $table->softDeletes();

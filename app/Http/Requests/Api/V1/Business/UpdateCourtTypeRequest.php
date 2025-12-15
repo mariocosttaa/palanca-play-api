@@ -74,6 +74,7 @@ class UpdateCourtTypeRequest extends FormRequest
             'description' => 'nullable|string|max:255',
             'interval_time_minutes' => 'required|integer|min:5|max:120',
             'buffer_time_minutes' => 'required|integer|min:0|max:120',
+            'price_per_interval' => 'required|integer|min:0',
             'status' => 'required|boolean|in:0,1',
         ];
     }
@@ -99,6 +100,9 @@ class UpdateCourtTypeRequest extends FormRequest
             'buffer_time_minutes.integer' => 'O buffer de tempo deve ser um número inteiro',
             'buffer_time_minutes.min' => 'O buffer de tempo deve ser pelo menos 0 minutos',
             'buffer_time_minutes.max' => 'O buffer de tempo deve ser no máximo 120 minutos',
+            'price_per_interval.required' => 'O preço por intervalo é obrigatório',
+            'price_per_interval.integer' => 'O preço por intervalo deve ser um número inteiro',
+            'price_per_interval.min' => 'O preço por intervalo deve ser pelo menos 0',
             'status.required' => 'O status é obrigatório',
             'status.boolean' => 'O status está incorreto',
             'status.in' => 'O status deve estar ativo ou inativo',
@@ -113,6 +117,7 @@ class UpdateCourtTypeRequest extends FormRequest
             'description' => 'Descrição',
             'interval_time_minutes' => 'Intervalo de tempo',
             'buffer_time_minutes' => 'Buffer de tempo',
+            'price_per_interval' => 'Preço por intervalo',
             'status' => 'Estado',
         ];
     }
