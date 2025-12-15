@@ -190,4 +190,28 @@ class BookingController extends Controller
             return $this->errorResponse('Erro ao remover agendamento', $e->getMessage());
         }
     }
+    public function confirmPresence(Request $request, $tenantId, $bookingId)
+    {
+        try {
+            $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
+            $booking = Booking::forTenant($request->tenant->id)->find($bookingId);
+
+            if (!$booking) {
+                return $this->errorResponse('Agendamento não encontrado', status: 404);
+            }
+
+            $request->validate([
+                'present' => 'required|boolean',
+            ]);
+
+            $booking->update([
+                'present' => $request->present,
+            ]);
+
+            return $this->dataResponse(BookingResource::make($booking)->resolve());
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao confirmar presença', $e->getMessage());
+        }
+    }
 }

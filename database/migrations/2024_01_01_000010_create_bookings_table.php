@@ -25,6 +25,8 @@ return new class extends Migration
             $table->boolean('is_pending')->default(true);
             $table->boolean('is_cancelled')->default(false);
             $table->boolean('is_paid')->default(false);
+            $table->boolean('paid_at_venue')->default(false);
+            $table->boolean('present')->nullable()->default(null);
             $table->timestamps();
 
             $table->index('tenant_id');

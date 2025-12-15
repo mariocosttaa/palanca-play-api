@@ -26,6 +26,7 @@ class Booking extends Model
         'is_cancelled',
         'is_paid',
         'paid_at_venue',
+        'present',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class Booking extends Model
         'is_cancelled' => 'boolean',
         'is_paid' => 'boolean',
         'paid_at_venue' => 'boolean',
+        'present' => 'boolean',
     ];
 
     // Relationships

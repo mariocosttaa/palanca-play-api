@@ -98,6 +98,7 @@ Route::prefix('v1')->group(function () {
                     Route::post('/', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'store'])->name('bookings.store');
                     Route::get('/{booking_id}', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'show'])->name('bookings.show');
                     Route::put('/{booking_id}', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'update'])->name('bookings.update');
+                    Route::put('/{booking_id}/presence', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'confirmPresence'])->name('bookings.confirm-presence');
                     Route::delete('/{booking_id}', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'destroy'])->name('bookings.destroy');
                 });
 
