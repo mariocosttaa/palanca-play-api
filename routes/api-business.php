@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\V1\Business\CourtTypeController;
 use App\Http\Controllers\Api\V1\Business\CourtController;
 use App\Http\Controllers\Api\V1\Business\CourtImageController;
 use App\Http\Controllers\Api\V1\Business\CourtAvailabilityController;
+use App\Http\Controllers\Api\V1\Business\SubscriptionController;
+use App\Http\Controllers\Api\V1\Business\BookingController;
 use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
 
 
@@ -72,34 +74,38 @@ Route::prefix('v1')->group(function () {
                     });
                 });
 
-                // Court Availabilities routes
-                Route::prefix('court-availabilities')->group(function () {
-                    // New endpoints for checking availability
-                    Route::get('/dates', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'getDates'])->name('court-availabilities.dates');
-                    Route::get('/slots', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'getSlots'])->name('court-availabilities.slots');
+                    // Court Availabilities routes
+                    // Court Availabilities routes
+                    Route::prefix('courts/{court_id}')->group(function () {
+                        // Availability CRUD
+                        Route::prefix('availabilities')->group(function () {
+                            Route::get('/', [CourtAvailabilityController::class, 'index'])->name('courts.availabilities.index');
+                            Route::post('/', [CourtAvailabilityController::class, 'store'])->name('courts.availabilities.store');
+                            Route::put('/{availability_id}', [CourtAvailabilityController::class, 'update'])->name('courts.availabilities.update');
+                            Route::delete('/{availability_id}', [CourtAvailabilityController::class, 'destroy'])->name('courts.availabilities.destroy');
+                        });
 
-                    // Existing CRUD routes (assuming they exist or were placeholders)
-                    // Route::get('/', [CourtAvailabilityController::class, 'index'])->name('court-availabilities.index');
-                    // Route::post('/', [CourtAvailabilityController::class, 'create'])->name('court-availabilities.create');
-                    // Route::put('/{availability_id}', [CourtAvailabilityController::class, 'update'])->name('court-availabilities.update');
-                    // Route::get('/{availability_id}', [CourtAvailabilityController::class, 'show'])->name('court-availabilities.show');
-                    // Route::delete('/{availability_id}', [CourtAvailabilityController::class, 'destroy'])->name('court-availabilities.destroy');
-                });
-
+                        // Availability Checks
+                        Route::prefix('availability')->group(function () {
+                            Route::get('/dates', [CourtAvailabilityController::class, 'getDates'])->name('courts.availability.dates');
+                            Route::get('/{date}/slots', [CourtAvailabilityController::class, 'getSlots'])->name('courts.availability.slots');
+                        });
+                    });
+ 
                 // Subscription routes
                 Route::prefix('subscriptions')->group(function () {
-                    Route::get('/invoices', [\App\Http\Controllers\Api\V1\Business\SubscriptionController::class, 'indexInvoices'])->name('subscriptions.invoices');
-                    Route::get('/current', [\App\Http\Controllers\Api\V1\Business\SubscriptionController::class, 'current'])->name('subscriptions.current');
+                    Route::get('/invoices', [SubscriptionController::class, 'indexInvoices'])->name('subscriptions.invoices');
+                    Route::get('/current', [SubscriptionController::class, 'current'])->name('subscriptions.current');
                 });
 
                 // Booking routes
                 Route::prefix('bookings')->group(function () {
-                    Route::get('/', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'index'])->name('bookings.index');
-                    Route::post('/', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'store'])->name('bookings.store');
-                    Route::get('/{booking_id}', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'show'])->name('bookings.show');
-                    Route::put('/{booking_id}', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'update'])->name('bookings.update');
-                    Route::put('/{booking_id}/presence', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'confirmPresence'])->name('bookings.confirm-presence');
-                    Route::delete('/{booking_id}', [\App\Http\Controllers\Api\V1\Business\BookingController::class, 'destroy'])->name('bookings.destroy');
+                    Route::get('/', [BookingController::class, 'index'])->name('bookings.index');
+                    Route::post('/', [BookingController::class, 'store'])->name('bookings.store');
+                    Route::get('/{booking_id}', [BookingController::class, 'show'])->name('bookings.show');
+                    Route::put('/{booking_id}', [BookingController::class, 'update'])->name('bookings.update');
+                    Route::put('/{booking_id}/presence', [BookingController::class, 'confirmPresence'])->name('bookings.confirm-presence');
+                    Route::delete('/{booking_id}', [BookingController::class, 'destroy'])->name('bookings.destroy');
                 });
 
                 // TODO: Add other tenant-scoped routes here

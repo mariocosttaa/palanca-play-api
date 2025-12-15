@@ -47,7 +47,7 @@ class Court extends Model
         return $this->hasOne(CourtImage::class)->where('is_primary', true);
     }
 
-    public function courtsAvailabilities()
+    public function availabilities()
     {
         return $this->hasMany(CourtAvailability::class);
     }
@@ -81,11 +81,11 @@ class Court extends Model
     // Accessors
     public function getEffectiveAvailabilityAttribute()
     {
-        if ($this->courtsAvailabilities()->exists()) {
-            return $this->courtsAvailabilities;
+        if ($this->availabilities()->exists()) {
+            return $this->availabilities;
         }
 
-        return $this->courtType->courtsAvailabilities ?? collect();
+        return $this->courtType->availabilities ?? collect();
     }
     // Availability Logic
     public function getAvailableDates($startDate, $endDate)
@@ -109,13 +109,13 @@ class Court extends Model
 
         // 1. Get Operating Hours
         // Check specific date first
-        $availability = $this->courtsAvailabilities()
+        $availability = $this->availabilities()
             ->whereDate('specific_date', $date->format('Y-m-d'))
             ->first();
 
         // If no specific date, check recurring day
         if (!$availability) {
-            $availability = $this->courtsAvailabilities()
+            $availability = $this->availabilities()
                 ->where('day_of_week_recurring', $dayOfWeek)
                 ->first();
         }

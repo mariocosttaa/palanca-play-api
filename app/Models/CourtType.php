@@ -48,7 +48,7 @@ class CourtType extends Model
         return $this->hasMany(Court::class, 'court_type_id');
     }
 
-    public function courtsAvailabilities()
+    public function availabilities()
     {
         return $this->hasMany(CourtAvailability::class);
     }
