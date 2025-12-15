@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\Auth\UserLoginRequest;
 use App\Http\Requests\Api\V1\Auth\UserRegisterRequest;
 use App\Http\Resources\Specific\UserResourceSpecific;
 use App\Models\User;
+use App\Models\Country;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,13 +24,19 @@ class UserAuthController extends Controller
         try {
             $this->beginTransactionSafe();
 
+            $callingCode = null;
+            if ($request->country_id) {
+                $country = Country::find($request->country_id);
+                $callingCode = $country?->calling_code;
+            }
+
             $user = User::create([
                 'name' => $request->name,
                 'surname' => $request->surname,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'country_id' => $request->country_id,
-                'calling_code' => $request->calling_code,
+                'calling_code' => $callingCode,
                 'phone' => $request->phone,
                 'timezone' => $request->timezone,
                 'is_app_user' => true,

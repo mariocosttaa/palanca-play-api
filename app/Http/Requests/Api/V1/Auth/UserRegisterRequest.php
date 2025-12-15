@@ -51,9 +51,9 @@ class UserRegisterRequest extends FormRequest
             'surname' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id')],
+            'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id'), 'required_with:phone'],
             'calling_code' => ['nullable', 'string', 'max:10'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'integer', 'digits_between:4,20'],
             'timezone' => ['nullable', 'string', 'max:50'],
             'device_name' => ['nullable', 'string', 'max:255'],
         ];
