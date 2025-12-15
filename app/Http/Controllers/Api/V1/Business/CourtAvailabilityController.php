@@ -4,114 +4,47 @@ namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\V1\Business\CreateCourtAvailabilityRequest;
-use App\Http\Requests\Api\V1\Business\UpdateCourtAvailabilityRequest;
-use App\Http\Resources\General\CourtAvailabilityResourceGeneral;
-use App\Models\CourtAvailability;
+use App\Models\Court;
 use Illuminate\Http\Request;
 
 class CourtAvailabilityController extends Controller
 {
-    public function index(Request $request)
+    public function getDates(Request $request)
     {
-        try {
-            $tenant = $request->tenant;
-            $availabilities = CourtAvailability::forTenant($tenant->id)->get();
+        $request->validate([
+            'court_id' => 'required',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
 
-            return $this->dataResponse(
-                CourtAvailabilityResourceGeneral::collection($availabilities)->resolve()
-            );
+        $courtId = EasyHashAction::decode($request->court_id, 'court-id');
+        $court = Court::forTenant($request->tenant->id)->find($courtId);
 
-        } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar disponibilidades', $e->getMessage(), 500);
+        if (!$court) {
+            return $this->errorResponse('Quadra não encontrada', status: 404);
         }
+
+        $dates = $court->getAvailableDates($request->start_date, $request->end_date);
+
+        return $this->dataResponse($dates);
     }
 
-    public function show(Request $request, string $tenantIdHashId, string $availabilityIdHashId)
+    public function getSlots(Request $request)
     {
-        try {
-            $tenant = $request->tenant;
-            $availabilityId = EasyHashAction::decode($availabilityIdHashId, 'court-availability-id');
-            $availability = CourtAvailability::forTenant($tenant->id)->findOrFail($availabilityId);
+        $request->validate([
+            'court_id' => 'required',
+            'date' => 'required|date',
+        ]);
 
-            return $this->dataResponse(CourtAvailabilityResourceGeneral::make($availability)->resolve());
+        $courtId = EasyHashAction::decode($request->court_id, 'court-id');
+        $court = Court::forTenant($request->tenant->id)->find($courtId);
 
-        } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar disponibilidade', $e->getMessage(), 500);
+        if (!$court) {
+            return $this->errorResponse('Quadra não encontrada', status: 404);
         }
-    }
 
-    public function create(CreateCourtAvailabilityRequest $request, string $tenantIdHashId)
-    {
-        try {
-            $this->beginTransactionSafe();
+        $slots = $court->getAvailableSlots($request->date);
 
-            $tenant = $request->tenant;
-            $availability = new CourtAvailability();
-
-            $availability->fill($request->validated());
-            $availability->tenant_id = $tenant->id;
-            $availability->save();
-
-            $this->commitSafe();
-
-            return $this->dataResponse(CourtAvailabilityResourceGeneral::make($availability)->resolve());
-
-        } catch (\Exception $e) {
-            $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao criar a disponibilidade', $e->getMessage());
-        }
-    }
-
-    public function update(UpdateCourtAvailabilityRequest $request, string $tenantIdHashId, string $availabilityIdHashId)
-    {
-        try {
-            $this->beginTransactionSafe();
-
-            $tenant = $request->tenant;
-            $availabilityId = EasyHashAction::decode($availabilityIdHashId, 'court-availability-id');
-            $availability = CourtAvailability::forTenant($tenant->id)->find($availabilityId);
-
-            if (!$availability) {
-                $this->rollBackSafe();
-                return $this->errorResponse(message: 'Disponibilidade não encontrada', status: 404);
-            }
-
-            $availability->update($request->validated());
-
-            $this->commitSafe();
-
-            return $this->dataResponse(CourtAvailabilityResourceGeneral::make($availability)->resolve());
-
-        } catch (\Exception $e) {
-            $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao actualizar a disponibilidade', $e->getMessage());
-        }
-    }
-
-    public function destroy(Request $request, string $tenantIdHashId, string $availabilityIdHashId)
-    {
-        try {
-            $this->beginTransactionSafe();
-
-            $tenant = $request->tenant;
-            $availabilityId = EasyHashAction::decode($availabilityIdHashId, 'court-availability-id');
-            $availability = CourtAvailability::forTenant($tenant->id)->where('id', $availabilityId)->first();
-
-            if (!$availability) {
-                $this->rollBackSafe();
-                return $this->errorResponse(message: 'Disponibilidade não encontrada', status: 404);
-            }
-
-            $availability->delete();
-
-            $this->commitSafe();
-
-            return $this->successResponse('Disponibilidade deletada com sucesso');
-
-        } catch (\Exception $e) {
-            $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao deletar a disponibilidade', $e->getMessage());
-        }
+        return $this->dataResponse($slots);
     }
 }

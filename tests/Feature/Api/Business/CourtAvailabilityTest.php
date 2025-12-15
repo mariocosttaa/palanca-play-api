@@ -1,139 +1,177 @@
 <?php
 
 use App\Actions\General\EasyHashAction;
+use App\Models\Booking;
 use App\Models\BusinessUser;
-use App\Models\Invoice;
+use App\Models\Court;
 use App\Models\CourtAvailability;
+use App\Models\Invoice;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
-test('user can get all court availabilities', function () {
-    $tenant = Tenant::factory()->create();
-    $businessUser = BusinessUser::factory()->create();
-    $businessUser->tenants()->attach($tenant);
+test('can get available dates', function () {
+    $tenant = Tenant::factory()->create(['booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
 
-    // Create a valid invoice for the tenant
-    Invoice::factory()->create([
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    
+    // Create availability for Mondays
+    CourtAvailability::factory()->create([
         'tenant_id' => $tenant->id,
-        'status' => 'paid',
-        'date_end' => now()->addDay(),
-        'max_courts' => 10,
-    ]);
-    Sanctum::actingAs($businessUser, [], 'business');
-    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
-
-    CourtAvailability::factory()->count(3)->create([
-        'tenant_id' => $tenant->id,
-    ]);
-
-    $response = $this->getJson(route('court-availabilities.index', ['tenant_id' => $tenantHashId]));
-
-    $response->assertStatus(200);
-    $response->assertJsonCount(3, 'data');
-});
-
-test('user can create a court availability', function () {
-    $tenant = Tenant::factory()->create();
-    $businessUser = BusinessUser::factory()->create();
-    $businessUser->tenants()->attach($tenant);
-
-    // Create a valid invoice for the tenant
-    Invoice::factory()->create([
-        'tenant_id' => $tenant->id,
-        'status' => 'paid',
-        'date_end' => now()->addDay(),
-        'max_courts' => 10,
-    ]);
-    Sanctum::actingAs($businessUser, [], 'business');
-    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
-
-    $data = [
-        'day_of_week_recurring' => 'Monday',
+        'court_id' => $court->id,
+        'day_of_week_recurring' => 'monday',
         'start_time' => '08:00',
-        'end_time' => '22:00',
+        'end_time' => '12:00',
         'is_available' => true,
-    ];
+    ]);
 
-    $response = $this->postJson(route('court-availabilities.create', ['tenant_id' => $tenantHashId]), $data);
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    Sanctum::actingAs($user, [], 'business');
+
+    // Find next Monday
+    $nextMonday = now()->next('Monday');
+    
+    $response = $this->getJson(route('court-availabilities.dates', [
+        'tenant_id' => $tenantHashId,
+        'court_id' => $courtHashId,
+        'start_date' => now()->format('Y-m-d'),
+        'end_date' => now()->addWeeks(2)->format('Y-m-d'),
+    ]));
 
     $response->assertStatus(200);
-    $this->assertDatabaseHas('courts_availabilities', [
+    $this->assertContains($nextMonday->format('Y-m-d'), $response->json('data'));
+});
+
+test('can get available slots', function () {
+    $tenant = Tenant::factory()->create(['booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    
+    // Availability: 08:00 - 10:00 (2 slots: 08-09, 09-10)
+    CourtAvailability::factory()->create([
         'tenant_id' => $tenant->id,
-        'day_of_week_recurring' => 'Monday',
+        'court_id' => $court->id,
+        'specific_date' => now()->format('Y-m-d'),
         'start_time' => '08:00',
-        'end_time' => '22:00',
+        'end_time' => '10:00',
+        'is_available' => true,
     ]);
-});
 
-test('user can update a court availability', function () {
-    $tenant = Tenant::factory()->create();
-    $businessUser = BusinessUser::factory()->create();
-    $businessUser->tenants()->attach($tenant);
-
-    // Create a valid invoice for the tenant
-    Invoice::factory()->create([
-        'tenant_id' => $tenant->id,
-        'status' => 'paid',
-        'date_end' => now()->addDay(),
-        'max_courts' => 10,
-    ]);
-    Sanctum::actingAs($businessUser, [], 'business');
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    $availability = CourtAvailability::factory()->create([
-        'tenant_id' => $tenant->id,
-        'day_of_week_recurring' => 'Monday',
-    ]);
+    Sanctum::actingAs($user, [], 'business');
 
-    $availabilityHashId = EasyHashAction::encode($availability->id, 'court-availability-id');
+    $response = $this->getJson(route('court-availabilities.slots', [
+        'tenant_id' => $tenantHashId,
+        'court_id' => $courtHashId,
+        'date' => now()->format('Y-m-d'),
+    ]));
 
-    $data = [
-        'day_of_week_recurring' => 'Tuesday',
-        'start_time' => '09:00',
-        'end_time' => '23:00',
-        'is_available' => false,
-    ];
-
-    $response = $this->putJson(route('court-availabilities.update', ['tenant_id' => $tenantHashId, 'availability_id' => $availabilityHashId]), $data);
-
-    $response->assertStatus(200);
-    $this->assertDatabaseHas('courts_availabilities', [
-        'id' => $availability->id,
-        'day_of_week_recurring' => 'Tuesday',
-        'start_time' => '09:00',
-        'end_time' => '23:00',
-        'is_available' => false,
-    ]);
+    $response->assertStatus(200)
+        ->assertJsonCount(2, 'data')
+        ->assertJsonFragment(['start' => '08:00', 'end' => '09:00'])
+        ->assertJsonFragment(['start' => '09:00', 'end' => '10:00']);
 });
 
-test('user can delete a court availability', function () {
-    $tenant = Tenant::factory()->create();
-    $businessUser = BusinessUser::factory()->create();
-    $businessUser->tenants()->attach($tenant);
+test('slots respect bookings', function () {
+    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    
+    $tenant = Tenant::factory()->create(['booking_interval_minutes' => 60, 'buffer_between_bookings_minutes' => 0, 'currency' => 'eur']);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
 
-    // Create a valid invoice for the tenant
-    Invoice::factory()->create([
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = \App\Models\User::factory()->create();
+    
+    // Availability: 08:00 - 11:00 (3 slots)
+    CourtAvailability::factory()->create([
         'tenant_id' => $tenant->id,
-        'status' => 'paid',
-        'date_end' => now()->addDay(),
-        'max_courts' => 10,
+        'court_id' => $court->id,
+        'specific_date' => now()->format('Y-m-d'),
+        'start_time' => '08:00',
+        'end_time' => '11:00',
+        'is_available' => true,
     ]);
-    Sanctum::actingAs($businessUser, [], 'business');
+
+    // Booking: 09:00 - 10:00
+    Booking::create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'currency_id' => $currency->id,
+        'start_date' => now()->format('Y-m-d'),
+        'end_date' => now()->format('Y-m-d'),
+        'start_time' => '09:00',
+        'end_time' => '10:00',
+        'price' => 1000,
+        'is_pending' => false,
+        'is_cancelled' => false,
+        'is_paid' => true,
+    ]);
+
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    $availability = CourtAvailability::factory()->create([
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('court-availabilities.slots', [
+        'tenant_id' => $tenantHashId,
+        'court_id' => $courtHashId,
+        'date' => now()->format('Y-m-d'),
+    ]));
+
+    $response->assertStatus(200)
+        ->assertJsonCount(2, 'data') // 08-09 and 10-11 should be available
+        ->assertJsonFragment(['start' => '08:00', 'end' => '09:00'])
+        ->assertJsonFragment(['start' => '10:00', 'end' => '11:00'])
+        ->assertJsonMissing(['start' => '09:00', 'end' => '10:00']);
+});
+
+test('booking fails if slot unavailable', function () {
+    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['booking_interval_minutes' => 60, 'currency' => 'eur']);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    
+    // Availability: 08:00 - 09:00
+    CourtAvailability::factory()->create([
         'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'specific_date' => now()->format('Y-m-d'),
+        'start_time' => '08:00',
+        'end_time' => '09:00',
+        'is_available' => true,
     ]);
 
-    $availabilityHashId = EasyHashAction::encode($availability->id, 'court-availability-id');
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    $response = $this->deleteJson(route('court-availabilities.destroy', ['tenant_id' => $tenantHashId, 'availability_id' => $availabilityHashId]));
+    Sanctum::actingAs($user, [], 'business');
 
-    $response->assertStatus(200);
-    $this->assertDatabaseMissing('courts_availabilities', [
-        'id' => $availability->id,
+    // Try to book 09:00 - 10:00 (Unavailable)
+    $response = $this->postJson(route('bookings.store', ['tenant_id' => $tenantHashId]), [
+        'court_id' => $courtHashId,
+        'start_date' => now()->format('Y-m-d'),
+        'start_time' => '09:00',
+        'end_time' => '10:00',
+        'client' => ['name' => 'Test Client'],
     ]);
+
+    $response->assertStatus(400)
+        ->assertJsonFragment(['message' => 'Horário indisponível.']);
 });

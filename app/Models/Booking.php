@@ -15,7 +15,6 @@ class Booking extends Model
     protected $fillable = [
         'tenant_id',
         'court_id',
-        'court_id',
         'user_id',
         'currency_id',
         'start_date',
@@ -23,9 +22,10 @@ class Booking extends Model
         'start_time',
         'end_time',
         'price',
-        'is_pending',
+        'is_pending',   
         'is_cancelled',
         'is_paid',
+        'paid_at_venue',
     ];
 
     protected $casts = [
@@ -38,6 +38,7 @@ class Booking extends Model
         'is_pending' => 'boolean',
         'is_cancelled' => 'boolean',
         'is_paid' => 'boolean',
+        'paid_at_venue' => 'boolean',
     ];
 
     // Relationships
