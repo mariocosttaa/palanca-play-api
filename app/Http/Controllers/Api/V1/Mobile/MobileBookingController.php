@@ -1,0 +1,260 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1\Mobile;
+
+use App\Actions\General\EasyHashAction;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Mobile\CreateMobileBookingRequest;
+use App\Http\Resources\Api\V1\Business\BookingResource;
+use App\Models\Booking;
+use App\Models\Court;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class MobileBookingController extends Controller
+{
+    /**
+     * List authenticated user's bookings
+     */
+    public function index(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            $query = Booking::where('user_id', $user->id)
+                ->with(['court.courtType', 'court.primaryImage', 'currency', 'court.tenant']);
+
+            // Filter by status if provided
+            if ($request->has('status')) {
+                switch ($request->status) {
+                    case 'upcoming':
+                        $query->where('start_date', '>=', now()->format('Y-m-d'))
+                            ->where('is_cancelled', false);
+                        break;
+                    case 'past':
+                        $query->where('start_date', '<', now()->format('Y-m-d'))
+                            ->where('is_cancelled', false);
+                        break;
+                    case 'cancelled':
+                        $query->where('is_cancelled', true);
+                        break;
+                }
+            }
+
+            $bookings = $query->latest('start_date')->paginate(20);
+
+            return $this->dataResponse(
+                BookingResource::collection($bookings)->response()->getData(true)
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao buscar agendamentos', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Create a new booking with support for multiple contiguous slots
+     */
+    public function store(CreateMobileBookingRequest $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $user = $request->user();
+            $data = $request->validated();
+            
+            // Get Court
+            $court = Court::with('tenant')->findOrFail($data['court_id']);
+
+            // Get slots from request
+            $slots = $data['slots'];
+            
+            // Determine start and end times from slots
+            $startTime = $slots[0]['start'];
+            $endTime = $slots[count($slots) - 1]['end'];
+
+            // Calculate price based on number of slots and court type pricing
+            $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+            $totalPrice = $pricePerInterval * count($slots);
+
+            // Check tenant auto-confirmation setting
+            $isPending = !$court->tenant->auto_confirm_bookings;
+
+            // Prepare Booking Data
+            $bookingData = [
+                'tenant_id' => $court->tenant_id,
+                'court_id' => $court->id,
+                'user_id' => $user->id,
+                'currency_id' => \App\Models\Manager\CurrencyModel::where('code', $court->tenant->currency)->first()->id ?? 1,
+                'start_date' => $data['start_date'],
+                'end_date' => $data['start_date'], // Single day booking
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'price' => $totalPrice,
+                'paid_at_venue' => false,
+                'is_paid' => false,
+                'is_pending' => $isPending, // Based on tenant configuration
+                'is_cancelled' => false,
+            ];
+
+            $booking = Booking::create($bookingData);
+
+            DB::commit();
+
+            return $this->dataResponse(
+                BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']))->resolve(),
+                status: 201
+            );
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse('Erro ao criar agendamento', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get booking details
+     */
+    public function show(Request $request, string $bookingIdHashId)
+    {
+        try {
+            $user = $request->user();
+            $bookingId = EasyHashAction::decode($bookingIdHashId, 'booking-id');
+            
+            $booking = Booking::where('user_id', $user->id)
+                ->with(['court.courtType', 'court.images', 'court.tenant', 'currency'])
+                ->findOrFail($bookingId);
+
+            return $this->dataResponse(
+                BookingResource::make($booking)->resolve()
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao buscar agendamento', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Cancel a booking
+     */
+    public function destroy(Request $request, string $bookingIdHashId)
+    {
+        try {
+            $user = $request->user();
+            $bookingId = EasyHashAction::decode($bookingIdHashId, 'booking-id');
+            
+            $booking = Booking::where('user_id', $user->id)
+                ->findOrFail($bookingId);
+
+            // Check if booking can be cancelled (e.g., not in the past, not already cancelled)
+            if ($booking->is_cancelled) {
+                return $this->errorResponse('Este agendamento já foi cancelado', status: 400);
+            }
+
+            if ($booking->start_date < now()->format('Y-m-d')) {
+                return $this->errorResponse('Não é possível cancelar agendamentos passados', status: 400);
+            }
+
+            // Mark as cancelled instead of deleting
+            $booking->update(['is_cancelled' => true]);
+
+            return $this->successResponse('Agendamento cancelado com sucesso');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao cancelar agendamento', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get user booking statistics only
+     */
+    public function getStats(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            // Get booking statistics
+            $totalBookings = Booking::where('user_id', $user->id)->count();
+            
+            $upcomingBookings = Booking::where('user_id', $user->id)
+                ->where('start_date', '>=', now()->format('Y-m-d'))
+                ->where('is_cancelled', false)
+                ->count();
+            
+            $pastBookings = Booking::where('user_id', $user->id)
+                ->where('start_date', '<', now()->format('Y-m-d'))
+                ->where('is_cancelled', false)
+                ->count();
+            
+            $cancelledBookings = Booking::where('user_id', $user->id)
+                ->where('is_cancelled', true)
+                ->count();
+            
+            $pendingBookings = Booking::where('user_id', $user->id)
+                ->where('is_pending', true)
+                ->where('is_cancelled', false)
+                ->count();
+
+            return $this->dataResponse([
+                'total_bookings' => $totalBookings,
+                'upcoming_bookings' => $upcomingBookings,
+                'past_bookings' => $pastBookings,
+                'cancelled_bookings' => $cancelledBookings,
+                'pending_bookings' => $pendingBookings,
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao buscar estatísticas', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get user recent bookings with pagination
+     */
+    public function getRecentBookings(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            // Get recent bookings with pagination (lazy load support)
+            $perPage = $request->input('per_page', 10);
+            $bookings = Booking::where('user_id', $user->id)
+                ->with(['court.courtType', 'court.primaryImage', 'court.tenant', 'currency'])
+                ->latest('created_at')
+                ->paginate($perPage);
+
+            return $this->dataResponse(
+                BookingResource::collection($bookings)->response()->getData(true)
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao buscar agendamentos recentes', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get next upcoming booking
+     */
+    public function getNextBooking(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            $nextBooking = Booking::where('user_id', $user->id)
+                ->where('start_date', '>=', now()->format('Y-m-d'))
+                ->where('is_cancelled', false)
+                ->with(['court.courtType', 'court.primaryImage', 'court.tenant', 'currency'])
+                ->orderBy('start_date')
+                ->orderBy('start_time')
+                ->first();
+
+            return $this->dataResponse(
+                $nextBooking ? BookingResource::make($nextBooking)->resolve() : null
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao buscar próximo agendamento', $e->getMessage(), 500);
+        }
+    }
+}
+

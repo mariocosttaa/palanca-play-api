@@ -8,11 +8,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class CourtTypeResourceGeneral extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
         return [
@@ -20,6 +15,7 @@ class CourtTypeResourceGeneral extends JsonResource
             'tenant_id' => EasyHashAction::encode($this->tenant_id, 'tenant-id'),
             'tenant' => new TenantResourceGeneral($this->whenLoaded('tenant')),
             'courts' => CourtResourceGeneral::collection($this->whenLoaded('courts')),
+            'courts_count' => $this->when($this->relationLoaded('courts'), $this->courts->count()),
             'type' => $this->type,
             'name' => $this->name,
             'description' => $this->description,

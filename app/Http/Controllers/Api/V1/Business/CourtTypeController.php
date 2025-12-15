@@ -82,9 +82,10 @@ class CourtTypeController extends Controller
             $courtType->tenant_id = $tenant->id;
             $courtType->save();
 
+            // Create availabilities for this court type (template for courts of this type)
             if ($request->has('availabilities')) {
                 foreach ($request->availabilities as $availabilityData) {
-                    $courtType->courtsAvailabilities()->create([
+                    $courtType->availabilities()->create([
                         'tenant_id' => $tenant->id,
                         'day_of_week_recurring' => $availabilityData['day_of_week_recurring'] ?? null,
                         'specific_date' => $availabilityData['specific_date'] ?? null,

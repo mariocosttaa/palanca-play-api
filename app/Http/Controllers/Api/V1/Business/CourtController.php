@@ -89,7 +89,7 @@ class CourtController extends Controller
             // Handle Availabilities
             if ($request->has('availabilities')) {
                 foreach ($request->availabilities as $availabilityData) {
-                    $court->courtsAvailabilities()->create([
+                    $court->availabilities()->create([
                         'tenant_id' => $tenant->id,
                         'day_of_week_recurring' => $availabilityData['day_of_week_recurring'] ?? null,
                         'specific_date' => $availabilityData['specific_date'] ?? null,
