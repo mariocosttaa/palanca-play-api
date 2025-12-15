@@ -21,6 +21,7 @@ class UserResourceSpecific extends JsonResource
             'name' => $this->name,
             'surname' => $this->surname,
             'email' => $this->email,
+            'is_app_user' => (bool) $this->is_app_user,
             'google_login' => $this->google_login,
             'country_id' => $this->country_id
                 ? EasyHashAction::encode($this->country_id, 'country-id')

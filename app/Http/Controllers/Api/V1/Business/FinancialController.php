@@ -15,10 +15,15 @@ class FinancialController extends Controller
      */
     public function currentMonth(Request $request, $tenant_id)
     {
-        $tenant = $request->tenant;
-        $now = now();
-        
-        return $this->monthlyReport($request, $tenant_id, $now->year, $now->month);
+        try {
+            $tenant = $request->tenant;
+            $now = now();
+            
+            return $this->monthlyReport($request, $tenant_id, $now->year, $now->month);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve current month report.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -27,42 +32,47 @@ class FinancialController extends Controller
      */
     public function monthlyReport(Request $request, $tenant_id, $year, $month)
     {
-        $tenant = $request->tenant;
-        
-        // Cast to integers
-        $year = (int) $year;
-        $month = (int) $month;
-        
-        // Validate year and month
-        $validated = $this->validateYearMonth($year, $month);
-        if ($validated !== true) {
-            return $validated;
+        try {
+            $tenant = $request->tenant;
+            
+            // Cast to integers
+            $year = (int) $year;
+            $month = (int) $month;
+            
+            // Validate year and month
+            $validated = $this->validateYearMonth($year, $month);
+            if ($validated !== true) {
+                return $validated;
+            }
+
+            // Get start and end dates for the month
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+
+            // Validate not in future
+            if ($startDate->isFuture()) {
+                return $this->errorResponse('Cannot query future months.', null, 400);
+            }
+
+            // Get bookings for the month
+            $bookings = Booking::forTenant($tenant->id)
+                ->with(['user', 'currency'])
+                ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                ->orderBy('start_date', 'asc')
+                ->orderBy('start_time', 'asc')
+                ->get();
+
+            return $this->dataResponse([
+                'year' => (int) $year,
+                'month' => (int) $month,
+                'month_name' => $startDate->translatedFormat('F'),
+                'bookings' => FinancialResource::collection($bookings)->resolve(),
+                'summary' => $this->calculateMonthlySummary($bookings, $tenant),
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve monthly report.', $e->getMessage(), 500);
         }
-
-        // Get start and end dates for the month
-        $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-
-        // Validate not in future
-        if ($startDate->isFuture()) {
-            return $this->errorResponse('Não é possível consultar meses futuros.', status: 400);
-        }
-
-        // Get bookings for the month
-        $bookings = Booking::forTenant($tenant->id)
-            ->with(['user', 'currency'])
-            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->orderBy('start_date', 'asc')
-            ->orderBy('start_time', 'asc')
-            ->get();
-
-        return $this->dataResponse([
-            'year' => (int) $year,
-            'month' => (int) $month,
-            'month_name' => $startDate->translatedFormat('F'),
-            'bookings' => FinancialResource::collection($bookings)->resolve(),
-            'summary' => $this->calculateMonthlySummary($bookings, $tenant),
-        ]);
     }
 
     /**
@@ -71,41 +81,46 @@ class FinancialController extends Controller
      */
     public function monthlyStats(Request $request, $tenant_id, $year, $month)
     {
-        $tenant = $request->tenant;
-        
-        // Cast to integers
-        $year = (int) $year;
-        $month = (int) $month;
-        
-        // Validate year and month
-        $validated = $this->validateYearMonth($year, $month);
-        if ($validated !== true) {
-            return $validated;
+        try {
+            $tenant = $request->tenant;
+            
+            // Cast to integers
+            $year = (int) $year;
+            $month = (int) $month;
+            
+            // Validate year and month
+            $validated = $this->validateYearMonth($year, $month);
+            if ($validated !== true) {
+                return $validated;
+            }
+
+            // Get start and end dates for the month
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+
+            // Validate not in future
+            if ($startDate->isFuture()) {
+                return $this->errorResponse('Cannot query future months.', null, 400);
+            }
+
+            // Get bookings for the month
+            $bookings = Booking::forTenant($tenant->id)
+                ->with(['currency'])
+                ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                ->get();
+
+            $stats = $this->calculateStatistics($bookings, $tenant);
+
+            return $this->dataResponse([
+                'year' => (int) $year,
+                'month' => (int) $month,
+                'month_name' => $startDate->translatedFormat('F'),
+                'statistics' => $stats,
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve monthly statistics.', $e->getMessage(), 500);
         }
-
-        // Get start and end dates for the month
-        $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-
-        // Validate not in future
-        if ($startDate->isFuture()) {
-            return $this->errorResponse('Não é possível consultar meses futuros.', status: 400);
-        }
-
-        // Get bookings for the month
-        $bookings = Booking::forTenant($tenant->id)
-            ->with(['currency'])
-            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->get();
-
-        $stats = $this->calculateStatistics($bookings, $tenant);
-
-        return $this->dataResponse([
-            'year' => (int) $year,
-            'month' => (int) $month,
-            'month_name' => $startDate->translatedFormat('F'),
-            'statistics' => $stats,
-        ]);
     }
 
     /**
@@ -114,60 +129,65 @@ class FinancialController extends Controller
      */
     public function yearlyStats(Request $request, $tenant_id, $year)
     {
-        $tenant = $request->tenant;
-        
-        // Cast to integer
-        $year = (int) $year;
-        
-        // Validate year
-        if ($year < 2000 || $year > 2100) {
-            return $this->errorResponse('Ano inválido.', status: 400);
-        }
-
-        $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
-        $endDate = $startDate->copy()->endOfYear();
-
-        // Validate not in future
-        if ($startDate->isFuture()) {
-            return $this->errorResponse('Não é possível consultar anos futuros.', status: 400);
-        }
-
-        // Get all bookings for the year
-        $bookings = Booking::forTenant($tenant->id)
-            ->with(['currency'])
-            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->get();
-
-        // Calculate yearly statistics
-        $yearlyStats = $this->calculateStatistics($bookings, $tenant);
-
-        // Calculate monthly breakdown
-        $monthlyBreakdown = [];
-        for ($month = 1; $month <= 12; $month++) {
-            $monthStart = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
-            $monthEnd = $monthStart->copy()->endOfMonth();
+        try {
+            $tenant = $request->tenant;
             
-            $monthBookings = $bookings->filter(function ($booking) use ($monthStart, $monthEnd) {
-                $bookingDate = \Carbon\Carbon::parse($booking->start_date);
-                return $bookingDate->between($monthStart, $monthEnd);
-            });
-
-            $monthStats = $this->calculateStatistics($monthBookings, $tenant);
+            // Cast to integer
+            $year = (int) $year;
             
-            $monthlyBreakdown[] = [
-                'month' => $month,
-                'month_name' => $monthStart->translatedFormat('F'),
-                'total_revenue' => $monthStats['total_revenue'],
-                'total_revenue_formatted' => $monthStats['total_revenue_formatted'],
-                'total_bookings' => $monthStats['total_bookings'],
-            ];
-        }
+            // Validate year
+            if ($year < 2000 || $year > 2100) {
+                return $this->errorResponse('Invalid year.', null, 400);
+            }
 
-        return $this->dataResponse([
-            'year' => (int) $year,
-            'statistics' => $yearlyStats,
-            'monthly_breakdown' => $monthlyBreakdown,
-        ]);
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+
+            // Validate not in future
+            if ($startDate->isFuture()) {
+                return $this->errorResponse('Cannot query future years.', null, 400);
+            }
+
+            // Get all bookings for the year
+            $bookings = Booking::forTenant($tenant->id)
+                ->with(['currency'])
+                ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                ->get();
+
+            // Calculate yearly statistics
+            $yearlyStats = $this->calculateStatistics($bookings, $tenant);
+
+            // Calculate monthly breakdown
+            $monthlyBreakdown = [];
+            for ($month = 1; $month <= 12; $month++) {
+                $monthStart = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+                $monthEnd = $monthStart->copy()->endOfMonth();
+                
+                $monthBookings = $bookings->filter(function ($booking) use ($monthStart, $monthEnd) {
+                    $bookingDate = \Carbon\Carbon::parse($booking->start_date);
+                    return $bookingDate->between($monthStart, $monthEnd);
+                });
+
+                $monthStats = $this->calculateStatistics($monthBookings, $tenant);
+                
+                $monthlyBreakdown[] = [
+                    'month' => $month,
+                    'month_name' => $monthStart->translatedFormat('F'),
+                    'total_revenue' => $monthStats['total_revenue'],
+                    'total_revenue_formatted' => $monthStats['total_revenue_formatted'],
+                    'total_bookings' => $monthStats['total_bookings'],
+                ];
+            }
+
+            return $this->dataResponse([
+                'year' => (int) $year,
+                'statistics' => $yearlyStats,
+                'monthly_breakdown' => $monthlyBreakdown,
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve yearly statistics.', $e->getMessage(), 500);
+        }
     }
 
     /**
