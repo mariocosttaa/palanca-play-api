@@ -23,6 +23,7 @@ class BusinessUser extends Authenticatable
         'calling_code',
         'phone',
         'timezone',
+        'language',
         'password',
     ];
 
@@ -36,6 +37,7 @@ class BusinessUser extends Authenticatable
         return [
             'password' => 'hashed',
             'google_login' => 'boolean',
+            'language' => 'string',
         ];
     }
 
