@@ -10,6 +10,7 @@ use App\Models\BusinessUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class BusinessUserAuthController extends Controller
 {
@@ -18,25 +19,33 @@ class BusinessUserAuthController extends Controller
      */
     public function register(BusinessUserRegisterRequest $request): JsonResponse
     {
-        $businessUser = BusinessUser::create([
-            'name' => $request->name,
-            'surname' => $request->surname,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'country_id' => $request->country_id,
-            'calling_code' => $request->calling_code,
-            'phone' => $request->phone,
-            'timezone' => $request->timezone,
-        ]);
+        try {
+            $this->beginTransactionSafe();
 
-        $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
+            $businessUser = BusinessUser::create([
+                'name' => $request->name,
+                'surname' => $request->surname,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'country_id' => $request->country_id,
+                'calling_code' => $request->calling_code,
+                'phone' => $request->phone,
+                'timezone' => $request->timezone,
+            ]);
 
-        return response()->json([
-            'data' => [
+            $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
+
+            $this->commitSafe();
+
+            return $this->dataResponse([
                 'token' => $token,
-                'user' => new BusinessUserResourceSpecific($businessUser),
-            ],
-        ], 201);
+                'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
+            ], 201);
+
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            return $this->errorResponse('Failed to register business user.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -44,17 +53,27 @@ class BusinessUserAuthController extends Controller
      */
     public function login(BusinessUserLoginRequest $request): JsonResponse
     {
-        $request->authenticate();
+        try {
+            $request->authenticate();
 
-        $businessUser = BusinessUser::where('email', $request->email)->first();
-        $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
+            $businessUser = BusinessUser::where('email', $request->email)->first();
+            
+            if (!$businessUser) {
+                return $this->errorResponse('Invalid credentials.', null, 401);
+            }
 
-        return response()->json([
-            'data' => [
+            $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
+
+            return $this->dataResponse([
                 'token' => $token,
-                'user' => new BusinessUserResourceSpecific($businessUser),
-            ],
-        ]);
+                'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
+            ]);
+
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            return $this->errorResponse('Login failed.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -62,9 +81,14 @@ class BusinessUserAuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        try {
+            $request->user()->currentAccessToken()->delete();
 
-        return response()->json(null, 204);
+            return $this->successResponse('Logged out successfully.');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Logout failed.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -72,11 +96,15 @@ class BusinessUserAuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
-        $businessUser = $request->user()->load('country');
+        try {
+            $businessUser = $request->user()->load('country');
 
-        return response()->json([
-            'data' => new BusinessUserResourceSpecific($businessUser),
-        ]);
+            return $this->dataResponse(
+                (new BusinessUserResourceSpecific($businessUser))->resolve()
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve user profile.', $e->getMessage(), 500);
+        }
     }
 }
-

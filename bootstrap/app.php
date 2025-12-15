@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             
             // Business API with Business CORS and Request Logging
             Route::middleware(['api', 'business.cors', 'api.log'])
-                ->prefix('business')
+                ->prefix('api/business')
                 ->group(base_path('routes/api-business.php'));
         },
     )
