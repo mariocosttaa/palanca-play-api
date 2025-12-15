@@ -11,13 +11,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            // Mobile API with Mobile CORS
-            Route::middleware(['api', 'mobile.cors'])
+            // Mobile API with Mobile CORS and Request Logging
+            Route::middleware(['api', 'mobile.cors', 'api.log'])
                 ->prefix('api/mobile')
                 ->group(base_path('routes/api-mobile.php'));
             
-            // Business API with Business CORS
-            Route::middleware(['api', 'business.cors'])
+            // Business API with Business CORS and Request Logging
+            Route::middleware(['api', 'business.cors', 'api.log'])
                 ->prefix('api/business')
                 ->group(base_path('routes/api-business.php'));
         },
@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.show' => \App\Http\Middleware\EnsureTenantAccess::class,
             'mobile.cors' => \App\Http\Middleware\MobileCorsMiddleware::class,
             'business.cors' => \App\Http\Middleware\BusinessCorsMiddleware::class,
+            'api.log' => \App\Http\Middleware\LogApiRequest::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
