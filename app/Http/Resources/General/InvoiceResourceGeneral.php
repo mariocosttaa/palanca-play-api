@@ -17,21 +17,14 @@ class InvoiceResourceGeneral extends JsonResource
     {
         return [
             'id' => EasyHashAction::encode($this->id, 'invoice-id'),
-            'tenant_id' => EasyHashAction::encode($this->tenant_id, 'tenant-id'),
-            'tenant' => new TenantResourceGeneral($this->whenLoaded('tenant')),
-            'subscription_plan_id' => $this->subscription_plan_id
-                ? EasyHashAction::encode($this->subscription_plan_id, 'subscription-plan-id')
-                : null,
-            'subscription_plan' => new SubscriptionPlanResourceGeneral($this->whenLoaded('subscriptionPlan')),
             'period' => $this->period,
-            'date_start' => $this->date_start?->toISOString(),
-            'date_end' => $this->date_end?->toISOString(),
+            'date_start' => $this->date_start->toISOString(),
+            'date_end' => $this->date_end->toISOString(),
             'price' => $this->price,
-            'price_fmt' => $this->price_fmt,
-            'is_extra_court' => $this->is_extra_court,
+            'max_courts' => $this->max_courts,
             'status' => $this->status,
-            'created_at' => $this->created_at?->toISOString(),
+            'metadata' => $this->metadata,
+            'created_at' => $this->created_at->toISOString(),
         ];
     }
 }
-

@@ -81,6 +81,12 @@ Route::prefix('v1')->group(function () {
                     Route::delete('/{availability_id}', [CourtAvailabilityController::class, 'destroy'])->name('court-availabilities.destroy');
                 });
 
+                // Subscription routes
+                Route::prefix('subscriptions')->group(function () {
+                    Route::get('/invoices', [\App\Http\Controllers\Api\V1\Business\SubscriptionController::class, 'indexInvoices'])->name('subscriptions.invoices');
+                    Route::get('/current', [\App\Http\Controllers\Api\V1\Business\SubscriptionController::class, 'current'])->name('subscriptions.current');
+                });
+
                 // TODO: Add other tenant-scoped routes here
                 // Example:
                 // Route::prefix('courts')->group(function () {
