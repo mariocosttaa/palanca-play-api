@@ -609,10 +609,13 @@ is_primary: true
   "data": [
     {
       "id": "av1",
-      "day_of_week": 1,
+      "day_of_week_recurring": "monday",
+      "specific_date": null,
       "start_time": "08:00:00",
       "end_time": "22:00:00",
-      "is_available": true
+      "is_available": true,
+      "price_modifier": null,
+      "reason": null
     }
   ]
 }
@@ -628,12 +631,16 @@ is_primary: true
 **Request Body:**
 ```json
 {
-  "day_of_week": 1,
+  "day_of_week_recurring": "monday",
+  "specific_date": "2025-12-25",
   "start_time": "08:00:00",
   "end_time": "22:00:00",
-  "is_available": true
+  "is_available": true,
+  "price_modifier": 10.50,
+  "reason": "Holiday pricing"
 }
 ```
+*Note: Provide either `day_of_week_recurring` OR `specific_date`.*
 
 **Success Response (201):**
 ```json
@@ -641,7 +648,7 @@ is_primary: true
   "success": true,
   "data": {
     "id": "av1",
-    "day_of_week": 1,
+    "day_of_week_recurring": "monday",
     "start_time": "08:00:00",
     "end_time": "22:00:00"
   },
@@ -685,6 +692,60 @@ is_primary: true
 {
   "success": true,
   "message": "Availability deleted successfully"
+}
+```
+
+---
+
+### Get Available Dates
+**GET** `/business/{tenant_id}/courts/{court_id}/availability/dates`
+
+**Auth Required:** Yes
+
+**Query Parameters:**
+- `start_date` (required): Start date (YYYY-MM-DD)
+- `end_date` (required): End date (YYYY-MM-DD)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    "2025-12-16",
+    "2025-12-17",
+    "2025-12-18"
+  ]
+}
+```
+
+---
+
+### Get Available Slots
+**GET** `/business/{tenant_id}/courts/{court_id}/availability/{date}/slots`
+
+**Auth Required:** Yes
+
+**Path Parameters:**
+- `date` (required): Date (YYYY-MM-DD)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "start_time": "08:00",
+      "end_time": "09:00",
+      "price": 5000,
+      "is_available": true
+    },
+    {
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "price": 5000,
+      "is_available": false
+    }
+  ]
 }
 ```
 
