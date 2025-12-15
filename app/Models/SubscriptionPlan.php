@@ -15,6 +15,7 @@ class SubscriptionPlan extends Model
 
     protected $fillable = [
         'tenant_id',
+        'currency_id',
         'courts',
         'price',
     ];
@@ -28,6 +29,11 @@ class SubscriptionPlan extends Model
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class);
     }
 
 }

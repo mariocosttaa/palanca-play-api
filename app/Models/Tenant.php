@@ -56,6 +56,11 @@ class Tenant extends Model
         return $this->hasMany(CourtType::class);
     }
 
+    public function courts()
+    {
+        return $this->hasMany(Court::class);
+    }
+
     public function courtsAvailabilities()
     {
         return $this->hasMany(CourtAvailability::class);

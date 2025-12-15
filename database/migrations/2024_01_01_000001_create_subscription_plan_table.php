@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('subscription_plan', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('currency_id')->nullable()->constrained('currencies')->nullOnDelete();
             $table->integer('courts');
             $table->integer('price');
             $table->timestamps();
