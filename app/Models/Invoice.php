@@ -18,6 +18,7 @@ class Invoice extends Model
         'date_start',
         'date_end',
         'price',
+        'max_courts',
         'status',
         'metadata',
     ];
@@ -26,6 +27,7 @@ class Invoice extends Model
         'date_start' => 'datetime',
         'date_end' => 'datetime',
         'price' => 'integer',
+        'max_courts' => 'integer',
         'metadata' => 'array',
     ];
 
@@ -59,6 +61,12 @@ class Invoice extends Model
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
         return $query->whereBetween('date_start', [$startDate, $endDate]);
+    }
+
+    public function scopeValid($query)
+    {
+        return $query->where('status', 'paid')
+                     ->where('date_end', '>=', now());
     }
 }
 

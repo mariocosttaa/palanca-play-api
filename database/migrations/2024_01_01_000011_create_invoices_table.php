@@ -18,6 +18,7 @@ return new class extends Migration
             $table->dateTime('date_start');
             $table->dateTime('date_end');
             $table->integer('price');
+            $table->integer('max_courts')->default(0);
             $table->string('status', 50);
             $table->json('metadata')->nullable();
             $table->timestamps();
