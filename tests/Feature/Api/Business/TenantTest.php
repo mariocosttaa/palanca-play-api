@@ -5,6 +5,8 @@ use App\Models\BusinessUser;
 use App\Models\Invoice;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -142,6 +144,7 @@ test('business user can update a tenant details', function () {
 
     // Logic goes here
     $tenantUpdateData = Tenant::factory()->make()->toArray();
+    unset($tenantUpdateData['logo']);
 
     $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenantHashId]), $tenantUpdateData);
 
@@ -180,6 +183,7 @@ test('business user cannot update a tenant details they are not attached to', fu
 
     // Logic goes here
     $tenantUpdateData = Tenant::factory()->make()->toArray();
+    unset($tenantUpdateData['logo']);
     $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenant2HashId]), $tenantUpdateData);
 
     $response->assertStatus(500);

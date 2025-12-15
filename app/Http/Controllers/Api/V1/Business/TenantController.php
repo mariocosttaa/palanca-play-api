@@ -7,6 +7,7 @@ use App\Http\Resources\General\TenantResourceGeneral;
 use App\Models\Tenant;
 use App\Actions\EasyHashAction;
 use App\Actions\General\EasyHashAction as GeneralEasyHashAction;
+use App\Actions\General\TenantFileAction;
 use App\Http\Requests\Api\V1\Business\UpdateTenantRequest;
 use Illuminate\Http\Request;
 
@@ -45,7 +46,21 @@ class TenantController extends Controller
                 return $this->errorResponse(message: 'Você não tem permissão para atualizar este grupo ou empresa', status: 500);
             }
 
-            $tenant->update($request->validated());
+            $data = $request->validated();
+
+            if ($request->hasFile('logo')) {
+                $file = $request->file('logo');
+                $fileInfo = TenantFileAction::save(
+                    tenantId: $tenant->id,
+                    file: $file,
+                    isPublic: true,
+                    path: 'logos',
+                    fileName: 'logo_' . time()
+                );
+                $data['logo'] = $fileInfo->url;
+            }
+
+            $tenant->update($data);
 
             $this->commitSafe();
 
