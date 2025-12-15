@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Business\SubscriptionController;
 use App\Http\Controllers\Api\V1\Business\BookingController;
 use App\Http\Controllers\Api\V1\Business\BookingVerificationController;
 use App\Http\Controllers\Api\V1\Business\ClientController;
+use App\Http\Controllers\Api\V1\Business\FinancialController;
 use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
 
 
@@ -119,6 +120,20 @@ Route::prefix('v1')->group(function () {
                     Route::post('/', [ClientController::class, 'store'])->name('clients.store');
                     Route::get('/{client_id}', [ClientController::class, 'show'])->name('clients.show');
                     Route::put('/{client_id}', [ClientController::class, 'update'])->name('clients.update');
+                });
+
+                // Financial routes
+                Route::prefix('financials')->group(function () {
+                    Route::get('/current', [FinancialController::class, 'currentMonth'])->name('financials.current');
+                    Route::get('/{year}/{month}/stats', [FinancialController::class, 'monthlyStats'])
+                        ->where(['year' => '[0-9]+', 'month' => '[0-9]+'])
+                        ->name('financials.monthly-stats');
+                    Route::get('/{year}/{month}', [FinancialController::class, 'monthlyReport'])
+                        ->where(['year' => '[0-9]+', 'month' => '[0-9]+'])
+                        ->name('financials.monthly-report');
+                    Route::get('/{year}/stats', [FinancialController::class, 'yearlyStats'])
+                        ->where(['year' => '[0-9]+'])
+                        ->name('financials.yearly-stats');
                 });
 
                 // TODO: Add other tenant-scoped routes here

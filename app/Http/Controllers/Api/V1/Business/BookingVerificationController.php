@@ -6,7 +6,6 @@ use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Business\BookingResource;
 use App\Models\Booking;
-use App\Traits\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -14,7 +13,6 @@ use Zxing\QrReader;
 
 class BookingVerificationController extends Controller
 {
-    use ApiResponse;
 
     /**
      * Verify booking by scanning QR code image
