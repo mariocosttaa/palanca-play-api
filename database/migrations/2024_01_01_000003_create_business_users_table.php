@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('calling_code')->nullable();
             $table->string('phone')->nullable();
             $table->string('timezone')->nullable();
-            $table->string('password')->nullable();
+            $table->string('password');
+            $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
 
