@@ -10,7 +10,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class UserAuthController extends Controller
 {
@@ -19,25 +18,34 @@ class UserAuthController extends Controller
      */
     public function register(UserRegisterRequest $request): JsonResponse
     {
-        $user = User::create([
-            'name' => $request->name,
-            'surname' => $request->surname,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'country_id' => $request->country_id,
-            'calling_code' => $request->calling_code,
-            'phone' => $request->phone,
-            'timezone' => $request->timezone,
-        ]);
+        try {
+            $this->beginTransactionSafe();
 
-        $token = $user->createToken($request->device_name ?? 'api-client')->plainTextToken;
+            $user = User::create([
+                'name' => $request->name,
+                'surname' => $request->surname,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'country_id' => $request->country_id,
+                'calling_code' => $request->calling_code,
+                'phone' => $request->phone,
+                'timezone' => $request->timezone,
+                'is_app_user' => true,
+            ]);
 
-        return response()->json([
-            'data' => [
+            $token = $user->createToken($request->device_name ?? 'api-client')->plainTextToken;
+
+            $this->commitSafe();
+
+            return $this->dataResponse([
                 'token' => $token,
-                'user' => new UserResourceSpecific($user),
-            ],
-        ], 201);
+                'user' => (new UserResourceSpecific($user))->resolve(),
+            ], 201);
+
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            return $this->errorResponse('Failed to register user.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -45,17 +53,25 @@ class UserAuthController extends Controller
      */
     public function login(UserLoginRequest $request): JsonResponse
     {
-        $request->authenticate();
+        try {
+            $request->authenticate();
 
-        $user = User::where('email', $request->email)->first();
-        $token = $user->createToken($request->device_name ?? 'api-client')->plainTextToken;
+            $user = User::where('email', $request->email)->first();
+            
+            if (!$user) {
+                return $this->errorResponse('Invalid credentials.', null, 401);
+            }
 
-        return response()->json([
-            'data' => [
+            $token = $user->createToken($request->device_name ?? 'api-client')->plainTextToken;
+
+            return $this->dataResponse([
                 'token' => $token,
-                'user' => new UserResourceSpecific($user),
-            ],
-        ]);
+                'user' => (new UserResourceSpecific($user))->resolve(),
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Login failed.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -63,9 +79,14 @@ class UserAuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        try {
+            $request->user()->currentAccessToken()->delete();
 
-        return response()->json(null, 204);
+            return $this->successResponse('Logged out successfully.');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Logout failed.', $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -73,11 +94,15 @@ class UserAuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user()->load('country');
+        try {
+            $user = $request->user()->load('country');
 
-        return response()->json([
-            'data' => new UserResourceSpecific($user),
-        ]);
+            return $this->dataResponse(
+                (new UserResourceSpecific($user))->resolve()
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve user.', $e->getMessage(), 500);
+        }
     }
 }
-
