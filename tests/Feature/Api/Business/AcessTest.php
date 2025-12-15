@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+
 uses(RefreshDatabase::class);
 
 test('business user can access business endpoints', function () {
@@ -54,7 +55,6 @@ test('different business users cannot access each other\'s tenants', function ()
 
     // Try to access the tenant as the second business user 2
     $response = $this->getJson(route('tenant.show', ['tenant_id' => $tenantHashId2]));
-    dd($response->json());
 
     // Assert the response is a 403 error
     $response->assertStatus(403);

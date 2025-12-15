@@ -18,16 +18,16 @@ test('user can get all court types', function () {
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
 
-    // Create court types for this tenant
-    $courtTypes = CourtType::factory()->count(3)->create([
-        'tenant_id' => $tenant->id,
-    ]);
-
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
 
     // Encode the tenant ID
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    // Create court types
+    CourtType::factory()->count(3)->create([
+        'tenant_id' => $tenant->id,
+    ]);
 
     // Get the court types
     $response = $this->getJson(route('court-types.index', ['tenant_id' => $tenantHashId]));
