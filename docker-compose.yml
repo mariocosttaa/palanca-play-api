@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # Mailhog - Email testing service
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: palanca_mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - palanca_network
+
+networks:
+  palanca_network:
+    driver: bridge
