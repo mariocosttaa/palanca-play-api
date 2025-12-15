@@ -82,6 +82,19 @@ class CourtTypeController extends Controller
             $courtType->tenant_id = $tenant->id;
             $courtType->save();
 
+            if ($request->has('availabilities')) {
+                foreach ($request->availabilities as $availabilityData) {
+                    $courtType->courtsAvailabilities()->create([
+                        'tenant_id' => $tenant->id,
+                        'day_of_week_recurring' => $availabilityData['day_of_week_recurring'] ?? null,
+                        'specific_date' => $availabilityData['specific_date'] ?? null,
+                        'start_time' => $availabilityData['start_time'],
+                        'end_time' => $availabilityData['end_time'],
+                        'is_available' => $availabilityData['is_available'] ?? true,
+                    ]);
+                }
+            }
+
             $this->commitSafe();
 
             return $this->dataResponse(CourtTypeResourceGeneral::make($courtType)->resolve());

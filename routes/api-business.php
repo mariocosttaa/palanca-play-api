@@ -60,7 +60,17 @@ Route::prefix('v1')->group(function () {
                     Route::post('/', [CourtController::class, 'create'])->name('courts.create');
                     Route::put('/{court_id}', [CourtController::class, 'update'])->name('courts.update');
                     Route::get('/{court_id}', [CourtController::class, 'show'])->name('courts.show');
+                    Route::get('/{court_id}', [CourtController::class, 'show'])->name('courts.show');
                     Route::delete('/{court_id}', [CourtController::class, 'destroy'])->name('courts.destroy');
+                });
+
+                // Court Availabilities routes
+                Route::prefix('court-availabilities')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'index'])->name('court-availabilities.index');
+                    Route::post('/', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'create'])->name('court-availabilities.create');
+                    Route::put('/{availability_id}', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'update'])->name('court-availabilities.update');
+                    Route::get('/{availability_id}', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'show'])->name('court-availabilities.show');
+                    Route::delete('/{availability_id}', [\App\Http\Controllers\Api\V1\Business\CourtAvailabilityController::class, 'destroy'])->name('court-availabilities.destroy');
                 });
 
                 // TODO: Add other tenant-scoped routes here

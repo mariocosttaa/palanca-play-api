@@ -142,26 +142,45 @@ test('user can create a court type', function () {
         'tenant_id' => $tenant->id,
     ]);
 
+    $data = $courtTypeData->toArray();
+    $data['availabilities'] = [
+        [
+            'day_of_week_recurring' => 'Monday',
+            'start_time' => '08:00',
+            'end_time' => '22:00',
+            'is_available' => true,
+        ]
+    ];
+
     // Create the court type route
-    $response = $this->postJson(route('court-types.create', ['tenant_id' => $tenantHashId]), $courtTypeData->toArray());
+    $response = $this->postJson(route('court-types.create', ['tenant_id' => $tenantHashId]), $data);
 
 
     // Assert the response is successful
     $response->assertStatus(200);
 
     // Assert the response contains the created court type
-    $data = $courtTypeData->toArray();
-    $data['tenant_id'] = EasyHashAction::encode($tenant->id, 'tenant-id');
+    $responseData = $courtTypeData->toArray();
+    $responseData['tenant_id'] = EasyHashAction::encode($tenant->id, 'tenant-id');
 
 
     $response->assertJson([
-        'data' => $data
+        'data' => $responseData
     ]);
 
     // Assert the court type has been created
     // Use $data but fix tenant_id to be the raw integer in the DB
-    $data['tenant_id'] = $tenant->id;
-    $this->assertDatabaseHas('courts_type', $data);
+    $dbData = $courtTypeData->toArray();
+    $dbData['tenant_id'] = $tenant->id;
+    $this->assertDatabaseHas('courts_type', $dbData);
+
+    // Assert availability was created
+    $this->assertDatabaseHas('courts_availabilities', [
+        'tenant_id' => $tenant->id,
+        'day_of_week_recurring' => 'Monday',
+        'start_time' => '08:00',
+        'end_time' => '22:00',
+    ]);
 });
 
 

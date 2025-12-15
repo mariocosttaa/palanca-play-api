@@ -26,8 +26,6 @@ class CourtAvailability extends Model
 
     protected $casts = [
         'specific_date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
         'breaks' => 'array',
         'is_available' => 'boolean',
     ];
