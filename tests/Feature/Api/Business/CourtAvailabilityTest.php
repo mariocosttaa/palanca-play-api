@@ -2,6 +2,7 @@
 
 use App\Actions\General\EasyHashAction;
 use App\Models\BusinessUser;
+use App\Models\Invoice;
 use App\Models\CourtAvailability;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +14,14 @@ test('user can get all court availabilities', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
     Sanctum::actingAs($businessUser, [], 'business');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -30,6 +39,14 @@ test('user can create a court availability', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
     Sanctum::actingAs($businessUser, [], 'business');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -55,6 +72,14 @@ test('user can update a court availability', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
     Sanctum::actingAs($businessUser, [], 'business');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -88,6 +113,14 @@ test('user can delete a court availability', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
     Sanctum::actingAs($businessUser, [], 'business');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 

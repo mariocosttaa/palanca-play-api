@@ -2,6 +2,7 @@
 
 use App\Actions\General\EasyHashAction;
 use App\Models\BusinessUser;
+use App\Models\Invoice;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -15,6 +16,14 @@ test('business user can get all tenants they are attached to', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
@@ -37,6 +46,14 @@ test('business user cannot get tenants they are not attached to', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
@@ -79,6 +96,14 @@ test('business user can get a tenant details', function () {
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
 
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
+
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
@@ -102,6 +127,14 @@ test('business user can update a tenant details', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
@@ -132,6 +165,14 @@ test('business user cannot update a tenant details they are not attached to', fu
 
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');

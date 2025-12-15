@@ -1,6 +1,7 @@
 <?php
 use App\Actions\General\EasyHashAction;
 use App\Models\BusinessUser;
+use App\Models\Invoice;
 use App\Models\Court;
 use App\Models\CourtType;
 use App\Models\Tenant;
@@ -16,6 +17,14 @@ test('business user can access business endpoints', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');

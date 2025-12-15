@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use App\Models\Invoice;
 use Tests\TestCase;
 
 uses(RefreshDatabase::class);
@@ -21,6 +22,14 @@ test('user can get all courts', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
@@ -47,6 +56,14 @@ test('user can get a court details', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
@@ -80,6 +97,14 @@ test('user can create a court with images and availability', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
@@ -172,6 +197,14 @@ test('user can update a court', function () {
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
 
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
+
     // Act as the business user
     Sanctum::actingAs($businessUser, [], 'business');
 
@@ -234,6 +267,14 @@ test('user cannot delete a court if it has bookings associated', function () {
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
 
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
+
     // Create a court type and court for this tenant
     $courtType = CourtType::factory()->create([
         'tenant_id' => $tenant->id,
@@ -273,6 +314,14 @@ test('user can delete a court if no bookings associated', function () {
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
     $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
 
     // Create a court type and court for this tenant
     $courtType = CourtType::factory()->create([

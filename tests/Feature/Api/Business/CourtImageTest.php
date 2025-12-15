@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Business;
 use App\Actions\General\EasyHashAction;
 use App\Models\BusinessUser;
 use App\Models\Court;
+use App\Models\Invoice;
 use App\Models\CourtImage;
 use App\Models\CourtType;
 use App\Models\Tenant;
@@ -28,6 +29,14 @@ class CourtImageTest extends TestCase
         $tenant = Tenant::factory()->create();
         $user = BusinessUser::factory()->create();
         $user->tenants()->attach($tenant);
+
+        // Create a valid invoice for the tenant
+        Invoice::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
+            'date_end' => now()->addDay(),
+            'max_courts' => 10,
+        ]);
         $court = Court::factory()->create(['tenant_id' => $tenant->id]);
 
         $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
@@ -60,6 +69,14 @@ class CourtImageTest extends TestCase
         $tenant = Tenant::factory()->create();
         $user = BusinessUser::factory()->create();
         $user->tenants()->attach($tenant);
+
+        // Create a valid invoice for the tenant
+        Invoice::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
+            'date_end' => now()->addDay(),
+            'max_courts' => 10,
+        ]);
         $court = Court::factory()->create(['tenant_id' => $tenant->id]);
         
         // Create an image manually
