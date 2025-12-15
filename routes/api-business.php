@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Business\CourtImageController;
 use App\Http\Controllers\Api\V1\Business\CourtAvailabilityController;
 use App\Http\Controllers\Api\V1\Business\SubscriptionController;
 use App\Http\Controllers\Api\V1\Business\BookingController;
+use App\Http\Controllers\Api\V1\Business\BookingVerificationController;
 use App\Http\Controllers\Api\V1\Business\ClientController;
 use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
 
@@ -107,6 +108,9 @@ Route::prefix('v1')->group(function () {
                     Route::put('/{booking_id}', [BookingController::class, 'update'])->name('bookings.update');
                     Route::put('/{booking_id}/presence', [BookingController::class, 'confirmPresence'])->name('bookings.confirm-presence');
                     Route::delete('/{booking_id}', [BookingController::class, 'destroy'])->name('bookings.destroy');
+                    
+                    // QR Code Verification - Upload QR image to verify booking
+                    Route::post('/verify-qr', [BookingVerificationController::class, 'verify'])->name('bookings.verify-qr');
                 });
 
                 // Client routes
@@ -131,4 +135,3 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
-

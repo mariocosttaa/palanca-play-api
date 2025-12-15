@@ -35,6 +35,8 @@ class BookingResource extends JsonResource
             'is_cancelled' => $this->is_cancelled,
             'is_paid' => $this->is_paid,
             'paid_at_venue' => $this->paid_at_venue,
+            'qr_code' => $this->qr_code,
+            'qr_code_verified' => $this->qr_code_verified,
             'created_at' => $this->created_at->toISOString(),
         ];
     }

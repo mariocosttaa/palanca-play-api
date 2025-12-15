@@ -115,6 +115,25 @@ class BookingController extends Controller
 
             $booking = Booking::create($bookingData);
 
+            // Generate QR code with hashed booking ID
+            try {
+                $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
+                $qrCodeInfo = \App\Actions\General\QrCodeAction::create(
+                    $tenant->id,
+                    $booking->id,
+                    $bookingIdHashed
+                );
+                
+                // Update booking with QR code path
+                $booking->update(['qr_code' => $qrCodeInfo->url]);
+            } catch (\Exception $qrException) {
+                // Log QR generation error but don't fail the booking
+                \Log::error('Failed to generate QR code for booking', [
+                    'booking_id' => $booking->id,
+                    'error' => $qrException->getMessage()
+                ]);
+            }
+
             $this->commitSafe();
 
             return $this->dataResponse(BookingResource::make($booking)->resolve());

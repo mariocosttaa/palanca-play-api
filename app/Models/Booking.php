@@ -27,6 +27,8 @@ class Booking extends Model
         'is_paid',
         'paid_at_venue',
         'present',
+        'qr_code',
+        'qr_code_verified',
     ];
 
     protected $casts = [
@@ -41,6 +43,7 @@ class Booking extends Model
         'is_paid' => 'boolean',
         'paid_at_venue' => 'boolean',
         'present' => 'boolean',
+        'qr_code_verified' => 'boolean',
     ];
 
     // Relationships

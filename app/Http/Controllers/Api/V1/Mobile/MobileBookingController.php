@@ -99,6 +99,25 @@ class MobileBookingController extends Controller
 
             $booking = Booking::create($bookingData);
 
+            // Generate QR code with hashed booking ID
+            try {
+                $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
+                $qrCodeInfo = \App\Actions\General\QrCodeAction::create(
+                    $court->tenant_id,
+                    $booking->id,
+                    $bookingIdHashed
+                );
+                
+                // Update booking with QR code path
+                $booking->update(['qr_code' => $qrCodeInfo->url]);
+            } catch (\Exception $qrException) {
+                // Log QR generation error but don't fail the booking
+                \Log::error('Failed to generate QR code for booking', [
+                    'booking_id' => $booking->id,
+                    'error' => $qrException->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             return $this->dataResponse(
@@ -157,6 +176,18 @@ class MobileBookingController extends Controller
 
             // Mark as cancelled instead of deleting
             $booking->update(['is_cancelled' => true]);
+
+            // Delete QR code if exists
+            if ($booking->qr_code) {
+                try {
+                    \App\Actions\General\QrCodeAction::delete($booking->tenant_id, $booking->qr_code);
+                } catch (\Exception $qrException) {
+                    \Log::error('Failed to delete QR code for cancelled booking', [
+                        'booking_id' => $booking->id,
+                        'error' => $qrException->getMessage()
+                    ]);
+                }
+            }
 
             return $this->successResponse('Agendamento cancelado com sucesso');
 

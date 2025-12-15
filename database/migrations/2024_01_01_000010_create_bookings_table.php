@@ -27,6 +27,8 @@ return new class extends Migration
             $table->boolean('is_paid')->default(false);
             $table->boolean('paid_at_venue')->default(false);
             $table->boolean('present')->nullable()->default(null);
+            $table->string('qr_code')->nullable();
+            $table->boolean('qr_code_verified')->default(false);
             $table->timestamps();
 
             $table->index('tenant_id');
