@@ -251,6 +251,41 @@ Use Laravel Horizon or Supervisor to manage queue workers.
 
 ---
 
+## 🌐 CORS Configuration
+
+The API uses **separate CORS configurations** for Mobile and Business APIs.
+
+### Environment Variables
+
+```env
+# Mobile API CORS - For mobile apps (iOS, Android, React Native, etc.)
+MOBILE_CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:19006
+
+# Business API CORS - For web dashboard (React, Vue, Angular, etc.)
+BUSINESS_CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
+```
+
+### Default Allowed Origins
+
+**Mobile API:**
+- `http://localhost:5173` (Vite)
+- `http://localhost:3000` (React/Next.js)
+- `http://localhost:19006` (Expo/React Native)
+
+**Business API:**
+- `http://localhost:5173` (Vite)
+- `http://localhost:3000` (React/Next.js)
+- `http://localhost:8080` (Vue)
+
+### Adding New Origins
+
+1. Update `.env` with comma-separated URLs
+2. Run `php artisan config:clear`
+
+**For detailed CORS setup, testing, and troubleshooting, see [`docs/CORS_SETUP.md`](docs/CORS_SETUP.md)**
+
+---
+
 ## 🧪 Testing
 
 Tests are organized by API type:
@@ -279,6 +314,7 @@ php artisan test --filter=UserAuthTest
 
 ### Setup Guides
 - **[Mailhog Setup](docs/MAILHOG_SETUP.md)** - Email testing configuration
+- **[CORS Setup](docs/CORS_SETUP.md)** - CORS configuration for Mobile and Business APIs
 
 ### System Documentation
 - **General Patterns:** See `docs/backend/` for API patterns and conventions
