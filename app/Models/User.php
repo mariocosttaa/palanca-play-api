@@ -24,6 +24,7 @@ class User extends Authenticatable
         'phone',
         'timezone',
         'password',
+        'is_app_user',
     ];
 
     protected $hidden = [
@@ -37,6 +38,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'google_login' => 'boolean',
+            'is_app_user' => 'boolean',
         ];
     }
 

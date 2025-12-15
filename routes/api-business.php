@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Business\CourtImageController;
 use App\Http\Controllers\Api\V1\Business\CourtAvailabilityController;
 use App\Http\Controllers\Api\V1\Business\SubscriptionController;
 use App\Http\Controllers\Api\V1\Business\BookingController;
+use App\Http\Controllers\Api\V1\Business\ClientController;
 use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
 
 
@@ -106,6 +107,14 @@ Route::prefix('v1')->group(function () {
                     Route::put('/{booking_id}', [BookingController::class, 'update'])->name('bookings.update');
                     Route::put('/{booking_id}/presence', [BookingController::class, 'confirmPresence'])->name('bookings.confirm-presence');
                     Route::delete('/{booking_id}', [BookingController::class, 'destroy'])->name('bookings.destroy');
+                });
+
+                // Client routes
+                Route::prefix('clients')->group(function () {
+                    Route::get('/', [ClientController::class, 'index'])->name('clients.index');
+                    Route::post('/', [ClientController::class, 'store'])->name('clients.store');
+                    Route::get('/{client_id}', [ClientController::class, 'show'])->name('clients.show');
+                    Route::put('/{client_id}', [ClientController::class, 'update'])->name('clients.update');
                 });
 
                 // TODO: Add other tenant-scoped routes here
