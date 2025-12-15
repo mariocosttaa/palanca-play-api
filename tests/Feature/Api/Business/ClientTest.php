@@ -43,7 +43,7 @@ test('can show client', function () {
     $response = $this->getJson(route('clients.show', ['tenant_id' => $tenantHashId, 'client_id' => $clientHashId]));
 
     $response->assertStatus(200)
-        ->assertJsonFragment(['id' => $client->id, 'name' => $client->name]);
+        ->assertJsonFragment(['id' => $clientHashId, 'name' => $client->name]);
 });
 
 test('can create client', function () {

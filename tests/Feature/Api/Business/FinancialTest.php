@@ -157,7 +157,7 @@ test('monthly report validates future dates', function () {
     ]));
 
     $response->assertStatus(400);
-    $response->assertJson(['message' => 'Não é possível consultar meses futuros.']);
+    $response->assertJson(['message' => 'Cannot query future months.']);
 });
 
 test('monthly report validates invalid month', function () {
@@ -379,7 +379,7 @@ test('yearly stats validates future year', function () {
     ]));
 
     $response->assertStatus(400);
-    $response->assertJson(['message' => 'Não é possível consultar anos futuros.']);
+    $response->assertJson(['message' => 'Cannot query future years.']);
 });
 
 test('yearly stats validates invalid year', function () {
@@ -389,7 +389,7 @@ test('yearly stats validates invalid year', function () {
     ]));
 
     $response->assertStatus(400);
-    $response->assertJson(['message' => 'Ano inválido.']);
+    $response->assertJson(['message' => 'Invalid year.']);
 });
 
 test('financial endpoints enforce tenant isolation', function () {

@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
+use Illuminate\Validation\ValidationException;
+
 class UserAuthController extends Controller
 {
     /**
@@ -69,6 +71,8 @@ class UserAuthController extends Controller
                 'user' => (new UserResourceSpecific($user))->resolve(),
             ]);
 
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Login failed.', $e->getMessage(), 500);
         }

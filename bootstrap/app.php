@@ -13,12 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             // Mobile API with Mobile CORS and Request Logging
             Route::middleware(['api', 'mobile.cors', 'api.log'])
-                ->prefix('api/mobile')
+                ->prefix('api')
                 ->group(base_path('routes/api-mobile.php'));
             
             // Business API with Business CORS and Request Logging
             Route::middleware(['api', 'business.cors', 'api.log'])
-                ->prefix('api/business')
+                ->prefix('business')
                 ->group(base_path('routes/api-business.php'));
         },
     )

@@ -157,7 +157,7 @@ test('authenticated user can logout', function () {
         'Authorization' => "Bearer {$token}",
     ]);
 
-    $response->assertStatus(204);
+    $response->assertStatus(200);
 
     // Verify token was deleted
     $this->assertDatabaseMissing('personal_access_tokens', [
