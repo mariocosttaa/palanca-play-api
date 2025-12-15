@@ -1,129 +1,403 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Palanca Play API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A comprehensive Laravel API for managing padel/tennis court bookings with separate endpoints for mobile applications and web management dashboards.
 
-# Padel Booking API
+## 🚀 Features
 
-A Laravel API for managing padel court bookings with separate endpoints for mobile applications and web management dashboards.
+### Core Functionality
+- ✅ **Dual API Architecture** - Separate Mobile and Business APIs
+- ✅ **Multi-tenant System** - Support for multiple court facilities
+- ✅ **Court Management** - Court types, courts, images, and availability
+- ✅ **Booking System** - Create, update, cancel bookings with QR codes
+- ✅ **User Management** - Mobile users and business users with role-based access
+- ✅ **Client Management** - Business users can manage their clients
+- ✅ **Financial Reports** - Monthly and yearly revenue reports with statistics
+- ✅ **Subscription Management** - Tenant subscription plans and invoicing
+
+### Communication & Notifications
+- ✅ **In-App Notifications** - Real-time notifications for booking events
+- ✅ **Email System** - Professional HTML emails with queue support
+- ✅ **Password Recovery** - Email-based password reset with 6-digit codes
+- ✅ **Multi-language Support** - Business users can set language preference (en, pt, es, fr)
+
+### Email Features
+- ✅ **Booking Emails** - Confirmation, update, and cancellation emails
+- ✅ **Queue System** - Async email processing with status tracking
+- ✅ **Email History** - Track all sent emails with status (pending/sent/failed)
+- ✅ **Professional Templates** - Clean white and green design with Palanca Play branding
+
+### Advanced Features
+- ✅ **QR Code System** - Generate and verify booking QR codes
+- ✅ **Booking History** - Track past bookings with presence status
+- ✅ **Auto-confirmation** - Optional automatic booking confirmation per tenant
+- ✅ **HashID Security** - All IDs are hashed for security
+
+---
 
 ## 🏗️ API Architecture
 
 This project uses **separated API routes** for two distinct client types:
 
-### 📱 Mobile API (`/api/v1/*`)
+### 📱 Mobile API (`/api/mobile/v1/*`)
 **For:** Regular users accessing via mobile apps (iOS, Android)
 
 - **Route File:** `routes/api-mobile.php`
-- **Base URL:** `/api/v1`
+- **Base URL:** `/api/mobile/v1`
 - **Authentication Guard:** `auth:sanctum` (default)
 - **User Model:** `App\Models\User`
-- **Controller:** `App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController`
+- **Documentation:** [`docs/API_MOBILE.md`](docs/API_MOBILE.md)
 
-**Example Endpoints:**
-- `POST /api/v1/users/register` - User registration
-- `POST /api/v1/users/login` - User login
-- `POST /api/v1/users/logout` - User logout
-- `GET /api/v1/users/me` - Get authenticated user profile
+**Key Features:**
+- User authentication (register, login, logout)
+- Password reset via email
+- Browse courts and availability (public)
+- Create and manage bookings
+- In-app notifications
+- Booking statistics and history
 
-### 🌐 Business API (`/business/v1/*`)
+### 🌐 Business API (`/api/business/v1/*`)
 **For:** Business users/managers accessing via web dashboard
 
 - **Route File:** `routes/api-business.php`
-- **Base URL:** `/business/v1`
+- **Base URL:** `/api/business/v1`
 - **Authentication Guard:** `auth:business`
 - **User Model:** `App\Models\BusinessUser`
-- **Controller:** `App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController`
+- **Documentation:** [`docs/API_BUSINESS.md`](docs/API_BUSINESS.md)
 
-**Example Endpoints:**
-- `POST /business/v1/business-users/register` - Business user registration
-- `POST /business/v1/business-users/login` - Business user login
-- `POST /business/v1/business-users/logout` - Business user logout
-- `GET /business/v1/business-users/me` - Get authenticated business user profile
+**Key Features:**
+- Business user authentication
+- Multi-language profile management
+- Tenant management
+- Court types and courts CRUD
+- Court images and availability management
+- Booking management with QR verification
+- Client management
+- Financial reports (monthly/yearly)
+- Subscription and invoice management
+
+---
 
 ## 📂 Project Structure
 
 ```
 routes/
-├── api-mobile.php      # Mobile API routes (regular users)
-└── api-business.php    # Business API routes (managers/web)
+├── api-mobile.php          # Mobile API routes (regular users)
+└── api-business.php        # Business API routes (managers/web)
 
-app/Http/Controllers/Api/V1/
-├── Mobile/             # Mobile API controllers
-│   └── Auth/
-│       └── UserAuthController.php
-└── Business/           # Business API controllers
-    └── Auth/
-        └── BusinessUserAuthController.php
+app/
+├── Http/Controllers/Api/V1/
+│   ├── Mobile/             # Mobile API controllers
+│   │   ├── Auth/
+│   │   ├── MobileBookingController.php
+│   │   ├── NotificationController.php
+│   │   └── PasswordResetController.php
+│   └── Business/           # Business API controllers
+│       ├── Auth/
+│       ├── TenantController.php
+│       ├── CourtController.php
+│       ├── BookingController.php
+│       ├── ClientController.php
+│       ├── FinancialController.php
+│       └── BookingVerificationController.php
+├── Models/
+│   ├── User.php
+│   ├── BusinessUser.php
+│   ├── Tenant.php
+│   ├── Court.php
+│   ├── Booking.php
+│   ├── Notification.php
+│   ├── EmailSent.php
+│   └── PasswordResetCode.php
+├── Services/
+│   ├── NotificationService.php
+│   └── EmailService.php
+├── Jobs/
+│   └── SendEmailJob.php
+└── Mail/
+    ├── BookingCreated.php
+    ├── BookingUpdated.php
+    ├── BookingCancelled.php
+    └── PasswordResetCode.php
 
-tests/Feature/Api/
-├── Mobile/             # Tests for mobile API
-│   └── UserAuthTest.php
-└── Business/           # Tests for business API
-    └── BusinessUserAuthTest.php
+resources/views/emails/
+├── booking-created.blade.php
+├── booking-updated.blade.php
+├── booking-cancelled.blade.php
+└── password-reset-code.blade.php
+
+docs/
+├── API_MOBILE.md           # Mobile API documentation
+├── API_BUSINESS.md         # Business API documentation
+└── MAILHOG_SETUP.md        # Email testing setup
 ```
+
+---
+
+## � Getting Started
+
+### Prerequisites
+- PHP 8.1+
+- Composer
+- SQLite (for development) or MySQL/PostgreSQL (for production)
+- Docker (optional, for Mailhog email testing)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd palanca-play-api
+```
+
+2. **Install dependencies**
+```bash
+composer install
+```
+
+3. **Configure environment**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+4. **Configure database**
+```env
+DB_CONNECTION=sqlite
+# Or for MySQL:
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=palanca_play
+# DB_USERNAME=root
+# DB_PASSWORD=
+```
+
+5. **Run migrations**
+```bash
+php artisan migrate
+```
+
+6. **Start development server**
+```bash
+php artisan serve
+```
+
+---
+
+## 📧 Email Testing with Mailhog
+
+For local email testing, we use Mailhog to capture all outgoing emails.
+
+### Quick Setup
+
+1. **Start Mailhog**
+```bash
+docker-compose up -d
+```
+
+2. **Configure .env**
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=127.0.0.1
+MAIL_PORT=1025
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="noreply@palancaplay.com"
+MAIL_FROM_NAME="Palanca Play"
+```
+
+3. **Clear config cache**
+```bash
+php artisan config:clear
+```
+
+4. **Test emails**
+```bash
+# Test all email types
+php artisan email:test all
+
+# Test specific email
+php artisan email:test password-reset
+php artisan email:test booking-created
+php artisan email:test booking-cancelled
+```
+
+5. **View emails**
+Open http://localhost:8025 in your browser
+
+**For detailed setup instructions, see [`docs/MAILHOG_SETUP.md`](docs/MAILHOG_SETUP.md)**
+
+---
+
+## 🔄 Queue System
+
+Emails are processed asynchronously using Laravel queues for better performance.
+
+### Running Queue Worker
+
+**Development:**
+```bash
+# Process all jobs and stop
+php artisan queue:work --stop-when-empty
+
+# Process one job
+php artisan queue:work --once
+
+# Keep worker running
+php artisan queue:work
+```
+
+**Production:**
+Use Laravel Horizon or Supervisor to manage queue workers.
+
+---
 
 ## 🧪 Testing
 
 Tests are organized by API type:
 
 ```bash
+# Run all tests
+php artisan test
+
 # Run mobile API tests
 php artisan test tests/Feature/Api/Mobile
 
 # Run business API tests
 php artisan test tests/Feature/Api/Business
 
-# Run all API tests
-php artisan test tests/Feature/Api
+# Run specific test
+php artisan test --filter=UserAuthTest
 ```
+
+---
 
 ## 📚 Documentation
 
+### API Documentation
+- **[Mobile API](docs/API_MOBILE.md)** - Complete mobile API reference with examples
+- **[Business API](docs/API_BUSINESS.md)** - Complete business API reference with examples
+
+### Setup Guides
+- **[Mailhog Setup](docs/MAILHOG_SETUP.md)** - Email testing configuration
+
+### System Documentation
 - **General Patterns:** See `docs/backend/` for API patterns and conventions
-- **System Configuration:** See `docs/system-config/` for project-specific structure:
-  - [Mobile API Structure](docs/system-config/mobile-api-structure.md)
-  - [Business API Structure](docs/system-config/business-api-structure.md)
-  - [Database Schema](docs/system-config/database-schema.md)
+- **System Configuration:** See `docs/system-config/` for project-specific structure
 - **Testing:** See `docs/tests/` for testing patterns and checklists
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 🔐 Authentication
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Mobile API
+Uses Laravel Sanctum with default guard:
+```http
+Authorization: Bearer {token}
+```
 
-## Laravel Sponsors
+### Business API
+Uses Laravel Sanctum with `business` guard:
+```http
+Authorization: Bearer {token}
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 💾 Database Schema
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Core Tables
+- `users` - Mobile app users
+- `business_users` - Business/manager users
+- `tenants` - Court facilities (multi-tenant)
+- `courts` - Individual courts
+- `court_types` - Court type categories (Padel, Tennis, etc.)
+- `bookings` - Court reservations
+- `notifications` - In-app notifications
+- `emails_sent` - Email history with status tracking
+- `password_reset_codes` - Password recovery codes
 
-## Contributing
+### Key Features
+- Multi-tenant architecture
+- HashID for external IDs
+- Soft deletes where applicable
+- Timestamps on all tables
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🌍 Multi-language Support
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Business users can set their preferred language:
+- `en` - English
+- `pt` - Portuguese (default)
+- `es` - Spanish
+- `fr` - French
 
-## Security Vulnerabilities
+Update language via:
+```http
+PATCH /api/business/v1/profile/language
+{
+  "language": "en"
+}
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 💰 Pricing
+
+All prices are stored in **cents** to avoid floating-point issues:
+- Database: `5000` (cents)
+- Display: `$50.00` (divide by 100)
+
+---
+
+## 🎨 Email Templates
+
+Professional HTML email templates with:
+- Clean white and green design (#2d5f3f)
+- Palanca Play branding
+- Mobile-friendly responsive layouts
+- Clear call-to-actions
+- Security warnings where appropriate
+
+---
+
+## 📊 Financial Reports
+
+Business users can access:
+- **Current Month Report** - Real-time revenue and booking stats
+- **Monthly Reports** - Historical monthly data with daily breakdown
+- **Monthly Statistics** - Average booking value, percentages, busiest days
+- **Yearly Statistics** - Annual overview with monthly breakdown
+
+---
+
+## 🔔 Notifications
+
+In-app notifications are automatically created for:
+- ✅ Booking created
+- ✅ Booking cancelled
+- ⏳ Booking updated (when implemented)
+
+Notifications include:
+- Subject and message
+- Read/unread status
+- Timestamps
+- User and tenant relationships
+
+---
+
+## 📝 License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow Laravel coding standards and include tests for new features.
+
+---
+
+## 📞 Support
+
+For issues and questions, please open an issue on the repository.
