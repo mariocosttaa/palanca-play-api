@@ -8,11 +8,21 @@ use App\Http\Requests\Api\V1\Mobile\CreateMobileBookingRequest;
 use App\Http\Resources\Api\V1\Business\BookingResource;
 use App\Models\Booking;
 use App\Models\Court;
+use App\Services\NotificationService;
+use App\Services\EmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class MobileBookingController extends Controller
 {
+    protected $notificationService;
+    protected $emailService;
+
+    public function __construct(NotificationService $notificationService, EmailService $emailService)
+    {
+        $this->notificationService = $notificationService;
+        $this->emailService = $emailService;
+    }
     /**
      * List authenticated user's bookings
      */
@@ -118,6 +128,26 @@ class MobileBookingController extends Controller
                 ]);
             }
 
+            // Create notification
+            try {
+                $this->notificationService->createBookingNotification($booking, 'created');
+            } catch (\Exception $notifException) {
+                \Log::error('Failed to create notification for booking', [
+                    'booking_id' => $booking->id,
+                    'error' => $notifException->getMessage()
+                ]);
+            }
+
+            // Send email
+            try {
+                $this->emailService->sendBookingEmail($user, $booking, 'created');
+            } catch (\Exception $emailException) {
+                \Log::error('Failed to send booking email', [
+                    'booking_id' => $booking->id,
+                    'error' => $emailException->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             return $this->dataResponse(
@@ -187,6 +217,26 @@ class MobileBookingController extends Controller
                         'error' => $qrException->getMessage()
                     ]);
                 }
+            }
+
+            // Create notification
+            try {
+                $this->notificationService->createBookingNotification($booking, 'cancelled');
+            } catch (\Exception $notifException) {
+                \Log::error('Failed to create notification for cancelled booking', [
+                    'booking_id' => $booking->id,
+                    'error' => $notifException->getMessage()
+                ]);
+            }
+
+            // Send email
+            try {
+                $this->emailService->sendBookingEmail($user, $booking, 'cancelled');
+            } catch (\Exception $emailException) {
+                \Log::error('Failed to send cancellation email', [
+                    'booking_id' => $booking->id,
+                    'error' => $emailException->getMessage()
+                ]);
             }
 
             return $this->successResponse('Agendamento cancelado com sucesso');

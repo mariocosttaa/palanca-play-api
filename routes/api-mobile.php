@@ -34,12 +34,26 @@ Route::prefix('v1')->group(function () {
         Route::get('/courts/{court_id}/availability/{date}/slots', [App\Http\Controllers\Api\V1\Mobile\MobileCourtAvailabilityController::class, 'getSlots']);
     });
 
+    // Password Reset Routes (public)
+    Route::prefix('password')->group(function () {
+        Route::post('/forgot', [App\Http\Controllers\Api\V1\Mobile\PasswordResetController::class, 'requestCode']);
+        Route::post('/verify', [App\Http\Controllers\Api\V1\Mobile\PasswordResetController::class, 'verifyCode']);
+        Route::get('/verify/{code}', [App\Http\Controllers\Api\V1\Mobile\PasswordResetController::class, 'checkCode']);
+    });
+
     // Protected routes - requires authentication
     Route::middleware('auth:sanctum')->group(function () {
         // User authentication routes
         Route::prefix('users')->group(function () {
             Route::post('/logout', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'logout']);
             Route::get('/me', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'me']);
+        });
+
+        // Notifications
+        Route::prefix('notifications')->group(function () {
+            Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'recent']);
+            Route::get('/', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'index']);
+            Route::patch('/{notification_id}/read', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'markAsRead']);
         });
 
         // Bookings (user-specific, not tenant-scoped in URL)
@@ -50,6 +64,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'getRecentBookings']);
             Route::get('/next', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'getNextBooking']);
             Route::get('/{booking_id}', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'show']);
+            Route::put('/{booking_id}', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'update']);
             Route::delete('/{booking_id}', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'destroy']);
         });
     });
