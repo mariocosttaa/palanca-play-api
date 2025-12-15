@@ -8,6 +8,8 @@ use App\Models\Tenant;
 use Database\Factories\CourtFactory;
 use Database\Factories\CourtTypeFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -71,7 +73,8 @@ test('user can get a court details', function () {
 });
 
 
-test('user can create a court', function () {
+test('user can create a court with images and availability', function () {
+    Storage::fake('public');
     /** @var TestCase $this */
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
@@ -99,11 +102,30 @@ test('user can create a court', function () {
     $courtTypeHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
     $requestData = $courtData->toArray();
     $requestData['court_type_id'] = $courtTypeHashId;
+    
+    // Add images
+    $requestData['images'] = [
+        UploadedFile::fake()->image('court1.jpg'),
+        UploadedFile::fake()->image('court2.jpg'),
+    ];
+
+    // Add availabilities
+    $requestData['availabilities'] = [
+        [
+            'day_of_week_recurring' => 'Monday',
+            'start_time' => '08:00',
+            'end_time' => '22:00',
+            'is_available' => true,
+        ]
+    ];
 
     // Create the court
     $response = $this->postJson(route('courts.create', ['tenant_id' => $tenantHashId]), $requestData);
 
     // Assert the response is successful
+    if ($response->status() !== 200) {
+        $response->dump();
+    }
     $response->assertStatus(200);
 
     // Assert the response contains the created court
@@ -120,6 +142,24 @@ test('user can create a court', function () {
     $data['tenant_id'] = $tenant->id;
     $data['court_type_id'] = $courtType->id;
     $this->assertDatabaseHas('courts', $data);
+
+    // Assert images were created
+    $court = Court::where('tenant_id', $tenant->id)->where('name', $courtData->name)->first();
+    expect($court->images)->toHaveCount(2);
+    expect($court->images->first()->is_primary)->toBeTrue();
+    
+    // Assert availability was created
+    $this->assertDatabaseHas('courts_availabilities', [
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'day_of_week_recurring' => 'Monday',
+        'start_time' => '08:00',
+        'end_time' => '22:00',
+    ]);
+
+    // Assert effective availability
+    expect($court->effective_availability)->toHaveCount(1);
+    expect($court->effective_availability->first()->day_of_week_recurring)->toBe('Monday');
 });
 
 

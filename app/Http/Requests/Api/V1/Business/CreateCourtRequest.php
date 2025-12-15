@@ -67,6 +67,12 @@ class CreateCourtRequest extends FormRequest
             'status' => 'nullable|boolean',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:10240',
+            'availabilities' => 'nullable|array',
+            'availabilities.*.day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+            'availabilities.*.specific_date' => 'nullable|date',
+            'availabilities.*.start_time' => 'required|date_format:H:i',
+            'availabilities.*.end_time' => 'required|date_format:H:i|after:availabilities.*.start_time',
+            'availabilities.*.is_available' => 'boolean',
         ];
     }
 
@@ -91,6 +97,15 @@ class CreateCourtRequest extends FormRequest
             'images.*.image' => 'A imagem não está válida',
             'images.*.mimes' => 'A imagem deve ser um arquivo de imagem (jpeg, png, jpg, gif, svg)',
             'images.*.max' => 'A imagem deve ter no máximo 10MB',
+            'availabilities.array' => 'As disponibilidades devem ser um array',
+            'availabilities.*.day_of_week_recurring.in' => 'O dia da semana deve ser válido (Monday, Tuesday, etc.)',
+            'availabilities.*.specific_date.date' => 'A data específica deve ser uma data válida',
+            'availabilities.*.start_time.required' => 'A hora de início é obrigatória',
+            'availabilities.*.start_time.date_format' => 'A hora de início deve estar no formato HH:MM',
+            'availabilities.*.end_time.required' => 'A hora de término é obrigatória',
+            'availabilities.*.end_time.date_format' => 'A hora de término deve estar no formato HH:MM',
+            'availabilities.*.end_time.after' => 'A hora de término deve ser após a hora de início',
+            'availabilities.*.is_available.boolean' => 'A disponibilidade deve ser um booleano',
         ];
     }
 
@@ -103,6 +118,7 @@ class CreateCourtRequest extends FormRequest
             'status' => 'Estado',
             'images' => 'Imagens',
             'images.*' => 'Imagem',
+            'availabilities' => 'Disponibilidades',
         ];
     }
 }

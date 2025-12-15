@@ -11,6 +11,7 @@ class CourtImage extends Model
     use HasFactory;
 
     protected $table = 'courts_images';
+    public $timestamps = false;
 
     protected $fillable = [
         'court_id',

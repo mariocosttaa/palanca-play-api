@@ -77,5 +77,15 @@ class Court extends Model
     {
         return $query->where('type', $type);
     }
+
+    // Accessors
+    public function getEffectiveAvailabilityAttribute()
+    {
+        if ($this->courtsAvailabilities()->exists()) {
+            return $this->courtsAvailabilities;
+        }
+
+        return $this->courtType->courtsAvailabilities ?? collect();
+    }
 }
 

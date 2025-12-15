@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
+use App\Actions\General\TenantFileAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Business\CreateCourtRequest;
 use App\Http\Requests\Api\V1\Business\UpdateCourtRequest;
@@ -50,13 +51,44 @@ class CourtController extends Controller
             $court->tenant_id = $tenant->id;
             $court->save();
 
+            // Handle Images
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $index => $image) {
+                    $fileInfo = TenantFileAction::save(
+                        tenantId: $tenant->id,
+                        file: $image,
+                        isPublic: true,
+                        path: 'courts'
+                    );
+
+                    $court->images()->create([
+                        'path' => $fileInfo->url, // Storing the URL/route path
+                        'is_primary' => $index === 0,
+                    ]);
+                }
+            }
+
+            // Handle Availabilities
+            if ($request->has('availabilities')) {
+                foreach ($request->availabilities as $availabilityData) {
+                    $court->courtsAvailabilities()->create([
+                        'tenant_id' => $tenant->id,
+                        'day_of_week_recurring' => $availabilityData['day_of_week_recurring'] ?? null,
+                        'specific_date' => $availabilityData['specific_date'] ?? null,
+                        'start_time' => $availabilityData['start_time'],
+                        'end_time' => $availabilityData['end_time'],
+                        'is_available' => $availabilityData['is_available'] ?? true,
+                    ]);
+                }
+            }
+
             $this->commitSafe();
 
             return $this->dataResponse(CourtResourceGeneral::make($court)->resolve());
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao criar a Quadra', $e->getMessage());
+            return $this->errorResponse('Houve um erro ao criar a Quadra: ' . $e->getMessage());
         }
     }
 
