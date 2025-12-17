@@ -10,13 +10,35 @@ uses(RefreshDatabase::class);
 
 test('business user can register with valid data', function () {
     /** @var TestCase $this */
-    $response = $this->postJson('/api/business/v1/business-users/register', [
+    \Illuminate\Support\Facades\Mail::fake();
+    \App\Models\Country::factory()->create(['calling_code' => '+1']);
+
+    $email = 'jane.business@example.com';
+
+    // Step 1: Initiate
+    $this->postJson('/api/business/v1/business-users/register/initiate', [
         'name' => 'Jane Business',
         'surname' => 'Smith',
-        'email' => 'jane.business@example.com',
+        'email' => $email,
         'password' => 'password123',
         'password_confirmation' => 'password123',
         'device_name' => 'Test Device',
+        'calling_code' => '+1',
+    ])->assertStatus(200);
+
+    // Get code
+    $code = \App\Models\EmailSent::where('user_email', $email)->first()->code;
+
+    // Step 2: Complete
+    $response = $this->postJson('/api/business/v1/business-users/register/complete', [
+        'name' => 'Jane Business',
+        'surname' => 'Smith',
+        'email' => $email,
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'device_name' => 'Test Device',
+        'calling_code' => '+1',
+        'code' => $code,
     ]);
 
     $response->assertStatus(201)
@@ -43,7 +65,7 @@ test('business user can register with valid data', function () {
 
 test('business user cannot register with invalid email', function () {
     /** @var TestCase $this */
-    $response = $this->postJson('/api/business/v1/business-users/register', [
+    $response = $this->postJson('/api/business/v1/business-users/register/initiate', [
         'name' => 'Jane Business',
         'email' => 'invalid-email',
         'password' => 'password123',
@@ -58,7 +80,7 @@ test('business user cannot register with duplicate email', function () {
     /** @var TestCase $this */
     BusinessUser::factory()->create(['email' => 'existing@example.com']);
 
-    $response = $this->postJson('/api/business/v1/business-users/register', [
+    $response = $this->postJson('/api/business/v1/business-users/register/initiate', [
         'name' => 'Jane Business',
         'email' => 'existing@example.com',
         'password' => 'password123',

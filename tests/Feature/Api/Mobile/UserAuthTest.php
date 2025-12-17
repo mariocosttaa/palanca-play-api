@@ -10,13 +10,37 @@ uses(RefreshDatabase::class);
 
 test('user can register with valid data', function () {
     /** @var TestCase $this */
-    $response = $this->postJson('/api/v1/users/register', [
+    \Illuminate\Support\Facades\Mail::fake();
+    \App\Models\Country::factory()->create(['calling_code' => '+1']);
+
+    $email = 'john.doe@example.com';
+
+    // Step 1: Initiate
+    $this->postJson('/api/v1/users/register/initiate', [
         'name' => 'John Doe',
         'surname' => 'Doe',
-        'email' => 'john.doe@example.com',
+        'email' => $email,
         'password' => 'password123',
         'password_confirmation' => 'password123',
         'device_name' => 'Test Device',
+        'calling_code' => '+1',
+        'phone' => '123456789',
+    ])->assertStatus(200);
+
+    // Get code
+    $code = \App\Models\EmailSent::where('user_email', $email)->first()->code;
+
+    // Step 2: Complete
+    $response = $this->postJson('/api/v1/users/register/complete', [
+        'name' => 'John Doe',
+        'surname' => 'Doe',
+        'email' => $email,
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'device_name' => 'Test Device',
+        'calling_code' => '+1',
+        'phone' => '123456789',
+        'code' => $code,
     ]);
 
     $response->assertStatus(201)
@@ -43,7 +67,7 @@ test('user can register with valid data', function () {
 
 test('user cannot register with invalid email', function () {
     /** @var TestCase $this */
-    $response = $this->postJson('/api/v1/users/register', [
+    $response = $this->postJson('/api/v1/users/register/initiate', [
         'name' => 'John Doe',
         'email' => 'invalid-email',
         'password' => 'password123',
@@ -56,7 +80,7 @@ test('user cannot register with invalid email', function () {
 
 test('user cannot register with mismatched passwords', function () {
     /** @var TestCase $this */
-    $response = $this->postJson('/api/v1/users/register', [
+    $response = $this->postJson('/api/v1/users/register/initiate', [
         'name' => 'John Doe',
         'email' => 'john.doe@example.com',
         'password' => 'password123',
@@ -71,7 +95,7 @@ test('user cannot register with duplicate email', function () {
     /** @var TestCase $this */
     User::factory()->create(['email' => 'existing@example.com']);
 
-    $response = $this->postJson('/api/v1/users/register', [
+    $response = $this->postJson('/api/v1/users/register/initiate', [
         'name' => 'John Doe',
         'email' => 'existing@example.com',
         'password' => 'password123',
@@ -171,5 +195,91 @@ test('user cannot logout without token', function () {
     $response = $this->postJson('/api/v1/users/logout');
 
     $response->assertStatus(401);
+});
+
+test('user cannot complete registration with invalid code', function () {
+    /** @var TestCase $this */
+    $email = 'john.doe@example.com';
+
+    $response = $this->postJson('/api/v1/users/register/complete', [
+        'name' => 'John Doe',
+        'surname' => 'Doe',
+        'email' => $email,
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'device_name' => 'Test Device',
+        'calling_code' => '+1',
+        'phone' => '123456789',
+        'code' => '000000', // Invalid code
+    ]);
+
+    $response->assertStatus(422);
+});
+
+test('user registration is rate limited by cooldown', function () {
+    /** @var TestCase $this */
+    \Illuminate\Support\Facades\Mail::fake();
+    \App\Models\Country::factory()->create(['calling_code' => '+1']);
+    $email = 'rate.limit@example.com';
+
+    // First request
+    $this->postJson('/api/v1/users/register/initiate', [
+        'name' => 'Mobile',
+        'surname' => 'User',
+        'email' => $email,
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'phone' => '123456789',
+        'calling_code' => '+1',
+    ])->assertStatus(200);
+
+    // Immediate second request
+    $response = $this->postJson('/api/v1/users/register/initiate', [
+        'name' => 'Mobile',
+        'surname' => 'User',
+        'email' => $email,
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'phone' => '123456789',
+        'calling_code' => '+1',
+    ]);
+
+    $response->assertStatus(429);
+    $this->assertStringContainsString('seconds before requesting a new verification email.', $response->json('message'));
+});
+
+test('user registration is rate limited by daily max', function () {
+    /** @var TestCase $this */
+    \Illuminate\Support\Facades\Mail::fake();
+    \App\Models\Country::factory()->create(['calling_code' => '+1']);
+    $email = 'daily.limit@example.com';
+
+    // Create 10 emails sent in the last 24 hours
+    for ($i = 0; $i < 10; $i++) {
+        \App\Models\EmailSent::create([
+            'user_email' => $email,
+            'code' => '123456',
+            'type' => \App\Enums\EmailTypeEnum::CONFIRMATION_EMAIL,
+            'subject' => 'Subject',
+            'title' => 'Title',
+            'html_content' => 'Content',
+            'status' => 'sent',
+            'sent_at' => now()->subHours(1), // Within 24 hours
+        ]);
+    }
+
+    // Request should fail
+    $response = $this->postJson('/api/v1/users/register/initiate', [
+        'name' => 'Mobile',
+        'surname' => 'User',
+        'email' => $email,
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'phone' => '123456789',
+        'calling_code' => '+1',
+    ]);
+
+    $response->assertStatus(429)
+        ->assertJsonFragment(['message' => 'You have reached the maximum number of verification emails. Please contact support for assistance.']);
 });
 
