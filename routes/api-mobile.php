@@ -15,8 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Public authentication routes
     Route::prefix('users')->group(function () {
-        Route::post('/register/initiate', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'initiateRegistration']);
-        Route::post('/register/complete', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'completeRegistration']);
+        Route::post('/register', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'register']);
         Route::post('/login', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'login']);
     });
 
@@ -51,6 +50,13 @@ Route::prefix('v1')->group(function () {
         Route::prefix('users')->group(function () {
             Route::post('/logout', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'logout']);
             Route::get('/me', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'me']);
+            
+            // Verification Routes
+            Route::prefix('verification')->group(function () {
+                Route::post('/verify', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'verifyEmail']);
+                Route::post('/resend', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'resendVerificationCode']);
+                Route::get('/status', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'checkVerificationStatus']);
+            });
         });
 
         // Notifications

@@ -37,6 +37,7 @@ class BusinessUser extends Authenticatable
             'password' => 'hashed',
             'google_login' => 'boolean',
             'language' => 'string',
+            'email_verified_at' => 'datetime',
         ];
     }
 

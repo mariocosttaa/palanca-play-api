@@ -27,8 +27,7 @@ use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as Auth
 Route::prefix('v1')->group(function () {
     // Public authentication routes
     Route::prefix('business-users')->group(function () {
-        Route::post('/register/initiate', [AuthBusinessUserAuthController::class, 'initiateRegistration']);
-        Route::post('/register/complete', [AuthBusinessUserAuthController::class, 'completeRegistration']);
+        Route::post('/register', [AuthBusinessUserAuthController::class, 'register']);
         Route::post('/login', [AuthBusinessUserAuthController::class, 'login']);
     });
 
@@ -38,6 +37,13 @@ Route::prefix('v1')->group(function () {
         Route::prefix('business-users')->group(function () {
             Route::post('/logout', [AuthBusinessUserAuthController::class, 'logout']);
             Route::get('/me', [AuthBusinessUserAuthController::class, 'me']);
+
+            // Verification Routes
+            Route::prefix('verification')->group(function () {
+                Route::post('/verify', [AuthBusinessUserAuthController::class, 'verifyEmail']);
+                Route::post('/resend', [AuthBusinessUserAuthController::class, 'resendVerificationCode']);
+                Route::get('/status', [AuthBusinessUserAuthController::class, 'checkVerificationStatus']);
+            });
         });
 
         // Business User Profile routes (no tenant required)

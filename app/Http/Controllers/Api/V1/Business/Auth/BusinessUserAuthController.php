@@ -19,46 +19,12 @@ use App\Enums\EmailTypeEnum;
 class BusinessUserAuthController extends Controller
 {
     /**
-     * Initiate registration (Step 1: Send Verification Code)
+     * Register business user (Step 1: Create User & Send Verification Code)
      * @unauthenticated
      */
-    public function initiateRegistration(BusinessUserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    public function register(BusinessUserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
-            // Validate basic fields (email uniqueness is handled by Request)
-            // We don't create the user yet.
-
-            $emailService->sendVerificationCode($request->email, EmailTypeEnum::CONFIRMATION_EMAIL);
-
-            return $this->dataResponse([
-                'email' => $request->email,
-                'expires_in' => 900 // 15 minutes
-            ], 200);
-
-        } catch (\App\Exceptions\EmailRateLimitException $e) {
-            return $this->errorResponse($e->getMessage(), null, $e->getCode());
-        } catch (\Exception $e) {
-            return $this->errorResponse('Failed to send verification code.', $e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Complete registration (Step 2: Verify Code and Create User)
-     * @unauthenticated
-     */
-    public function completeRegistration(BusinessUserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
-    {
-        try {
-            // Manual validation for code as it's not in the main request
-            // Ideally should be in a separate Request class or added to BusinessUserRegisterRequest
-            if (!$request->code) {
-                 return $this->errorResponse('Verification code is required.', null, 422);
-            }
-
-            if (!$emailService->verifyCode($request->email, $request->code, \App\Enums\EmailTypeEnum::CONFIRMATION_EMAIL)) {
-                return $this->errorResponse('Invalid or expired verification code.', null, 422);
-            }
-
             $this->beginTransactionSafe();
 
             $businessUser = BusinessUser::create([
@@ -72,6 +38,13 @@ class BusinessUserAuthController extends Controller
                 'timezone' => $request->timezone,
             ]);
 
+            // Send verification code
+            try {
+                $emailService->sendVerificationCode($businessUser->email, EmailTypeEnum::CONFIRMATION_EMAIL);
+            } catch (\App\Exceptions\EmailRateLimitException $e) {
+                // Suppress rate limit error on registration
+            }
+
             $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
 
             $this->commitSafe();
@@ -79,11 +52,83 @@ class BusinessUserAuthController extends Controller
             return $this->dataResponse([
                 'token' => $token,
                 'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
+                'verification_needed' => true,
+                'message' => 'User registered successfully. Please verify your email.'
             ], 201);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
             return $this->errorResponse('Failed to register business user.', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Verify Email (Step 2: Verify Code)
+     */
+    public function verifyEmail(Request $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    {
+        try {
+            $request->validate([
+                'code' => 'required|string',
+            ]);
+
+            $user = $request->user();
+
+            if ($user->hasVerifiedEmail()) {
+                return $this->successResponse('Email already verified.');
+            }
+
+            if (!$emailService->verifyCode($user->email, $request->code, EmailTypeEnum::CONFIRMATION_EMAIL)) {
+                return $this->errorResponse('Invalid or expired verification code.', null, 422);
+            }
+
+            $user->markEmailAsVerified();
+
+            return $this->successResponse('Email verified successfully.');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to verify email.', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Resend Verification Code
+     */
+    public function resendVerificationCode(Request $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if ($user->hasVerifiedEmail()) {
+                return $this->errorResponse('Email already verified.', null, 400);
+            }
+
+            $emailService->sendVerificationCode($user->email, EmailTypeEnum::CONFIRMATION_EMAIL);
+
+            return $this->successResponse('Verification code sent successfully.');
+
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            return $this->errorResponse($e->getMessage(), null, $e->getCode());
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to send verification code.', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Check Verification Status
+     */
+    public function checkVerificationStatus(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            return $this->dataResponse([
+                'verified' => $user->hasVerifiedEmail(),
+                'email' => $user->email,
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to check status.', $e->getMessage(), 500);
         }
     }
 
