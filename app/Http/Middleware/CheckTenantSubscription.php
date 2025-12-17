@@ -2,13 +2,17 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Invoice;
+use App\Services\SubscriptionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckTenantSubscription
 {
+    public function __construct(
+        protected SubscriptionService $subscriptionService
+    ) {}
+
     /**
      * Handle an incoming request.
      *
@@ -23,17 +27,11 @@ class CheckTenantSubscription
             return response()->json(['message' => 'Tenant not found.'], 404);
         }
 
-        // Check for the latest valid invoice
-        $validInvoice = Invoice::forTenant($tenant->id)
-            ->valid()
-            ->latest('date_end')
-            ->first();
+        // Check for the latest valid invoice using the service
+        $validInvoice = $this->subscriptionService->getValidInvoice($tenant);
 
         // Inject the valid invoice into the request for downstream use
         // If null, it means no valid subscription
-        $request->merge(['valid_invoice' => $validInvoice]);
-
-        // Inject the valid invoice into the request for downstream use
         $request->merge(['valid_invoice' => $validInvoice]);
 
         return $next($request);

@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use App\Traits\HasHashid;
-use App\Traits\HasMoney;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
     /** @use HasFactory<\Database\Factories\InvoiceFactory> */
-    use HasFactory, HasHashid, HasMoney;
+    use HasFactory;
 
     protected $fillable = [
         'tenant_id',
@@ -66,6 +64,7 @@ class Invoice extends Model
     public function scopeValid($query)
     {
         return $query->where('status', 'paid')
+                     ->where('date_start', '<=', now())
                      ->where('date_end', '>=', now());
     }
 }
