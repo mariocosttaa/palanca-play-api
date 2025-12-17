@@ -49,7 +49,7 @@ class UserRegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'surname' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:255', Rule::unique(\App\Models\User::class, 'email')],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id')],
             'calling_code' => ['nullable', 'string', 'max:10', Rule::exists(Country::class, 'calling_code'), 'required_with:phone'],
