@@ -196,4 +196,53 @@ class BusinessUserAuthController extends Controller
             return $this->errorResponse('Failed to retrieve user profile.', $e->getMessage(), 500);
         }
     }
+    /**
+     * Google Login
+     * @unauthenticated
+     */
+    public function googleLogin(Request $request): JsonResponse
+    {
+        try {
+            $request->validate(['token' => 'required|string']);
+
+            // Verify the token with Google
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->userFromToken($request->token);
+
+            $this->beginTransactionSafe();
+
+            $businessUser = BusinessUser::firstOrCreate(
+                ['email' => $googleUser->getEmail()],
+                [
+                    'name' => $googleUser->getName(),
+                    'surname' => '', // Google doesn't always provide surname separately
+                    'password' => Hash::make(\Illuminate\Support\Str::random(24)),
+                    'google_login' => true,
+                    'email_verified_at' => now(),
+                ]
+            );
+
+            // If user exists but wasn't created via Google
+            if (!$businessUser->google_login) {
+                $businessUser->update(['google_login' => true]);
+            }
+            
+            // Ensure email is verified
+            if (!$businessUser->hasVerifiedEmail()) {
+                $businessUser->markEmailAsVerified();
+            }
+
+            $token = $businessUser->createToken($request->device_name ?? 'google-login')->plainTextToken;
+
+            $this->commitSafe();
+
+            return $this->dataResponse([
+                'token' => $token,
+                'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
+            ]);
+
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            return $this->errorResponse('Google login failed.', $e->getMessage(), 401);
+        }
+    }
 }

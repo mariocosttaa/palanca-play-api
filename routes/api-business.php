@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('business-users')->group(function () {
         Route::post('/register', [AuthBusinessUserAuthController::class, 'register']);
         Route::post('/login', [AuthBusinessUserAuthController::class, 'login']);
+        Route::post('/auth/google', [AuthBusinessUserAuthController::class, 'googleLogin']);
     });
 
     // Protected routes - requires authentication with business guard

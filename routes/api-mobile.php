@@ -17,6 +17,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('users')->group(function () {
         Route::post('/register', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'register']);
         Route::post('/login', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'login']);
+        Route::post('/auth/google', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'googleLogin']);
     });
 
     // Public general routes

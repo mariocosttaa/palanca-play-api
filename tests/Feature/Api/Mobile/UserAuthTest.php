@@ -220,3 +220,40 @@ test('verified user can access protected routes', function () {
     $response->assertStatus(200);
 });
 
+test('user can login with google', function () {
+    /** @var TestCase $this */
+    $abstractUser = Mockery::mock('Laravel\Socialite\Two\User');
+    $abstractUser->shouldReceive('getId')->andReturn('1234567890');
+    $abstractUser->shouldReceive('getName')->andReturn('Google User');
+    $abstractUser->shouldReceive('getEmail')->andReturn('google@example.com');
+    $abstractUser->shouldReceive('getAvatar')->andReturn('https://en.gravatar.com/userimage');
+
+    $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+    $provider->shouldReceive('stateless')->andReturn($provider);
+    $provider->shouldReceive('userFromToken')->andReturn($abstractUser);
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+    $response = $this->postJson('/api/v1/users/auth/google', [
+        'token' => 'valid-google-token',
+        'device_name' => 'Test Device',
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJson(fn ($json) => $json
+            ->has('data')
+            ->has('data.token')
+            ->has('data.user', fn ($user) => $user
+                ->where('email', 'google@example.com')
+                ->where('name', 'Google User')
+                ->where('google_login', true)
+                ->etc()
+            )
+        );
+
+    $user = User::where('email', 'google@example.com')->first();
+    expect($user)->not->toBeNull();
+    expect($user->google_login)->toBeTrue();
+    expect($user->email_verified_at)->not->toBeNull();
+});
+

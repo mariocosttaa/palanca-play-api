@@ -204,4 +204,55 @@ class UserAuthController extends Controller
             return $this->errorResponse('Failed to retrieve user.', $e->getMessage(), 500);
         }
     }
+    /**
+     * Google Login
+     * @unauthenticated
+     */
+    public function googleLogin(Request $request): JsonResponse
+    {
+        try {
+            $request->validate(['token' => 'required|string']);
+
+            // Verify the token with Google
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->userFromToken($request->token);
+
+            $this->beginTransactionSafe();
+
+            $user = User::firstOrCreate(
+                ['email' => $googleUser->getEmail()],
+                [
+                    'name' => $googleUser->getName(),
+                    'surname' => '', // Google doesn't always provide surname separately in this flow
+                    'password' => Hash::make(\Illuminate\Support\Str::random(24)),
+                    'google_login' => true,
+                    'email_verified_at' => now(),
+                    'is_app_user' => true,
+                ]
+            );
+
+            // If user exists but wasn't created via Google, we might want to link it or just log them in.
+            // For now, we update google_login to true if it wasn't.
+            if (!$user->google_login) {
+                $user->update(['google_login' => true]);
+            }
+            
+            // Ensure email is verified if they login with Google
+            if (!$user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified();
+            }
+
+            $token = $user->createToken($request->device_name ?? 'google-login')->plainTextToken;
+
+            $this->commitSafe();
+
+            return $this->dataResponse([
+                'token' => $token,
+                'user' => (new UserResourceSpecific($user))->resolve(),
+            ]);
+
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            return $this->errorResponse('Google login failed.', $e->getMessage(), 401);
+        }
+    }
 }

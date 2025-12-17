@@ -36,6 +36,7 @@ class BusinessUserFactory extends Factory
             'phone' => null,
             'timezone' => fake()->timezone(),
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
         ];
     }
 
@@ -48,6 +49,16 @@ class BusinessUserFactory extends Factory
             'country_id' => Country::factory(),
             'calling_code' => fake()->numerify('+###'),
             'phone' => fake()->phoneNumber(),
+        ]);
+    }
+
+    /**
+     * Indicate that the user's email is not verified.
+     */
+    public function unverified(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email_verified_at' => null,
         ]);
     }
 }
