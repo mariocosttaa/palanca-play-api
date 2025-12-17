@@ -70,6 +70,9 @@ Route::prefix('v1')->group(function () {
                     // Tenant details
                     Route::get('/', [TenantController::class, 'show'])->name('tenant.show');
 
+                    // Dashboard
+                    Route::get('/dashboard', [App\Http\Controllers\Api\V1\Business\DashboardController::class, 'index'])->name('dashboard.index');
+
                     // Court types routes
                     Route::prefix('court-types')->group(function () {
                         // Court Types
