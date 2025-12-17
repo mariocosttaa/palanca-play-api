@@ -121,12 +121,14 @@ test('resend verification code is rate limited', function () {
     $user = User::factory()->create(['email_verified_at' => null]);
     $token = $user->createToken('test')->plainTextToken;
 
-    // First send
-    $this->postJson('/api/v1/users/verification/resend', [], [
-        'Authorization' => "Bearer {$token}",
-    ])->assertStatus(200);
+    // Send 3 times (allowed)
+    for ($i = 0; $i < 3; $i++) {
+        $this->postJson('/api/v1/users/verification/resend', [], [
+            'Authorization' => "Bearer {$token}",
+        ])->assertStatus(200);
+    }
 
-    // Immediate second send
+    // 4th time (blocked)
     $response = $this->postJson('/api/v1/users/verification/resend', [], [
         'Authorization' => "Bearer {$token}",
     ]);

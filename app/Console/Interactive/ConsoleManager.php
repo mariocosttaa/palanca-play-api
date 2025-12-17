@@ -10,7 +10,8 @@ class ConsoleManager
 {
     public function __construct(
         protected TenantConsole $tenantConsole,
-        protected SubscriptionConsole $subscriptionConsole
+        protected SubscriptionConsole $subscriptionConsole,
+        protected BusinessUserConsole $businessUserConsole
     ) {}
 
     public function run()
@@ -21,7 +22,8 @@ class ConsoleManager
             $section = select(
                 label: 'What would you like to manage?',
                 options: [
-                    'tenants' => 'Tenants & Users',
+                    'tenants' => 'Tenants',
+                    'users' => 'Business Users',
                     'subscriptions' => 'Subscriptions & Invoices',
                     'exit' => 'Exit',
                 ],
@@ -34,6 +36,7 @@ class ConsoleManager
 
             match ($section) {
                 'tenants' => $this->tenantConsole->menu(),
+                'users' => $this->businessUserConsole->menu(),
                 'subscriptions' => $this->subscriptionConsole->menu(),
             };
         }

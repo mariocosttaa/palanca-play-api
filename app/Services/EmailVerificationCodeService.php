@@ -30,14 +30,18 @@ class EmailVerificationCodeService
             );
         }
 
-        // Check for cooldown (1 email every 2.5 minutes / 150 seconds)
-        $lastSent = EmailSent::where('user_email', $email)
+        // Check for burst limit (3 emails every 2 minutes 50 seconds / 170 seconds)
+        $recentEmails = EmailSent::where('user_email', $email)
             ->where('type', $type)
-            ->latest('sent_at')
-            ->first();
+            ->where('sent_at', '>=', now()->subSeconds(170))
+            ->orderBy('sent_at', 'desc')
+            ->get();
 
-        if ($lastSent && $lastSent->sent_at->diffInSeconds(now()) < 150) {
-            $secondsRemaining = ceil(150 - $lastSent->sent_at->diffInSeconds(now()));
+        if ($recentEmails->count() >= 3) {
+            // Find the oldest of the recent emails to calculate when it expires
+            $oldestRecent = $recentEmails->last();
+            $secondsRemaining = ceil(170 - $oldestRecent->sent_at->diffInSeconds(now()));
+            
             throw new \App\Exceptions\EmailRateLimitException(
                 "Please wait {$secondsRemaining} seconds before requesting a new verification email.",
                 429
