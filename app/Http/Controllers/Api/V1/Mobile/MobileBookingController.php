@@ -13,6 +13,9 @@ use App\Services\EmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @tags [API-MOBILE] Bookings
+ */
 class MobileBookingController extends Controller
 {
     protected $notificationService;

@@ -12,10 +12,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @tags [API-BUSINESS] Auth
+ */
 class BusinessUserAuthController extends Controller
 {
     /**
      * Register a new business user
+     * @unauthenticated
      */
     public function register(BusinessUserRegisterRequest $request): JsonResponse
     {
@@ -50,6 +54,7 @@ class BusinessUserAuthController extends Controller
 
     /**
      * Login business user
+     * @unauthenticated
      */
     public function login(BusinessUserLoginRequest $request): JsonResponse
     {
@@ -96,6 +101,10 @@ class BusinessUserAuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
+
+        //get the token
+        
+
         try {
             $businessUser = $request->user()->load('country');
 

@@ -11,6 +11,9 @@ use App\Http\Resources\General\CourtResourceGeneral;
 use App\Models\Court;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Courts
+ */
 class CourtController extends Controller
 {
     public function index(Request $request)

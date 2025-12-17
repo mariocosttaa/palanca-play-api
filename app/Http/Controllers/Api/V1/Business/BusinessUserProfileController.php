@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * @tags [API-BUSINESS] Profile
+ */
 class BusinessUserProfileController extends Controller
 {
     /**

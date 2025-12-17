@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Zxing\QrReader;
 
+/**
+ * @tags [API-BUSINESS] Booking Verification
+ */
 class BookingVerificationController extends Controller
 {
 

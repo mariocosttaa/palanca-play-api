@@ -14,10 +14,14 @@ use Illuminate\Support\Facades\Hash;
 
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @tags [API-MOBILE] Auth
+ */
 class UserAuthController extends Controller
 {
     /**
      * Register a new user
+     * @unauthenticated
      */
     public function register(UserRegisterRequest $request): JsonResponse
     {
@@ -59,6 +63,7 @@ class UserAuthController extends Controller
 
     /**
      * Login user
+     * @unauthenticated
      */
     public function login(UserLoginRequest $request): JsonResponse
     {

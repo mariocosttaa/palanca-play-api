@@ -11,6 +11,9 @@ use App\Models\CourtType;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Court Types
+ */
 class CourtTypeController extends Controller
 {
     public function index(Request $request)

@@ -11,6 +11,9 @@ use App\Models\CourtImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Court Images
+ */
 class CourtImageController extends Controller
 {
     /**

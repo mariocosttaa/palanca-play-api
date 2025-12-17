@@ -7,6 +7,9 @@ use App\Http\Resources\Api\V1\Business\BookingResource;
 use App\Models\Booking;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Booking History
+ */
 class BookingHistoryController extends Controller
 {
     /**

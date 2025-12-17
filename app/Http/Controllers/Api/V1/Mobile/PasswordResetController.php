@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * @tags [API-MOBILE] Password Reset
+ */
 class PasswordResetController extends Controller
 {
     protected $emailService;

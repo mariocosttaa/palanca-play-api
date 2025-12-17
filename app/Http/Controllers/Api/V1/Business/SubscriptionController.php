@@ -10,6 +10,9 @@ use App\Models\Invoice;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Subscriptions
+ */
 class SubscriptionController extends Controller
 {
     public function indexInvoices(Request $request)

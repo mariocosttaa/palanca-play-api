@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+/**
+ * @tags [API-BUSINESS] Bookings
+ */
 class BookingController extends Controller
 {
     public function index(Request $request)

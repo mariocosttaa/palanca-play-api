@@ -8,6 +8,9 @@ use App\Http\Resources\General\CourtResourceGeneral;
 use App\Models\Court;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-MOBILE] Courts
+ */
 class MobileCourtController extends Controller
 {
     /**

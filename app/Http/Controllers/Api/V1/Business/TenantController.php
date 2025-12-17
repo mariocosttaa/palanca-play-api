@@ -11,6 +11,9 @@ use App\Actions\General\TenantFileAction;
 use App\Http\Requests\Api\V1\Business\UpdateTenantRequest;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Tenants
+ */
 class TenantController extends Controller
 {
 

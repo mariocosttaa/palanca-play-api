@@ -8,6 +8,9 @@ use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @tags [API-BUSINESS] Financials
+ */
 class FinancialController extends Controller
 {
     /**

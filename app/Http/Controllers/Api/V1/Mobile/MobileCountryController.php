@@ -8,6 +8,9 @@ use App\Models\Country;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-MOBILE] Countries
+ */
 class MobileCountryController extends Controller
 {
     /**

@@ -7,6 +7,9 @@ use App\Http\Resources\Api\V1\Mobile\NotificationResource;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-MOBILE] Notifications
+ */
 class NotificationController extends Controller
 {
     /**

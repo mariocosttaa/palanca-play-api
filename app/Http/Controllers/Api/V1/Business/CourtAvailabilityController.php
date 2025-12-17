@@ -7,6 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Court;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-BUSINESS] Court Availability
+ */
 class CourtAvailabilityController extends Controller
 {
     public function index(Request $request, $tenantId, $courtId)

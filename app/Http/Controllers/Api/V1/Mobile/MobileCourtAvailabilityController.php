@@ -7,6 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Court;
 use Illuminate\Http\Request;
 
+/**
+ * @tags [API-MOBILE] Court Availability
+ */
 class MobileCourtAvailabilityController extends Controller
 {
     /**

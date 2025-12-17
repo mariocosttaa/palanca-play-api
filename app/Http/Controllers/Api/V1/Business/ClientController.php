@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
+/**
+ * @tags [API-BUSINESS] Clients
+ */
 class ClientController extends Controller
 {
     public function index(Request $request, $tenantId)
