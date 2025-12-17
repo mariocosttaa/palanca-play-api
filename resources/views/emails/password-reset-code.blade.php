@@ -1,126 +1,116 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Código de Recuperação de Senha</title>
+    <title>Password Reset Code</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            background-color: #ffffff;
+            color: #24292f;
             margin: 0;
             padding: 0;
-            line-height: 1.6;
+            line-height: 1.5;
         }
         .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            background-color: #2d5f3f;
-            color: #ffffff;
-            padding: 30px 20px;
+            max-width: 544px;
+            margin: 0 auto;
+            padding: 24px;
             text-align: center;
         }
-        .header h1 {
-            margin: 0;
+        .logo {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .logo-text {
             font-size: 24px;
             font-weight: 600;
-        }
-        .brand {
-            font-size: 16px;
-            margin-top: 8px;
-            opacity: 0.9;
+            color: #24292f;
+            text-decoration: none;
+            letter-spacing: -0.5px;
         }
         .content {
-            padding: 40px 30px;
+            background-color: #ffffff;
             text-align: center;
         }
-        .message {
-            font-size: 16px;
-            color: #495057;
-            margin-bottom: 30px;
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #24292f;
         }
         .code-box {
-            background-color: #f0f7f4;
-            border: 2px solid #2d5f3f;
-            color: #2d5f3f;
-            font-size: 48px;
-            font-weight: bold;
-            letter-spacing: 12px;
-            padding: 30px;
-            margin: 30px 0;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: 4px;
+            margin: 32px 0;
+            padding: 16px;
+            background-color: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+            color: #24292f;
+            display: inline-block;
+            min-width: 200px;
+        }
+        .text {
+            font-size: 14px;
+            color: #24292f;
+            margin-bottom: 16px;
         }
         .warning {
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 20px;
-            margin: 30px 0;
-            text-align: left;
-            border-radius: 4px;
-        }
-        .warning strong {
-            color: #856404;
-        }
-        .warning ul {
-            margin: 10px 0;
-            padding-left: 20px;
-            color: #856404;
-        }
-        .warning li {
-            margin: 8px 0;
+            font-size: 14px;
+            color: #24292f;
+            margin-top: 24px;
         }
         .footer {
-            background-color: #f8f9fa;
-            padding: 20px;
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid #d0d7de;
+            font-size: 12px;
+            color: #57606a;
             text-align: center;
-            color: #6c757d;
-            font-size: 14px;
         }
         .footer p {
-            margin: 5px 0;
+            margin: 4px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Recuperação de Senha</h1>
-            <div class="brand">Palanca Play</div>
+        <div class="logo">
+            <div class="logo-text">PalancaPlay</div>
         </div>
+        
         <div class="content">
-            <div class="message">
-                Você solicitou a recuperação de senha.<br>
-                Use o código abaixo para redefinir sua senha:
-            </div>
+            <div class="title">Reset your password</div>
             
+            <div class="text">
+                Here is your password reset code:
+            </div>
+
             <div class="code-box">
                 {{ $code }}
             </div>
 
-            <div class="warning">
-                <strong>⚠️ Importante:</strong>
-                <ul>
-                    <li>Este código expira em <strong>15 minutos</strong></li>
-                    <li>Não compartilhe este código com ninguém</li>
-                    <li>Se você não solicitou esta recuperação, ignore este email</li>
-                </ul>
+            <div class="text">
+                This code is valid for 15 minutes and can only be used once.
             </div>
 
-            <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">
-                Digite este código no aplicativo para criar uma nova senha.
-            </p>
+            <div class="warning">
+                <strong>Please don't share this code with anyone:</strong> we'll never ask for it on the phone or via email.
+            </div>
+            
+            <div class="text" style="margin-top: 32px;">
+                Thanks,<br>
+                The PalancaPlay Team
+            </div>
         </div>
+
         <div class="footer">
-            <p><strong>Palanca Play</strong></p>
-            <p>Sistema de Reservas</p>
-            <p style="margin-top: 15px;">Este é um email automático, por favor não responda.</p>
+            <p>You're receiving this email because a password reset was requested for your PalancaPlay account.</p>
+            <p>If this wasn't you, please ignore this email.</p>
         </div>
     </div>
 </body>

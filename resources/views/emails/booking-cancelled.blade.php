@@ -1,137 +1,144 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reserva Cancelada</title>
+    <title>Booking Cancelled</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            background-color: #ffffff;
+            color: #24292f;
             margin: 0;
             padding: 0;
-            line-height: 1.6;
+            line-height: 1.5;
         }
         .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            background-color: #6c757d;
-            color: #ffffff;
-            padding: 30px 20px;
+            max-width: 544px;
+            margin: 0 auto;
+            padding: 24px;
             text-align: center;
         }
-        .header h1 {
-            margin: 0;
+        .logo {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .logo-text {
             font-size: 24px;
             font-weight: 600;
-        }
-        .brand {
-            font-size: 16px;
-            margin-top: 8px;
-            opacity: 0.9;
+            color: #24292f;
+            text-decoration: none;
+            letter-spacing: -0.5px;
         }
         .content {
-            padding: 40px 30px;
+            background-color: #ffffff;
+            text-align: left;
         }
-        .cancel-message {
-            text-align: center;
-            color: #6c757d;
-            font-size: 18px;
-            font-weight: 500;
-            margin-bottom: 30px;
-        }
-        .cancelled-badge {
-            background-color: #dc3545;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 20px;
-            display: inline-block;
+        .title {
+            font-size: 20px;
             font-weight: 600;
-            font-size: 14px;
-            margin: 20px 0;
+            margin-bottom: 16px;
+            color: #24292f;
+            text-align: center;
         }
-        .booking-details {
-            background-color: #f8f9fa;
-            border-left: 4px solid #6c757d;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 4px;
+        .text {
+            font-size: 14px;
+            color: #24292f;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .details-box {
+            background-color: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 24px 0;
         }
         .detail-row {
-            margin: 12px 0;
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid #d0d7de;
+            font-size: 14px;
         }
         .detail-row:last-child {
             border-bottom: none;
         }
         .detail-label {
             font-weight: 600;
-            color: #495057;
+            color: #57606a;
         }
         .detail-value {
-            color: #6c757d;
+            color: #cf222e;
             text-align: right;
             text-decoration: line-through;
         }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 20px;
+        .badge-container {
             text-align: center;
-            color: #6c757d;
-            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .cancelled-badge {
+            background-color: #ffebe9;
+            color: #cf222e;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+            border: 1px solid #ff818266;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid #d0d7de;
+            font-size: 12px;
+            color: #57606a;
+            text-align: center;
         }
         .footer p {
-            margin: 5px 0;
+            margin: 4px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Reserva Cancelada</h1>
-            <div class="brand">Palanca Play</div>
+        <div class="logo">
+            <div class="logo-text">PalancaPlay</div>
         </div>
+        
         <div class="content">
-            <div class="cancel-message">
-                ✕ Sua reserva foi cancelada
-            </div>
+            <div class="title">Booking Cancelled</div>
             
-            <div style="text-align: center;">
-                <span class="cancelled-badge">CANCELADA</span>
+            <div class="badge-container">
+                <span class="cancelled-badge">CANCELLED</span>
             </div>
 
-            <div class="booking-details">
+            <div class="text">
+                Your booking has been cancelled.
+            </div>
+
+            <div class="details-box">
                 <div class="detail-row">
-                    <span class="detail-label">Campo</span>
+                    <span class="detail-label">Court</span>
                     <span class="detail-value">{{ $booking->court->name }}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Data</span>
+                    <span class="detail-label">Date</span>
                     <span class="detail-value">{{ \Carbon\Carbon::parse($booking->start_date)->format('d/m/Y') }}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Horário</span>
+                    <span class="detail-label">Time</span>
                     <span class="detail-value">{{ \Carbon\Carbon::parse($booking->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($booking->end_time)->format('H:i') }}</span>
                 </div>
             </div>
-
-            <p style="color: #6c757d; font-size: 14px; text-align: center; margin-top: 30px;">
-                Se você não solicitou este cancelamento, entre em contato conosco imediatamente.
-            </p>
+            
+            <div class="text" style="margin-top: 32px;">
+                If you did not request this cancellation, please contact support immediately.
+            </div>
         </div>
+
         <div class="footer">
-            <p><strong>Palanca Play</strong></p>
-            <p>Sistema de Reservas</p>
-            <p style="margin-top: 15px;">Este é um email automático, por favor não responda.</p>
+            <p>You're receiving this email because a booking was cancelled on PalancaPlay.</p>
+            <p>If this wasn't you, please contact support immediately.</p>
         </div>
     </div>
 </body>
