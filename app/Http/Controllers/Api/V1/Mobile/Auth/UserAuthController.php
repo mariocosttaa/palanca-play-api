@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 use Illuminate\Validation\ValidationException;
+use App\Enums\EmailTypeEnum;
 
 /**
  * @tags [API-MOBILE] Auth
@@ -20,12 +21,43 @@ use Illuminate\Validation\ValidationException;
 class UserAuthController extends Controller
 {
     /**
-     * Register a new user
+     * Initiate registration (Step 1: Send Verification Code)
      * @unauthenticated
      */
-    public function register(UserRegisterRequest $request): JsonResponse
+    public function initiateRegistration(UserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
+            // Validate basic fields (email uniqueness is handled by Request)
+            
+            $emailService->sendVerificationCode($request->email, EmailTypeEnum::CONFIRMATION_EMAIL);
+
+            return $this->dataResponse([
+                'email' => $request->email,
+                'expires_in' => 900 // 15 minutes
+            ], 200);
+
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            return $this->errorResponse($e->getMessage(), null, $e->getCode());
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to send verification code.', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Complete registration (Step 2: Verify Code and Create User)
+     * @unauthenticated
+     */
+    public function completeRegistration(UserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    {
+        try {
+            if (!$request->code) {
+                 return $this->errorResponse('Verification code is required.', null, 422);
+            }
+
+            if (!$emailService->verifyCode($request->email, $request->code, \App\Enums\EmailTypeEnum::CONFIRMATION_EMAIL)) {
+                return $this->errorResponse('Invalid or expired verification code.', null, 422);
+            }
+
             $this->beginTransactionSafe();
 
             $callingCode = null;

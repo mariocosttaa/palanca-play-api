@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use App\Enums\EmailTypeEnum;
 
 /**
  * @tags [API-BUSINESS] Auth
@@ -18,12 +19,46 @@ use Illuminate\Validation\ValidationException;
 class BusinessUserAuthController extends Controller
 {
     /**
-     * Register a new business user
+     * Initiate registration (Step 1: Send Verification Code)
      * @unauthenticated
      */
-    public function register(BusinessUserRegisterRequest $request): JsonResponse
+    public function initiateRegistration(BusinessUserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
+            // Validate basic fields (email uniqueness is handled by Request)
+            // We don't create the user yet.
+
+            $emailService->sendVerificationCode($request->email, EmailTypeEnum::CONFIRMATION_EMAIL);
+
+            return $this->dataResponse([
+                'email' => $request->email,
+                'expires_in' => 900 // 15 minutes
+            ], 200);
+
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            return $this->errorResponse($e->getMessage(), null, $e->getCode());
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to send verification code.', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Complete registration (Step 2: Verify Code and Create User)
+     * @unauthenticated
+     */
+    public function completeRegistration(BusinessUserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    {
+        try {
+            // Manual validation for code as it's not in the main request
+            // Ideally should be in a separate Request class or added to BusinessUserRegisterRequest
+            if (!$request->code) {
+                 return $this->errorResponse('Verification code is required.', null, 422);
+            }
+
+            if (!$emailService->verifyCode($request->email, $request->code, \App\Enums\EmailTypeEnum::CONFIRMATION_EMAIL)) {
+                return $this->errorResponse('Invalid or expired verification code.', null, 422);
+            }
+
             $this->beginTransactionSafe();
 
             $businessUser = BusinessUser::create([

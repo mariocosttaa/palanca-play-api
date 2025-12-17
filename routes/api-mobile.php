@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Public authentication routes
     Route::prefix('users')->group(function () {
-        Route::post('/register', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'register']);
+        Route::post('/register/initiate', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'initiateRegistration']);
+        Route::post('/register/complete', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'completeRegistration']);
         Route::post('/login', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'login']);
     });
 
