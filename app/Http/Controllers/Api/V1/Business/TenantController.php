@@ -73,4 +73,84 @@ class TenantController extends Controller
             return $this->errorResponse('Erro ao atualizar o grupo ou empresa', $e->getMessage());
         }
     }
+
+    public function uploadLogo(Request $request, string $tenantIdHashId)
+    {
+        try {
+            $this->beginTransactionSafe();
+
+            $tenant = $request->tenant;
+
+            // Validate the uploaded file
+            $request->validate([
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // 2MB max
+            ]);
+
+            // Delete old logo if exists
+            if ($tenant->logo) {
+                TenantFileAction::delete(
+                    tenantId: $tenant->id,
+                    fileUrl: $tenant->logo,
+                    isPublic: true
+                );
+            }
+
+            // Upload new logo
+            $file = $request->file('logo');
+            $fileInfo = TenantFileAction::save(
+                tenantId: $tenant->id,
+                file: $file,
+                isPublic: true,
+                path: 'logos',
+                fileName: 'logo_' . time()
+            );
+
+            // Update tenant with new logo URL
+            $tenant->update(['logo' => $fileInfo->url]);
+
+            $this->commitSafe();
+
+            return $this->dataResponse(TenantResourceGeneral::make($tenant)->resolve());
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            return $this->errorResponse('Erro ao fazer upload do logo', $e->getMessage());
+        }
+    }
+
+    public function deleteLogo(Request $request, string $tenantIdHashId)
+    {
+        try {
+            $this->beginTransactionSafe();
+
+            $tenant = $request->tenant;
+
+            // Check if logo exists
+            if (!$tenant->logo) {
+                $this->rollBackSafe();
+                return $this->errorResponse('Nenhum logo encontrado para remover', status: 404);
+            }
+
+            // Delete logo file
+            $deleted = TenantFileAction::delete(
+                tenantId: $tenant->id,
+                fileUrl: $tenant->logo,
+                isPublic: true
+            );
+
+            if (!$deleted) {
+                $this->rollBackSafe();
+                return $this->errorResponse('Erro ao remover o arquivo do logo');
+            }
+
+            // Update tenant to remove logo URL
+            $tenant->update(['logo' => null]);
+
+            $this->commitSafe();
+
+            return $this->dataResponse(TenantResourceGeneral::make($tenant)->resolve());
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            return $this->errorResponse('Erro ao remover o logo', $e->getMessage());
+        }
+    }
 }

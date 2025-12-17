@@ -73,6 +73,10 @@ Route::prefix('v1')->group(function () {
                     // Dashboard
                     Route::get('/dashboard', [App\Http\Controllers\Api\V1\Business\DashboardController::class, 'index'])->name('dashboard.index');
 
+                    // Tenant Logo
+                    Route::post('/logo', [TenantController::class, 'uploadLogo'])->name('tenant.logo.upload');
+                    Route::delete('/logo', [TenantController::class, 'deleteLogo'])->name('tenant.logo.delete');
+
                     // Court types routes
                     Route::prefix('court-types')->group(function () {
                         // Court Types
