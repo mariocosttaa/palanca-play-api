@@ -58,10 +58,14 @@ Route::prefix('v1')->group(function () {
             });
 
             // Tenant routes
-            Route::prefix('business')->group(function () {
+            Route::prefix('tenants')->group(function () {
                 Route::get('/', [TenantController::class, 'index'])->name('tenant.index');
                 Route::put('/{tenant_id}', [TenantController::class, 'update'])->name('tenant.update');
             });
+
+            // Countries and Currencies (no auth required on business side since these are reference data)
+            Route::get('/countries', [App\Http\Controllers\Api\V1\Business\CountryController::class, 'index'])->name('countries.index');
+            Route::get('/currencies', [App\Http\Controllers\Api\V1\Business\CurrencyController::class, 'index'])->name('currencies.index');
 
             // Tenant-scoped routes - requires tenant access middleware
             Route::middleware(['tenant.show', \App\Http\Middleware\CheckTenantSubscription::class, \App\Http\Middleware\BlockSubscriptionCrud::class])->group(function () {
