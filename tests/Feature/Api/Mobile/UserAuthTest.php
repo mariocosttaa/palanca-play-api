@@ -192,3 +192,31 @@ test('user cannot register with duplicate email', function () {
         ->assertJsonValidationErrors(['email']);
 });
 
+test('unverified user cannot access protected routes', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create(['email_verified_at' => null]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Try to access notifications (protected by verified.api)
+    $response = $this->getJson('/api/v1/notifications', [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(403)
+        ->assertJsonFragment(['message' => 'Your email address is not verified.']);
+});
+
+test('verified user can access protected routes', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create(['email_verified_at' => now()]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Try to access notifications
+    $response = $this->getJson('/api/v1/notifications', [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    // Should be 200 OK (or empty list, but definitely not 403)
+    $response->assertStatus(200);
+});
+

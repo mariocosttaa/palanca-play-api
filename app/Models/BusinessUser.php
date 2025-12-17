@@ -8,7 +8,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class BusinessUser extends Authenticatable
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+class BusinessUser extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\BusinessUserFactory> */
     use HasFactory, Notifiable, SoftDeletes, HasApiTokens;

@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'mobile.cors' => \App\Http\Middleware\MobileCorsMiddleware::class,
             'business.cors' => \App\Http\Middleware\BusinessCorsMiddleware::class,
             'api.log' => \App\Http\Middleware\LogApiRequest::class,
+            'verified.api' => \App\Http\Middleware\EnsureEmailIsVerifiedApi::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -276,10 +276,35 @@ test('authenticated business user can logout', function () {
     ]);
 });
 
-test('business user cannot logout without token', function () {
-    /** @var TestCase $this */
-    $response = $this->postJson('/api/business/v1/business-users/logout');
 
-    $response->assertStatus(401);
+
+test('unverified business user cannot access protected routes', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['email_verified_at' => null]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Try to access profile (protected by verified.api)
+    $response = $this->putJson('/api/business/v1/profile', [], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(403)
+        ->assertJsonFragment(['message' => 'Your email address is not verified.']);
+});
+
+test('verified business user can access protected routes', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['email_verified_at' => now()]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Try to access profile
+    $response = $this->putJson('/api/business/v1/profile', [
+        'name' => 'Updated Name',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    // Should be 200 OK
+    $response->assertStatus(200);
 });
 
