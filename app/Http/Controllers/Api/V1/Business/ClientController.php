@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
+use App\Http\Requests\Api\V1\Business\CreateClientRequest;
+use App\Http\Requests\Api\V1\Business\UpdateClientRequest;
+
 /**
  * @tags [API-BUSINESS] Clients
  */
@@ -32,18 +35,12 @@ class ClientController extends Controller
         }
     }
 
-    public function store(Request $request, $tenantId)
+    public function store(CreateClientRequest $request, $tenantId)
     {
         try {
             $this->beginTransactionSafe();
 
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'surname' => 'nullable|string|max:255',
-                'email' => 'nullable|email|unique:users,email',
-                'phone' => 'nullable|string|max:20',
-                'country_id' => 'nullable|exists:countries,id',
-            ]);
+            $validated = $request->validated();
 
             // Create user with is_app_user = false
             $client = User::create(array_merge($validated, [
@@ -83,7 +80,7 @@ class ClientController extends Controller
         }
     }
 
-    public function update(Request $request, $tenantId, $clientId)
+    public function update(UpdateClientRequest $request, $tenantId, $clientId)
     {
         try {
             $this->beginTransactionSafe();
@@ -102,13 +99,7 @@ class ClientController extends Controller
                 return $this->errorResponse('Cannot edit clients registered via mobile app.', null, 403);
             }
 
-            $validated = $request->validate([
-                'name' => 'sometimes|string|max:255',
-                'surname' => 'nullable|string|max:255',
-                'email' => ['nullable', 'email', Rule::unique('users')->ignore($client->id)],
-                'phone' => 'nullable|string|max:20',
-                'country_id' => 'nullable|exists:countries,id',
-            ]);
+            $validated = $request->validated();
 
             $client->update($validated);
 
