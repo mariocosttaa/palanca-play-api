@@ -245,4 +245,52 @@ class BusinessUserAuthController extends Controller
             return $this->errorResponse('Google login failed.', $e->getMessage(), 401);
         }
     }
+
+    /**
+     * Link Google Account
+     */
+    public function linkGoogle(Request $request): JsonResponse
+    {
+        try {
+            $request->validate(['token' => 'required|string']);
+
+            $user = $request->user();
+
+            // Verify the token with Google
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->userFromToken($request->token);
+
+            // Enforce email matching
+            if ($googleUser->getEmail() !== $user->email) {
+                return $this->errorResponse('Google email does not match your account email.', null, 422);
+            }
+
+            $user->update(['google_login' => true]);
+
+            return $this->successResponse('Google account linked successfully.');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to link Google account.', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Unlink Google Account
+     */
+    public function unlinkGoogle(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (!$user->google_login) {
+                return $this->errorResponse('Google account is not linked.', null, 400);
+            }
+
+            $user->update(['google_login' => false]);
+
+            return $this->successResponse('Google account unlinked successfully.');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to unlink Google account.', $e->getMessage(), 500);
+        }
+    }
 }

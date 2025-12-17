@@ -30,6 +30,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthBusinessUserAuthController::class, 'register']);
         Route::post('/login', [AuthBusinessUserAuthController::class, 'login']);
         Route::post('/auth/google', [AuthBusinessUserAuthController::class, 'googleLogin']);
+        Route::post('/auth/google/link', [AuthBusinessUserAuthController::class, 'linkGoogle'])->middleware('auth:business');
+        Route::post('/auth/google/unlink', [AuthBusinessUserAuthController::class, 'unlinkGoogle'])->middleware('auth:business');
     });
 
     // Protected routes - requires authentication with business guard

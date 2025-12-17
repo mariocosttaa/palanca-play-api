@@ -18,6 +18,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'register']);
         Route::post('/login', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'login']);
         Route::post('/auth/google', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'googleLogin']);
+        Route::post('/auth/google/link', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'linkGoogle'])->middleware('auth:sanctum');
+        Route::post('/auth/google/unlink', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'unlinkGoogle'])->middleware('auth:sanctum');
     });
 
     // Public general routes

@@ -345,3 +345,73 @@ test('business user can login with google', function () {
     expect($user->email_verified_at)->not->toBeNull();
 });
 
+test('business user can link google account', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['email' => 'business.google@example.com', 'google_login' => false]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    $abstractUser = Mockery::mock('Laravel\Socialite\Two\User');
+    $abstractUser->shouldReceive('getEmail')->andReturn('business.google@example.com');
+
+    $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+    $provider->shouldReceive('stateless')->andReturn($provider);
+    $provider->shouldReceive('userFromToken')->andReturn($abstractUser);
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+    $response = $this->postJson('/api/business/v1/business-users/auth/google/link', [
+        'token' => 'valid-google-token',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonFragment(['message' => 'Google account linked successfully.']);
+
+    $user->refresh();
+    expect($user->google_login)->toBeTrue();
+});
+
+test('business user cannot link google account with different email', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['email' => 'business@example.com', 'google_login' => false]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    $abstractUser = Mockery::mock('Laravel\Socialite\Two\User');
+    $abstractUser->shouldReceive('getEmail')->andReturn('other@example.com');
+
+    $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+    $provider->shouldReceive('stateless')->andReturn($provider);
+    $provider->shouldReceive('userFromToken')->andReturn($abstractUser);
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+    $response = $this->postJson('/api/business/v1/business-users/auth/google/link', [
+        'token' => 'valid-google-token',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonFragment(['message' => 'Google email does not match your account email.']);
+
+    $user->refresh();
+    expect($user->google_login)->toBeFalse();
+});
+
+test('business user can unlink google account', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['google_login' => true]);
+    $token = $user->createToken('test')->plainTextToken;
+
+    $response = $this->postJson('/api/business/v1/business-users/auth/google/unlink', [], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonFragment(['message' => 'Google account unlinked successfully.']);
+
+    $user->refresh();
+    expect($user->google_login)->toBeFalse();
+});
+
