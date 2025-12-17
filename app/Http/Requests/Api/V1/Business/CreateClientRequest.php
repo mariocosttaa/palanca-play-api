@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Api\V1\Business;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Models\User;
+use App\Models\Country;
 
 /**
  * Request validates
@@ -43,11 +46,11 @@ class CreateClientRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
-            'surname' => 'nullable|string|max:255',
-            'email' => 'nullable|email|unique:users,email',
-            'phone' => 'nullable|string|max:20',
-            'country_id' => 'nullable|exists:countries,id',
+            'name' => ['required', 'string', 'max:255'],
+            'surname' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', Rule::unique(User::class, 'email')],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'country_id' => ['nullable', Rule::exists(Country::class, 'id')],
         ];
     }
 

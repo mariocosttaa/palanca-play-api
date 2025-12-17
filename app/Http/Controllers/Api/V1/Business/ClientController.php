@@ -26,7 +26,7 @@ class ClientController extends Controller
             $clients = User::query()
                 ->paginate(15);
 
-            return $this->dataResponse(
+            return response()->json(
                 UserResourceSpecific::collection($clients)->response()->getData(true)
             );
 
@@ -40,13 +40,16 @@ class ClientController extends Controller
         try {
             $this->beginTransactionSafe();
 
-            $validated = $request->validated();
-
             // Create user with is_app_user = false
-            $client = User::create(array_merge($validated, [
+            $client = User::create([
+                'name' => $request->name,
+                'surname' => $request->surname,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'country_id' => $request->country_id,
                 'password' => Hash::make(\Illuminate\Support\Str::random(16)),
                 'is_app_user' => false,
-            ]));
+            ]);
 
             $this->commitSafe();
 
@@ -99,9 +102,13 @@ class ClientController extends Controller
                 return $this->errorResponse('Cannot edit clients registered via mobile app.', null, 403);
             }
 
-            $validated = $request->validated();
-
-            $client->update($validated);
+            $client->update([
+                'name' => $request->name ?? $client->name,
+                'surname' => $request->surname ?? $client->surname,
+                'email' => $request->email ?? $client->email,
+                'phone' => $request->phone ?? $client->phone,
+                'country_id' => $request->country_id ?? $client->country_id,
+            ]);
 
             $this->commitSafe();
 
