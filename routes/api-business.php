@@ -72,6 +72,8 @@ Route::prefix('v1')->group(function () {
 
                     // Court types routes
                     Route::prefix('court-types')->group(function () {
+                        // Court Types
+                        Route::get('/enums/types', [CourtTypeController::class, 'types'])->name('court-types.enums.types');
                         Route::get('/', [CourtTypeController::class, 'index'])->name('court-types.index');
                         Route::post('/', [CourtTypeController::class, 'create'])->name('court-types.create');
                         Route::put('/{court_type_id}', [CourtTypeController::class, 'update'])->name('court-types.update');

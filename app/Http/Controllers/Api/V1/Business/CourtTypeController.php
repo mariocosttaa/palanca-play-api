@@ -142,4 +142,8 @@ class CourtTypeController extends Controller
             return $this->errorResponse('Houve um erro ao deletar o tipo de Quadra', $e->getMessage());
         }
     }
+    public function types()
+    {
+        return $this->dataResponse(\App\Enums\CourtTypeEnum::values());
+    }
 }

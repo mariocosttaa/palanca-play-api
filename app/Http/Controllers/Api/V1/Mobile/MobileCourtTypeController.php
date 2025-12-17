@@ -63,4 +63,8 @@ class MobileCourtTypeController extends Controller
             return $this->errorResponse('Erro ao buscar tipo de quadra', $e->getMessage(), 500);
         }
     }
+    public function types()
+    {
+        return $this->dataResponse(\App\Enums\CourtTypeEnum::values());
+    }
 }
