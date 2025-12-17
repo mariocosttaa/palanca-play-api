@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('calling_code')->nullable();
             $table->string('phone')->nullable();
             $table->string('timezone')->nullable();
+            $table->enum('language', ['en', 'pt', 'es', 'fr'])->default('pt');
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();

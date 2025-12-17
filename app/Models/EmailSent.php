@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Enums\EmailTypeEnum;
+
 class EmailSent extends Model
 {
     use HasFactory;
@@ -13,6 +15,8 @@ class EmailSent extends Model
 
     protected $fillable = [
         'user_email',
+        'code',
+        'type',
         'subject',
         'title',
         'html_content',
@@ -23,6 +27,7 @@ class EmailSent extends Model
 
     protected $casts = [
         'sent_at' => 'datetime',
+        'type' => EmailTypeEnum::class,
     ];
 
     // Scopes

@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('surname')->nullable();
             $table->string('email')->unique()->nullable();
+            $table->boolean('is_app_user')->default(true);
             $table->boolean('google_login')->default(false);
             $table->foreignId('country_id')->nullable()->constrained('countries')->nullOnDelete();
             $table->string('calling_code')->nullable();

@@ -14,13 +14,18 @@ return new class extends Migration
         Schema::create('emails_sent', function (Blueprint $table) {
             $table->id();
             $table->string('user_email');
+            $table->string('code')->nullable();
+            $table->string('type')->default('general');
             $table->string('subject');
             $table->string('title');
             $table->longText('html_content');
+            $table->enum('status', ['pending', 'sent', 'failed'])->default('pending');
+            $table->text('error_message')->nullable();
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
 
             $table->index('user_email');
+            $table->index(['user_email', 'type']);
             // Index for email history queries
             $table->index(['user_email', 'sent_at']);
         });
