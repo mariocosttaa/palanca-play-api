@@ -42,6 +42,7 @@ class BookingTestSeeder extends Seeder
                     'tenant_id' => $tenant->id,
                     'court_id' => $court->id,
                     'user_id' => $user->id,
+                    'currency_id' => 1, // Assuming currency 1 exists
                     'start_date' => $startDate->format('Y-m-d'),
                     'end_date' => $startDate->format('Y-m-d'),
                     'start_time' => $startTime->format('H:i:s'),

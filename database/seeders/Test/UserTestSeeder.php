@@ -17,15 +17,17 @@ class UserTestSeeder extends Seeder
     public function run(int $count = 1): void
     {
         for ($i = 0; $i < $count; $i++) {
-            User::create([
-                'name' => 'User ' . ($i + 1),
-                'surname' => 'Test',
-                'email' => $i === 0 ? 'user@example.com' : 'user' . ($i + 1) . '@example.com',
-                'password' => Hash::make('password'),
-                'country_id' => 1, // Assuming country with ID 1 exists
-                'calling_code' => '+1',
-                'phone' => '0987654321',
-            ]);
+            User::firstOrCreate(
+                ['email' => $i === 0 ? 'user@example.com' : 'user' . ($i + 1) . '@example.com'],
+                [
+                    'name' => 'User ' . ($i + 1),
+                    'surname' => 'Test',
+                    'password' => Hash::make('password'),
+                    'country_id' => 1, // Assuming country with ID 1 exists
+                    'calling_code' => '+1',
+                    'phone' => '0987654321',
+                ]
+            );
         }
     }
 }

@@ -25,7 +25,9 @@ class TestSeeder extends Seeder
     public function run(): void
     {
         // 0. Ensure default data exists (Countries)
+        // 0. Ensure default data exists (Countries, Currencies)
         $this->call(\Database\Seeders\Default\CountrySeeder::class);
+        $this->call(\Database\Seeders\CurrencySeeder::class);
 
         // 1. Seed business users (1 user)
         $this->call(BusinessUserTestSeeder::class, false, ['count' => 1]);
