@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Traits\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Court extends Model
 {
     /** @use HasFactory<\Database\Factories\CourtFactory> */
-    use HasFactory, SoftDeletes, HasHashid;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'courts';
 

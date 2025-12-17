@@ -2,15 +2,14 @@
 
 namespace App\Models;
 
-use App\Traits\HasHashid;
-use App\Traits\HasMoney;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
     /** @use HasFactory<\Database\Factories\BookingFactory> */
-    use HasFactory, HasHashid, HasMoney;
+    use HasFactory;
 
     protected $fillable = [
         'tenant_id',
