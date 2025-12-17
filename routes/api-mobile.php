@@ -28,7 +28,7 @@ Route::prefix('v1')->group(function () {
     // Public tenant-scoped routes (no authentication required for browsing)
     Route::prefix('tenants/{tenant_id}')->group(function () {
         // Court Types
-        Route::get('/court-types/enums/types', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'types']);
+        Route::get('/court-types/modalities', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'types']);
         Route::get('/court-types', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'index']);
         Route::get('/court-types/{court_type_id}', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'show']);
 

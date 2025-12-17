@@ -21,7 +21,7 @@ class CourtTypeEnumTest extends TestCase
         $tenantHashId = \App\Actions\General\EasyHashAction::encode($tenant->id, 'tenant-id');
 
         $response = $this->actingAs($businessUser, 'business')
-            ->getJson("/api/business/v1/business/{$tenantHashId}/court-types/enums/types");
+            ->getJson("/api/business/v1/business/{$tenantHashId}/court-types/modalities");
 
         $response->assertStatus(200)
             ->assertJson([
