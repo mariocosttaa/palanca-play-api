@@ -21,6 +21,8 @@ class InvoiceResourceGeneral extends JsonResource
             'date_start' => $this->date_start->toISOString(),
             'date_end' => $this->date_end->toISOString(),
             'price' => $this->price,
+            'price_formatted' => $this->price_formatted,
+            'currency' => $this->tenant->currency,
             'max_courts' => $this->max_courts,
             'status' => $this->status,
             'metadata' => $this->metadata,

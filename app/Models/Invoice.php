@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\General\MoneyAction;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -66,6 +67,16 @@ class Invoice extends Model
         return $query->where('status', 'paid')
                      ->where('date_start', '<=', now())
                      ->where('date_end', '>=', now());
+    }
+
+    // Accessors
+    public function getPriceFormattedAttribute()
+    {
+        return MoneyAction::format(
+            amount: $this->price,
+            currency: $this->tenant->currency ?? 'aoa',
+            formatWithSymbol: true
+        );
     }
 }
 
