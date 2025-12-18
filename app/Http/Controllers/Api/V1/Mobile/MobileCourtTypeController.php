@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\V1\Mobile;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\General\CourtTypeResourceGeneral;
+use App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral;
 use App\Models\CourtType;
 use Illuminate\Http\Request;
 

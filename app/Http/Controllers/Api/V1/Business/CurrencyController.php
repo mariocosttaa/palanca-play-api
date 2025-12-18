@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\General\CurrencyResourceGeneral;
+use App\Http\Resources\Shared\V1\General\CurrencyResourceGeneral;
 use App\Models\Manager\CurrencyModel;
 
 /**

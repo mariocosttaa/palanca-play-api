@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\General\BookingResourceGeneral;
-use App\Http\Resources\General\UserResourceGeneral;
-use App\Http\Resources\Specific\UserResourceSpecific;
+use App\Http\Resources\Shared\V1\General\BookingResourceGeneral;
+use App\Http\Resources\Business\V1\General\UserResourceGeneral;
+use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
 use App\Models\Booking;
 use App\Models\User;
 use Illuminate\Http\Request;

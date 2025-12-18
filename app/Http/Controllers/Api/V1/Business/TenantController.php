@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\General\TenantResourceGeneral;
+use App\Http\Resources\Business\V1\General\TenantResourceGeneral;
 use App\Models\Tenant;
 use App\Actions\EasyHashAction;
 use App\Actions\General\EasyHashAction as GeneralEasyHashAction;

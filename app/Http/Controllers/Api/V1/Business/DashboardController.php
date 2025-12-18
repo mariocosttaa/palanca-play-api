@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Business\BookingResource;
-use App\Http\Resources\Specific\UserResourceSpecific;
+use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
 use App\Models\Booking;
 use App\Models\Court;
 use App\Models\User;

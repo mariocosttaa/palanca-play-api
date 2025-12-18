@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Specific\SubscriptionResourceSpecific;
-use App\Http\Resources\General\InvoiceResourceGeneral;
+use App\Http\Resources\Business\V1\Specific\SubscriptionResourceSpecific;
+use App\Http\Resources\Business\V1\General\InvoiceResourceGeneral;
 use App\Models\Court;
 use App\Models\Invoice;
 use App\Models\Tenant;

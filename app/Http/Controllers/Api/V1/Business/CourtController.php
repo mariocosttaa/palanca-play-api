@@ -7,7 +7,7 @@ use App\Actions\General\TenantFileAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Business\CreateCourtRequest;
 use App\Http\Requests\Api\V1\Business\UpdateCourtRequest;
-use App\Http\Resources\General\CourtResourceGeneral;
+use App\Http\Resources\Shared\V1\General\CourtResourceGeneral;
 use App\Models\Court;
 use Illuminate\Http\Request;
 

@@ -6,7 +6,7 @@ use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Business\UpdateCourtTypeRequest;
 use App\Http\Requests\Api\V1\Business\CreateCourtTypeRequest;
-use App\Http\Resources\General\CourtTypeResourceGeneral;
+use App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral;
 use App\Models\CourtType;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
