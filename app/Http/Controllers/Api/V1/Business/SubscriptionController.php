@@ -19,10 +19,14 @@ class SubscriptionController extends Controller
     {
         try {
             $tenant = $request->tenant;
-            $invoices = Invoice::forTenant($tenant->id)->latest()->get();
+            $perPage = $request->input('per_page', 15);
+            
+            $invoices = Invoice::forTenant($tenant->id)
+                ->latest()
+                ->paginate($perPage);
 
             return $this->dataResponse(
-                InvoiceResourceGeneral::collection($invoices)->resolve()
+                InvoiceResourceGeneral::collection($invoices)->response()->getData(true)
             );
 
         } catch (\Exception $e) {
