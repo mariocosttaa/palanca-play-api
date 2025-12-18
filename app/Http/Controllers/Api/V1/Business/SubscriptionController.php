@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Specific\SubscriptionResourceSpecific;
 use App\Http\Resources\General\InvoiceResourceGeneral;
-use App\Http\Resources\General\SubscriptionDetailsResource;
 use App\Models\Court;
 use App\Models\Invoice;
 use App\Models\Tenant;
@@ -74,7 +74,7 @@ class SubscriptionController extends Controller
             ];
 
             return $this->dataResponse(
-                SubscriptionDetailsResource::make($data)->resolve()
+                SubscriptionResourceSpecific::make($data)->resolve()
             );
 
         } catch (\Exception $e) {
