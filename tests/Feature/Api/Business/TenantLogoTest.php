@@ -93,3 +93,55 @@ test('unauthorized user cannot upload logo', function () {
     $response->assertStatus(403);
 });
 
+
+test('can delete tenant logo', function () {
+    $tenant = Tenant::factory()->create([
+        'logo' => 'file/0Pa2e1K9y4bz4xRGpYBbv/logos/logo_1766088155.jpg'
+    ]);
+    $businessUser = BusinessUser::factory()->create();
+    $tenant->businessUsers()->attach($businessUser);
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    \App\Models\Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+    ]);
+
+    // Create a fake logo file
+    $logoPath = "tenants/{$tenant->id}/logos/logo_1766088155.jpg";
+    Storage::disk('public')->put($logoPath, 'fake logo content');
+
+    $response = $this->actingAs($businessUser, 'business')
+        ->deleteJson("/api/business/v1/business/{$tenantHashId}/logo");
+
+    $response->assertStatus(200)
+        ->assertJsonFragment(['logo' => null]);
+
+    // Verify logo was removed from database
+    $tenant->refresh();
+    expect($tenant->logo)->toBeNull();
+
+    // Verify file was deleted
+    expect(Storage::disk('public')->exists($logoPath))->toBeFalse();
+});
+
+
+test('cannot delete logo that does not exist', function () {
+    $tenant = Tenant::factory()->create(['logo' => null]);
+    $businessUser = BusinessUser::factory()->create();
+    $tenant->businessUsers()->attach($businessUser);
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    \App\Models\Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+    ]);
+
+    $response = $this->actingAs($businessUser, 'business')
+        ->deleteJson("/api/business/v1/business/{$tenantHashId}/logo");
+
+    $response->assertStatus(404)
+        ->assertJson(['message' => 'Nenhum logo encontrado para remover']);
+});

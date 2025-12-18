@@ -20,7 +20,7 @@ class TenantResourceGeneral extends JsonResource
             'id' => EasyHashAction::encode($this->id, 'tenant-id'),
             'country_id' => $this->country_id,
             'name' => $this->name,
-            'logo' => $this->logo,
+            'logo' => $this->logo ? config('app.url') . '/' . $this->logo : null,
             'address' => $this->address,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,

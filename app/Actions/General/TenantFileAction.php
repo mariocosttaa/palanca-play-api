@@ -121,14 +121,25 @@ class TenantFileAction
                 $pathToDelete = ltrim($filePath, '/');
             }
         } elseif ($fileUrl) {
-            // Handle relative paths starting with /file/
-            if (str_starts_with($fileUrl, '/file/')) {
-                $pathSegments = explode('/', trim($fileUrl, '/'));
+            // Strip APP_URL from the beginning if present
+            $appUrl = config('app.url');
+            if ($appUrl && str_starts_with($fileUrl, $appUrl)) {
+                $fileUrl = substr($fileUrl, strlen($appUrl));
+            }
+            
+            // Remove leading slash if present for consistent handling
+            $fileUrl = ltrim($fileUrl, '/');
+            
+            // Handle paths starting with file/
+            if (str_starts_with($fileUrl, 'file/')) {
+                $pathSegments = explode('/', $fileUrl);
+                // Pattern: file/{tenantIdHashed}/{filePath}
+                // We need to skip 'file' and the tenant hash to get the actual file path
                 if (isset($pathSegments[2])) {
                     $pathToDelete = implode('/', array_slice($pathSegments, 2));
                 }
             } elseif (filter_var($fileUrl, FILTER_VALIDATE_URL)) {
-                // If fileUrl is provided, extract the path from the URL
+                // If fileUrl is provided as a full URL, extract the path from the URL
                 $pathInfo = parse_url($fileUrl);
                 $pathSegments = explode('/', trim($pathInfo['path'], '/'));
 
