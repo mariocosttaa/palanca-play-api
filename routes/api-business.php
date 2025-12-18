@@ -176,16 +176,7 @@ Route::prefix('v1')->group(function () {
                             ->name('financials.yearly-stats');
                     });
 
-                    // TODO: Add other tenant-scoped routes here
-                    // Example:
-                    // Route::prefix('courts')->group(function () {
-                    //     Route::get('/', [CourtController::class, 'index']);
-                    //     Route::post('/', [CourtController::class, 'store']);
-                    // });
-                    // Route::prefix('bookings')->group(function () {
-                    //     Route::get('/', [BookingController::class, 'index']);
-                    //     Route::post('/{booking}/confirm', [BookingController::class, 'confirm']);
-                    // });
+            
                 });
             });
         });
