@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Business\BookingVerificationController;
 use App\Http\Controllers\Api\V1\Business\ClientController;
 use App\Http\Controllers\Api\V1\Business\FinancialController;
 use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
+use App\Http\Controllers\Api\V1\Business\NotificationController;
 
 
 /*
@@ -55,6 +56,13 @@ Route::prefix('v1')->group(function () {
             Route::prefix('profile')->group(function () {
                 Route::patch('/language', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateLanguage']);
                 Route::put('/', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateProfile']);
+            });
+
+            // Notifications (user-specific, not tenant-scoped)
+            Route::prefix('notifications')->group(function () {
+                Route::get('/recent', [NotificationController::class, 'recent']);
+                Route::get('/', [NotificationController::class, 'index']);
+                Route::patch('/{notification_id}/read', [NotificationController::class, 'markAsRead']);
             });
 
             // Tenant routes
