@@ -1,12 +1,11 @@
 <?php
 
-namespace App\Http\Resources\General;
+namespace App\Http\Resources\Mobile\V1\Specific;
 
-use App\Actions\General\EasyHashAction;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class NotificationResourceGeneral extends JsonResource
+class NotificationResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -16,7 +15,7 @@ class NotificationResourceGeneral extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => EasyHashAction::encode($this->id, 'notification-id'),
+            'id' => $this->hashid,
             'subject' => $this->subject,
             'message' => $this->message,
             'read' => !is_null($this->read_at),

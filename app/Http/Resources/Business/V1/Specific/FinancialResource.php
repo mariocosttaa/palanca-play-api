@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Resources\Api\V1\Business;
+namespace App\Http\Resources\Business\V1\Specific;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-use App\Http\Resources\Specific\UserResourceSpecific;
+use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
 
 class FinancialResource extends JsonResource
 {

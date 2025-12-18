@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Resources\Specific;
+namespace App\Http\Resources\Business\V1\Specific;
 
-use App\Http\Resources\General\InvoiceResourceGeneral;
+use App\Http\Resources\Business\V1\General\InvoiceResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

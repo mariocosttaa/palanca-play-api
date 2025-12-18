@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Resources\Api\V1\Business;
+namespace App\Http\Resources\Business\V1\Specific;
 
 use App\Actions\General\EasyHashAction;
-use App\Http\Resources\Specific\UserResourceSpecific;
+use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

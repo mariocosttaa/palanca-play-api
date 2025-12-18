@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Http\Resources\General;
+namespace App\Http\Resources\Shared\V1\General;
 
 use App\Actions\General\EasyHashAction;
+use App\Http\Resources\Business\V1\General\TenantResourceGeneral;
+use App\Http\Resources\Business\V1\General\UserResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

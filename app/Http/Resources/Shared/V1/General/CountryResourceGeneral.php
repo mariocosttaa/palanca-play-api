@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\General;
+namespace App\Http\Resources\Shared\V1\General;
 
 use App\Actions\General\EasyHashAction;
 use Illuminate\Http\Request;
