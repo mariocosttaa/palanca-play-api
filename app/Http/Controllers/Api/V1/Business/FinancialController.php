@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Api\V1\Business\FinancialResource;
+use App\Http\Resources\Business\V1\Specific\FinancialResource;
 use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

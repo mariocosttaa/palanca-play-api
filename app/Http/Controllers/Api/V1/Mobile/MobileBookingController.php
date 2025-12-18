@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\V1\Mobile;
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Mobile\CreateMobileBookingRequest;
-use App\Http\Resources\Api\V1\Business\BookingResource;
+use App\Http\Resources\Business\V1\Specific\BookingResource;
 use App\Models\Booking;
 use App\Models\Court;
 use App\Services\NotificationService;

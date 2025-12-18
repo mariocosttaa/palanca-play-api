@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\V1\Mobile\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Auth\UserLoginRequest;
 use App\Http\Requests\Api\V1\Auth\UserRegisterRequest;
-use App\Http\Resources\Specific\UserResourceSpecific;
+use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
 use App\Models\User;
 use App\Models\Country;
 use Illuminate\Http\JsonResponse;
