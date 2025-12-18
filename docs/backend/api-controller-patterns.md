@@ -10,7 +10,7 @@ Standardize Laravel API controllers to ensure consistent RESTful responses, secu
 4.  **Organize Data**: Prepare variables before the return statement.
 5.  **Try-Catch Blocks**: Wrap state-changing operations (Store, Update, Delete) in try-catch.
 6.  **Secure Inputs**: Never use `$request->validated()` directly; access properties explicitly.
-7.  **Use Controller Helpers**: Always use `$this->errorResponse()`, `$this->successResponse()`, and `$this->dataResponse()` instead of manually building JSON responses or using `Log::error()`.
+7.  **Standard Responses**: Use `response()->json()` directly. For errors, always log before returning: `Log::error(...)` then `return response()->json(...)`.
 
 ## 📂 Structure & Naming
 - **Namespace**: `App\Http\Controllers\Api`
@@ -35,11 +35,12 @@ public function index(Request $request)
 
         $entities = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        return $this->dataResponse(
-            EntityResourceGeneral::collection($entities)->resolve()
-        );
+        return response()->json([
+            'data' => EntityResourceGeneral::collection($entities)->resolve()
+        ]);
     } catch (\Exception $e) {
-        return $this->errorResponse('Failed to retrieve entities.', $e->getMessage(), 500);
+        \Log::error('Failed to retrieve entities.', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Failed to retrieve entities.'], 500);
     }
 }
 ```
@@ -56,11 +57,12 @@ public function show(Entity $entity)
         $this->authorize('view', $entity);
         $entity->load(['details', 'history']);
         
-        return $this->dataResponse(
-            (new EntityResourceSpecific($entity))->resolve()
-        );
+        return response()->json([
+            'data' => (new EntityResourceSpecific($entity))->resolve()
+        ]);
     } catch (\Exception $e) {
-        return $this->errorResponse('Failed to retrieve entity.', $e->getMessage(), 500);
+        \Log::error('Failed to retrieve entity.', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Failed to retrieve entity.'], 500);
     }
 }
 ```
@@ -85,14 +87,14 @@ public function store(StoreEntityRequest $request)
 
         $this->commitSafe();
 
-        return $this->dataResponse(
-            (new EntityResourceSpecific($entity))->resolve(),
-            201
-        );
+        return response()->json([
+            'data' => (new EntityResourceSpecific($entity))->resolve()
+        ], 201);
             
     } catch (\Exception $e) {
         $this->rollBackSafe();
-        return $this->errorResponse('Failed to create entity.', $e->getMessage(), 500);
+        \Log::error('Failed to create entity.', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Failed to create entity.'], 500);
     }
 }
 ```
@@ -117,13 +119,14 @@ public function update(UpdateEntityRequest $request, Entity $entity)
 
         $this->commitSafe();
 
-        return $this->dataResponse(
-            (new EntityResourceSpecific($entity))->resolve()
-        );
+        return response()->json([
+            'data' => (new EntityResourceSpecific($entity))->resolve()
+        ]);
         
     } catch (\Exception $e) {
         $this->rollBackSafe();
-        return $this->errorResponse('Failed to update entity.', $e->getMessage(), 500);
+        \Log::error('Failed to update entity.', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Failed to update entity.'], 500);
     }
 }
 ```
@@ -145,29 +148,30 @@ public function destroy(Entity $entity)
 
         $this->commitSafe();
 
-        return $this->successResponse('Entity deleted successfully');
+        return response()->json(['message' => 'Entity deleted successfully']);
     } catch (\Exception $e) {
         $this->rollBackSafe();
-        return $this->errorResponse('Failed to delete entity.', $e->getMessage(), 500);
+        \Log::error('Failed to delete entity.', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Failed to delete entity.'], 500);
     }
 }
 ```
 
-**Note**: While REST standard suggests `204 No Content` for delete operations, using `$this->successResponse()` with a message provides better user feedback. For strict REST compliance, you can use `response()->json(null, 204)` instead.
+**Note**: While REST standard suggests `204 No Content` for delete operations, using `response()->json(['message' => ...])` provides better user feedback.
 
 ## ⚠️ Anti-Patterns (Do Not Do This)
 
 | ❌ Bad Pattern | ✅ Good Pattern |
 |----------------|-----------------|
-| `return Entity::all();` | `return $this->dataResponse(EntityResourceGeneral::collection($entities)->resolve());` |
-| `return EntityResourceGeneral::collection($entities);` | `return $this->dataResponse(EntityResourceGeneral::collection($entities)->resolve());` |
-| `return new EntityResourceSpecific($entity);` | `return $this->dataResponse((new EntityResourceSpecific($entity))->resolve());` |
+| `return Entity::all();` | `return response()->json(['data' => EntityResourceGeneral::collection($entities)->resolve()]);` |
+| `return EntityResourceGeneral::collection($entities);` | `return response()->json(['data' => EntityResourceGeneral::collection($entities)->resolve()]);` |
+| `return new EntityResourceSpecific($entity);` | `return response()->json(['data' => (new EntityResourceSpecific($entity))->resolve()]);` |
 | `$request->validated()` | `$request->name`, `$request->email` (Explicit properties) |
 | `Entity::create($request->all())` | `Entity::create(['name' => $request->name, ...])` |
 | Logic in Controller | Logic in `Action` class or Model method |
 | Return 200 for Create | Return 201 Created |
-| `Log::error()` + manual JSON response | `$this->errorResponse($message, $errorLog, $status)` |
-| `response()->json(['message' => ...])` | `$this->errorResponse()` or `$this->successResponse()` |
+| `Log::error()` without response | `Log::error(...)` then `return response()->json(...)` |
+| `return ['message' => ...]` | `return response()->json(['message' => ...])` |
 | `DB::beginTransaction()` / `DB::commit()` / `DB::rollBack()` | `$this->beginTransactionSafe()` / `$this->commitSafe()` / `$this->rollBackSafe()` |
 
 ## 💡 Advanced Patterns
@@ -187,7 +191,7 @@ Return additional data alongside the resource collection.
 **CRITICAL**: Always call `->resolve()` on resources before returning them. This ensures:
 - Only the data defined in `toArray()` is sent to the frontend
 - No internal Laravel Resource metadata leaks through
-- Consistent response structure using `dataResponse()` helper
+- Consistent response structure
 - Better security by controlling exactly what data is exposed
 
 **Never return resources directly** - always resolve them first:
@@ -196,7 +200,7 @@ Return additional data alongside the resource collection.
 return EntityResourceGeneral::collection($entities);
 
 // ✅ GOOD - Only resolved array data is returned
-return $this->dataResponse(EntityResourceGeneral::collection($entities)->resolve());
+return response()->json(['data' => EntityResourceGeneral::collection($entities)->resolve()]);
 ```
 
 ### Database Transactions
@@ -221,10 +225,11 @@ try {
     // Your database operations here...
     
     $this->commitSafe();
-    return $this->dataResponse($data);
+    return response()->json(['data' => $data]);
 } catch (\Exception $e) {
     $this->rollBackSafe();
-    return $this->errorResponse('Error message');
+    \Log::error('Error message', ['error' => $e->getMessage()]);
+    return response()->json(['message' => 'Error message'], 500);
 }
 ```
 
@@ -235,42 +240,29 @@ try {
 
 ### Controller Helper Methods
 
-The base `Controller` class provides standardized response methods that should always be used:
+**DEPRECATED**: The helper methods `$this->errorResponse()`, `$this->successResponse()`, and `$this->dataResponse()` have been removed to ensure better compatibility with documentation tools like `dedoc/scramble` and to adhere to standard Laravel practices.
 
-#### `$this->errorResponse(string $message, ?string $errorlog = null, int $status = 400)`
-Returns a standardized error response and automatically logs errors if `$errorlog` is provided.
+Always use `response()->json()` directly.
 
+#### Error Handling Pattern
 ```php
-// Simple error response
-return $this->errorResponse('Resource not found', null, 404);
-
-// Error response with logging
-return $this->errorResponse('Failed to create entity.', $e->getMessage(), 500);
+try {
+    // ...
+} catch (\Exception $e) {
+    \Log::error('Action failed.', ['error' => $e->getMessage()]);
+    return response()->json(['message' => 'Action failed.'], 500);
+}
 ```
 
-**Benefits:**
-- Automatically logs errors when `$errorlog` parameter is provided
-- Consistent error response format across all endpoints
-- No need to manually call `Log::error()` or build JSON responses
-
-#### `$this->successResponse(string $message, int $status = 200)`
-Returns a standardized success message response.
-
+#### Success Response Pattern
 ```php
-return $this->successResponse('Entity deleted successfully', 200);
+return response()->json(['message' => 'Success.']);
 ```
 
-#### `$this->dataResponse(mixed $data, int $status = 200)`
-Returns a standardized data response with the `data` key.
-
+#### Data Response Pattern
 ```php
-return $this->dataResponse(EntityResourceGeneral::collection($entities)->resolve(), 200);
+return response()->json(['data' => $resolvedData]);
 ```
-
-**Important:**
-- Always use these helper methods instead of manually building JSON responses
-- The `errorResponse()` method automatically handles logging when you pass the error message as the second parameter
-- Never use `Log::error()` directly in controllers - pass the error to `errorResponse()` instead
 
 ### Multi-Tenant Scope
 Always scope queries by tenant if applicable.

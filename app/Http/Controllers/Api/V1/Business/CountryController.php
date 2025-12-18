@@ -15,9 +15,10 @@ class CountryController extends Controller
     {
         try {
             $countries = Country::all();
-            return $this->dataResponse(CountryResourceGeneral::collection($countries)->resolve());
+            return CountryResourceGeneral::collection($countries);
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao listar países', $e->getMessage());
+            \Log::error('Erro ao listar países', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao listar países'], 500);
         }
     }
 }

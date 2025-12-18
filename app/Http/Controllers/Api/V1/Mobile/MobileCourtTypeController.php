@@ -29,12 +29,11 @@ class MobileCourtTypeController extends Controller
                 ->where('status', true)
                 ->get();
 
-            return $this->dataResponse(
-                CourtTypeResourceGeneral::collection($courtTypes)->resolve()
-            );
+            return CourtTypeResourceGeneral::collection($courtTypes);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar tipos de quadras', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar tipos de quadras', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar tipos de quadras'], 500);
         }
     }
 
@@ -55,16 +54,15 @@ class MobileCourtTypeController extends Controller
                 ->where('status', true)
                 ->findOrFail($courtTypeId);
 
-            return $this->dataResponse(
-                CourtTypeResourceGeneral::make($courtType)->resolve()
-            );
+            return CourtTypeResourceGeneral::make($courtType);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar tipo de quadra', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar tipo de quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar tipo de quadra'], 500);
         }
     }
     public function types()
     {
-        return $this->dataResponse(\App\Enums\CourtTypeEnum::values());
+        return response()->json(['data' => \App\Enums\CourtTypeEnum::values()]);
     }
 }

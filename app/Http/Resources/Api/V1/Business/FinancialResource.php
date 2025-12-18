@@ -4,6 +4,8 @@ namespace App\Http\Resources\Api\V1\Business;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
+use App\Http\Resources\Specific\UserResourceSpecific;
+
 class FinancialResource extends JsonResource
 {
     /**
@@ -16,13 +18,7 @@ class FinancialResource extends JsonResource
             'date' => $this->start_date->format('Y-m-d'),
             'date_formatted' => $this->start_date->translatedFormat('d M Y'),
             'time' => $this->start_time->format('H:i'),
-            'user' => $this->user ? [
-                'id' => $this->user->hashid,
-                'name' => $this->user->name,
-                'surname' => $this->user->surname,
-                'email' => $this->user->email,
-                'phone' => $this->user->phone,
-            ] : null,
+            'user' => new UserResourceSpecific($this->whenLoaded('user')),
             'amount' => $this->price, // in cents
             'amount_formatted' => $this->formatMoney(),
             'status' => $this->getStatus(),

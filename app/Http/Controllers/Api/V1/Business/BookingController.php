@@ -40,7 +40,9 @@ class BookingController extends Controller
 
         $bookings = $query->latest()->paginate(20);
 
-        return $this->dataResponse(BookingResource::collection($bookings)->response()->getData(true));
+        $bookings = $query->latest()->paginate(20);
+
+        return BookingResource::collection($bookings);
     }
 
     public function store(CreateBookingRequest $request)
@@ -80,13 +82,13 @@ class BookingController extends Controller
             }
 
             if (!$clientId) {
-                return $this->errorResponse('Cliente inválido ou não fornecido.');
+                return response()->json(['message' => 'Cliente inválido ou não fornecido.'], 400);
             }
 
             // Get Court
             $court = Court::find($data['court_id']);
             if (!$court || $court->tenant_id !== $tenant->id) {
-                return $this->errorResponse('Quadra inválida.');
+                return response()->json(['message' => 'Quadra inválida.'], 400);
             }
 
             // Prepare Booking Data
@@ -113,7 +115,7 @@ class BookingController extends Controller
 
             // Check availability
             if (!$court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time'])) {
-                return $this->errorResponse('Horário indisponível.');
+                return response()->json(['message' => 'Horário indisponível.'], 400);
             }
 
             $booking = Booking::create($bookingData);
@@ -139,11 +141,12 @@ class BookingController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(BookingResource::make($booking)->resolve());
+            return BookingResource::make($booking);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Erro ao criar agendamento', $e->getMessage());
+            \Log::error('Erro ao criar agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao criar agendamento'], 400);
         }
     }
 
@@ -153,10 +156,10 @@ class BookingController extends Controller
         $booking = Booking::forTenant($request->tenant->id)->with(['user', 'court'])->find($bookingId);
 
         if (!$booking) {
-            return $this->errorResponse('Agendamento não encontrado', status: 404);
+            return response()->json(['message' => 'Agendamento não encontrado'], 404);
         }
 
-        return $this->dataResponse(BookingResource::make($booking)->resolve());
+        return BookingResource::make($booking);
     }
 
     public function update(UpdateBookingRequest $request, $bookingId)
@@ -173,7 +176,7 @@ class BookingController extends Controller
             $booking = Booking::forTenant($request->tenant->id)->find($decodedBookingId);
 
             if (!$booking) {
-                return $this->errorResponse('Agendamento não encontrado', status: 404);
+                return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
 
             $data = $request->validated();
@@ -187,10 +190,11 @@ class BookingController extends Controller
 
             $booking->update($data);
 
-            return $this->dataResponse(BookingResource::make($booking)->resolve());
+            return BookingResource::make($booking);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao atualizar agendamento', $e->getMessage());
+            \Log::error('Erro ao atualizar agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar agendamento'], 400);
         }
     }
 
@@ -201,15 +205,16 @@ class BookingController extends Controller
             $booking = Booking::forTenant($request->tenant->id)->find($bookingId);
 
             if (!$booking) {
-                return $this->errorResponse('Agendamento não encontrado', status: 404);
+                return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
 
             $booking->delete();
 
-            return $this->successResponse('Agendamento removido com sucesso');
+            return response()->json(['message' => 'Agendamento removido com sucesso']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao remover agendamento', $e->getMessage());
+            \Log::error('Erro ao remover agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao remover agendamento'], 400);
         }
     }
     public function confirmPresence(Request $request, $tenantId, $bookingId)
@@ -219,7 +224,7 @@ class BookingController extends Controller
             $booking = Booking::forTenant($request->tenant->id)->find($bookingId);
 
             if (!$booking) {
-                return $this->errorResponse('Agendamento não encontrado', status: 404);
+                return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
 
             $request->validate([
@@ -230,10 +235,11 @@ class BookingController extends Controller
                 'present' => $request->present,
             ]);
 
-            return $this->dataResponse(BookingResource::make($booking)->resolve());
+            return BookingResource::make($booking);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao confirmar presença', $e->getMessage());
+            \Log::error('Erro ao confirmar presença', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao confirmar presença'], 400);
         }
     }
 }

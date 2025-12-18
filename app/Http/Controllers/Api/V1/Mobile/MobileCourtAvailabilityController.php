@@ -32,13 +32,16 @@ class MobileCourtAvailabilityController extends Controller
 
             $dates = $court->getAvailableDates($request->start_date, $request->end_date);
 
-            return $this->dataResponse([
-                'dates' => $dates,
-                'count' => count($dates),
+            return response()->json([
+                'data' => [
+                    'dates' => $dates,
+                    'count' => count($dates),
+                ]
             ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar datas disponíveis', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar datas disponíveis', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar datas disponíveis'], 500);
         }
     }
 
@@ -55,7 +58,7 @@ class MobileCourtAvailabilityController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse($validator->errors()->first(), status: 422);
+                return response()->json(['message' => $validator->errors()->first()], 422);
             }
 
             $tenantId = EasyHashAction::decode($tenantIdHashId, 'tenant-id');
@@ -68,16 +71,19 @@ class MobileCourtAvailabilityController extends Controller
 
             $slots = $court->getAvailableSlots($date);
 
-            return $this->dataResponse([
-                'date' => $date,
-                'slots' => $slots,
-                'count' => $slots->count(),
-                'interval_minutes' => $court->tenant->booking_interval_minutes ?? 60,
-                'buffer_minutes' => $court->tenant->buffer_between_bookings_minutes ?? 0,
+            return response()->json([
+                'data' => [
+                    'date' => $date,
+                    'slots' => $slots,
+                    'count' => $slots->count(),
+                    'interval_minutes' => $court->tenant->booking_interval_minutes ?? 60,
+                    'buffer_minutes' => $court->tenant->buffer_between_bookings_minutes ?? 0,
+                ]
             ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar horários disponíveis', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar horários disponíveis', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar horários disponíveis'], 500);
         }
     }
 }

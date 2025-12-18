@@ -142,7 +142,7 @@ class DashboardController extends Controller
             }
 
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'cards' => [
                     'total_revenue' => $totalRevenue,
                     'total_revenue_formatted' => $this->formatMoney($totalRevenue, $tenant),
@@ -170,10 +170,11 @@ class DashboardController extends Controller
                 'charts' => [
                     'daily_revenue' => $dailyRevenue,
                 ]
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve dashboard statistics.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve dashboard statistics.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve dashboard statistics.'], 500);
         }
     }
 

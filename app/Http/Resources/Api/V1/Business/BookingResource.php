@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
+use App\Http\Resources\Specific\UserResourceSpecific;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,12 +20,7 @@ class BookingResource extends JsonResource
             'id' => EasyHashAction::encode($this->id, 'booking-id'),
             'court_id' => EasyHashAction::encode($this->court_id, 'court-id'),
             'user_id' => EasyHashAction::encode($this->user_id, 'user-id'),
-            'user' => [
-                'id' => EasyHashAction::encode($this->user->id, 'user-id'),
-                'name' => $this->user->name,
-                'email' => $this->user->email,
-                'phone' => $this->user->phone,
-            ],
+            'user' => new UserResourceSpecific($this->whenLoaded('user')),
             'start_date' => $this->start_date->format('Y-m-d'),
             'end_date' => $this->end_date->format('Y-m-d'),
             'start_time' => $this->start_time->format('H:i'),

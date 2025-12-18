@@ -59,4 +59,13 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $query->where('country_id', $countryId);
     }
+
+    // Accessors
+    public function getPhoneFormattedAttribute()
+    {
+        if ($this->calling_code && $this->phone) {
+            return '+' . $this->calling_code . ' ' . $this->phone;
+        }
+        return $this->phone;
+    }
 }

@@ -56,12 +56,11 @@ class BookingHistoryController extends Controller
                 ->latest('start_time')
                 ->paginate($perPage);
 
-            return $this->dataResponse(
-                BookingResource::collection($bookings)->response()->getData(true)
-            );
+            return BookingResource::collection($bookings);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar histórico de reservas', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar histórico de reservas', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar histórico de reservas'], 500);
         }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Specific;
 
 use App\Actions\General\EasyHashAction;
+use App\Http\Resources\General\BookingResourceGeneral;
 use App\Http\Resources\General\CountryResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -29,10 +30,8 @@ class UserResourceSpecific extends JsonResource
             'country' => new CountryResourceGeneral($this->whenLoaded('country')),
             'calling_code' => $this->calling_code,
             'phone' => $this->phone,
-            'timezone' => $this->timezone,
-            'email_verified_at' => $this->email_verified_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'phone_formatted' => $this->phone_formatted,
+            'bookings_count' => $this->whenCounted('bookings'),
         ];
     }
 }

@@ -23,25 +23,15 @@ class UpdateTenantRequest extends FormRequest
 /**
  * Request validates
  *
- * Input fields:
- * @property string $name
- * @property string $address
- * @property decimal $latitude
- * @property decimal $longitude
- * @property bool $auto_confirm_bookings
- * @property int $booking_interval_minutes
- * @property int $buffer_between_bookings_minutes
- *
- * Magic/inherited methods (MANDATORY):
- * @method bool hasFile(string $key)
- * @method \Illuminate\Http\UploadedFile|null file(string $key)
- * @method mixed route(string $key = null)
- * @method bool boolean(string $key)
- * @method array all()
- * @method void merge(array $data)
- * @method array input(string $key = null, mixed $default = null)
- * @method string route(string $key = null)
- * @mixin \Illuminate\Http\Request
+ * @property string $name Example: Palanca Club
+ * @property string $address Example: Luanda, Angola
+ * @property decimal $latitude Example: -8.839988
+ * @property decimal $longitude Example: 13.289437
+ * @property bool $auto_confirm_bookings Example: true
+ * @property int $booking_interval_minutes Example: 60
+ * @property int $buffer_between_bookings_minutes Example: 15
+ * @property string $currency Example: aoa
+ * @property string $timezone Example: Africa/Luanda
  */
     /**
      * Determine if the user is authorized to make this request.
@@ -70,7 +60,7 @@ class UpdateTenantRequest extends FormRequest
             'name' => ['required', 'string', 'min:3', 'max:255',
                 Rule::unique('tenants', 'name')->where('id', $this->tenant_id)->ignore($this->tenant_id, 'id')
             ],
-            'logo' => ['nullable', 'image', 'max:2048'],
+
             'address' => 'required|string|max:512',
             'latitude' => 'nullable|decimal:7',
             'longitude' => 'nullable|decimal:7',

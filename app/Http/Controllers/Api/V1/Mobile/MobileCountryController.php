@@ -16,13 +16,14 @@ class MobileCountryController extends Controller
     /**
      * List all countries
      */
-    public function index(): JsonResponse
+    public function index()
     {
         try {
             $countries = Country::all();
-            return $this->dataResponse(CountryResourceGeneral::collection($countries)->resolve());
+            return CountryResourceGeneral::collection($countries);
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to fetch countries.', $e->getMessage(), 500);
+            \Log::error('Failed to fetch countries.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to fetch countries.'], 500);
         }
     }
 }

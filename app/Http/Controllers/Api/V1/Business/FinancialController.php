@@ -25,7 +25,8 @@ class FinancialController extends Controller
             return $this->monthlyReport($request, $tenant_id, $now->year, $now->month);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve current month report.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve current month report.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve current month report.'], 500);
         }
     }
 
@@ -54,7 +55,7 @@ class FinancialController extends Controller
 
             // Validate not in future
             if ($startDate->isFuture()) {
-                return $this->errorResponse('Cannot query future months.', null, 400);
+                return response()->json(['message' => 'Cannot query future months.'], 400);
             }
 
             // Get bookings for the month
@@ -65,16 +66,17 @@ class FinancialController extends Controller
                 ->orderBy('start_time', 'asc')
                 ->get();
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'year' => (int) $year,
                 'month' => (int) $month,
                 'month_name' => $startDate->translatedFormat('F'),
                 'bookings' => FinancialResource::collection($bookings)->resolve(),
                 'summary' => $this->calculateMonthlySummary($bookings, $tenant),
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve monthly report.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve monthly report.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve monthly report.'], 500);
         }
     }
 
@@ -103,7 +105,7 @@ class FinancialController extends Controller
 
             // Validate not in future
             if ($startDate->isFuture()) {
-                return $this->errorResponse('Cannot query future months.', null, 400);
+                return response()->json(['message' => 'Cannot query future months.'], 400);
             }
 
             // Get bookings for the month
@@ -114,15 +116,16 @@ class FinancialController extends Controller
 
             $stats = $this->calculateStatistics($bookings, $tenant);
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'year' => (int) $year,
                 'month' => (int) $month,
                 'month_name' => $startDate->translatedFormat('F'),
                 'statistics' => $stats,
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve monthly statistics.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve monthly statistics.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve monthly statistics.'], 500);
         }
     }
 
@@ -140,7 +143,7 @@ class FinancialController extends Controller
             
             // Validate year
             if ($year < 2000 || $year > 2100) {
-                return $this->errorResponse('Invalid year.', null, 400);
+                return response()->json(['message' => 'Invalid year.'], 400);
             }
 
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
@@ -148,7 +151,7 @@ class FinancialController extends Controller
 
             // Validate not in future
             if ($startDate->isFuture()) {
-                return $this->errorResponse('Cannot query future years.', null, 400);
+                return response()->json(['message' => 'Cannot query future years.'], 400);
             }
 
             // Get all bookings for the year
@@ -182,14 +185,15 @@ class FinancialController extends Controller
                 ];
             }
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'year' => (int) $year,
                 'statistics' => $yearlyStats,
                 'monthly_breakdown' => $monthlyBreakdown,
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve yearly statistics.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve yearly statistics.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve yearly statistics.'], 500);
         }
     }
 
@@ -308,11 +312,11 @@ class FinancialController extends Controller
         $month = (int) $month;
         
         if ($year < 2000 || $year > 2100) {
-            return $this->errorResponse('Ano inválido.', status: 400);
+            return response()->json(['message' => 'Ano inválido.'], 400);
         }
 
         if ($month < 1 || $month > 12) {
-            return $this->errorResponse('Mês inválido.', status: 400);
+            return response()->json(['message' => 'Mês inválido.'], 400);
         }
 
         return true;

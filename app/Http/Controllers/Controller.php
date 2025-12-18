@@ -48,32 +48,7 @@ abstract class Controller
         }
     }
 
-    public function errorResponse(string $message, ?string $errorlog = null, int $status = 400)
-    {
-        if ($errorlog) {
-            logger()->error('error response in controller', [
-                'message' => $message,
-                'error' => $errorlog,
-                'status' => $status,
-            ]);
-        }
 
-        return response()->json([
-            'message' => $message,
-        ], $status);
-    }
 
-    public function successResponse(string $message, int $status = 200)
-    {
-        return response()->json([
-            'message' => $message,
-        ], $status);
-    }
 
-    public function dataResponse(mixed $data, int $status = 200)
-    {
-        return response()->json([
-            'data' => $data,
-        ], $status);
-    }
 }

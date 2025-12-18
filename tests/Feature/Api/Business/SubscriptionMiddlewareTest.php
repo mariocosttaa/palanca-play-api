@@ -103,7 +103,7 @@ class SubscriptionMiddlewareTest extends TestCase
                 'name' => 'Court 1',
                 'number' => 1,
                 'court_type_id' => $courtTypeHashId,
-            ])->assertStatus(200);
+            ])->assertStatus(201);
 
         // Create 2nd court (denied)
         $this->actingAs($user, 'business')

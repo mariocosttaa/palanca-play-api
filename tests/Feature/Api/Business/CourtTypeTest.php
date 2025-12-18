@@ -190,7 +190,7 @@ test('user can create a court type', function () {
 
 
     // Assert the response is successful
-    $response->assertStatus(200);
+    $response->assertStatus(201);
 
     // Assert the response contains the created court type
     $responseData = $courtTypeData->toArray();

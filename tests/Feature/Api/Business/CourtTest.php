@@ -148,10 +148,8 @@ test('user can create a court with images and availability', function () {
     $response = $this->postJson(route('courts.create', ['tenant_id' => $tenantHashId]), $requestData);
 
     // Assert the response is successful
-    if ($response->status() !== 200) {
-        $response->dump();
-    }
-    $response->assertStatus(200);
+
+    $response->assertStatus(201);
 
     // Assert the response contains the created court
     $data = $courtData->toArray();

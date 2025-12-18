@@ -25,12 +25,12 @@ class NotificationController extends Controller
                 ->limit(8)
                 ->get();
 
-            return $this->dataResponse(
-                NotificationResource::collection($notifications)->resolve()
-            );
+            return NotificationResource::collection($notifications);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar notificações recentes', $e->getMessage(), 500);
+        } catch (\Exception $e) {
+            \Log::error('Erro ao buscar notificações recentes', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar notificações recentes'], 500);
         }
     }
 
@@ -47,12 +47,12 @@ class NotificationController extends Controller
                 ->latest()
                 ->paginate($perPage);
 
-            return $this->dataResponse(
-                NotificationResource::collection($notifications)->response()->getData(true)
-            );
+            return NotificationResource::collection($notifications);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar notificações', $e->getMessage(), 500);
+        } catch (\Exception $e) {
+            \Log::error('Erro ao buscar notificações', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar notificações'], 500);
         }
     }
 
@@ -70,12 +70,12 @@ class NotificationController extends Controller
 
             $notification->markAsRead();
 
-            return $this->dataResponse(
-                NotificationResource::make($notification)->resolve()
-            );
+            return NotificationResource::make($notification);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao marcar notificação como lida', $e->getMessage(), 500);
+        } catch (\Exception $e) {
+            \Log::error('Erro ao marcar notificação como lida', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao marcar notificação como lida'], 500);
         }
     }
 }

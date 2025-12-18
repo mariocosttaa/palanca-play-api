@@ -33,12 +33,11 @@ class MobileCourtController extends Controller
 
             $courts = $query->get();
 
-            return $this->dataResponse(
-                CourtResourceGeneral::collection($courts)->resolve()
-            );
+            return CourtResourceGeneral::collection($courts);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar quadras', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar quadras', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar quadras'], 500);
         }
     }
 
@@ -56,12 +55,11 @@ class MobileCourtController extends Controller
                 ->with(['courtType', 'images', 'primaryImage'])
                 ->findOrFail($courtId);
 
-            return $this->dataResponse(
-                CourtResourceGeneral::make($court)->resolve()
-            );
+            return CourtResourceGeneral::make($court);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar quadra', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar quadra'], 500);
         }
     }
 }

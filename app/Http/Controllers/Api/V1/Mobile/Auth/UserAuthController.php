@@ -61,7 +61,7 @@ class UserAuthController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse([
+            return response()->json([
                 'token' => $token,
                 'user' => (new UserResourceSpecific($user))->resolve(),
                 'verification_needed' => true,
@@ -70,7 +70,9 @@ class UserAuthController extends Controller
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Failed to register user.', $e->getMessage(), 500);
+            $this->rollBackSafe();
+            \Log::error('Failed to register user.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to register user.'], 500);
         }
     }
 
@@ -87,19 +89,20 @@ class UserAuthController extends Controller
             $user = $request->user();
 
             if ($user->hasVerifiedEmail()) {
-                return $this->successResponse('Email already verified.');
+                return response()->json(['message' => 'Email already verified.']);
             }
 
             if (!$emailService->verifyCode($user->email, $request->code, EmailTypeEnum::CONFIRMATION_EMAIL)) {
-                return $this->errorResponse('Invalid or expired verification code.', null, 422);
+                return response()->json(['message' => 'Invalid or expired verification code.'], 422);
             }
 
             $user->markEmailAsVerified();
 
-            return $this->successResponse('Email verified successfully.');
+            return response()->json(['message' => 'Email verified successfully.']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to verify email.', $e->getMessage(), 500);
+            \Log::error('Failed to verify email.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to verify email.'], 500);
         }
     }
 
@@ -112,17 +115,18 @@ class UserAuthController extends Controller
             $user = $request->user();
 
             if ($user->hasVerifiedEmail()) {
-                return $this->errorResponse('Email already verified.', null, 400);
+                return response()->json(['message' => 'Email already verified.'], 400);
             }
 
             $emailService->sendVerificationCode($user->email, EmailTypeEnum::CONFIRMATION_EMAIL);
 
-            return $this->successResponse('Verification code sent successfully.');
+            return response()->json(['message' => 'Verification code sent successfully.']);
 
         } catch (\App\Exceptions\EmailRateLimitException $e) {
-            return $this->errorResponse($e->getMessage(), null, $e->getCode());
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to send verification code.', $e->getMessage(), 500);
+            \Log::error('Failed to send verification code.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to send verification code.'], 500);
         }
     }
 
@@ -134,13 +138,14 @@ class UserAuthController extends Controller
         try {
             $user = $request->user();
 
-            return $this->dataResponse([
+            return response()->json([
                 'verified' => $user->hasVerifiedEmail(),
                 'email' => $user->email,
             ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to check status.', $e->getMessage(), 500);
+            \Log::error('Failed to check status.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to check status.'], 500);
         }
     }
 
@@ -156,12 +161,12 @@ class UserAuthController extends Controller
             $user = User::where('email', $request->email)->first();
             
             if (!$user) {
-                return $this->errorResponse('Invalid credentials.', null, 401);
+                return response()->json(['message' => 'Invalid credentials.'], 401);
             }
 
             $token = $user->createToken($request->device_name ?? 'api-client')->plainTextToken;
 
-            return $this->dataResponse([
+            return response()->json([
                 'token' => $token,
                 'user' => (new UserResourceSpecific($user))->resolve(),
             ]);
@@ -169,7 +174,8 @@ class UserAuthController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Login failed.', $e->getMessage(), 500);
+            \Log::error('Login failed.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Login failed.'], 500);
         }
     }
 
@@ -181,27 +187,27 @@ class UserAuthController extends Controller
         try {
             $request->user()->currentAccessToken()->delete();
 
-            return $this->successResponse('Logged out successfully.');
+            return response()->json(['message' => 'Logged out successfully.']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Logout failed.', $e->getMessage(), 500);
+            \Log::error('Logout failed.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Logout failed.'], 500);
         }
     }
 
     /**
      * Get authenticated user
      */
-    public function me(Request $request): JsonResponse
+    public function me(Request $request)
     {
         try {
             $user = $request->user()->load('country');
 
-            return $this->dataResponse(
-                (new UserResourceSpecific($user))->resolve()
-            );
+            return UserResourceSpecific::make($user);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve user.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve user.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve user.'], 500);
         }
     }
     /**
@@ -245,14 +251,15 @@ class UserAuthController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse([
+            return response()->json([
                 'token' => $token,
                 'user' => (new UserResourceSpecific($user))->resolve(),
             ]);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Google login failed.', $e->getMessage(), 401);
+            \Log::error('Google login failed.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Google login failed.'], 401);
         }
     }
 
@@ -271,15 +278,16 @@ class UserAuthController extends Controller
 
             // Enforce email matching
             if ($googleUser->getEmail() !== $user->email) {
-                return $this->errorResponse('Google email does not match your account email.', null, 422);
+                return response()->json(['message' => 'Google email does not match your account email.'], 422);
             }
 
             $user->update(['google_login' => true]);
 
-            return $this->successResponse('Google account linked successfully.');
+            return response()->json(['message' => 'Google account linked successfully.']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to link Google account.', $e->getMessage(), 500);
+            \Log::error('Failed to link Google account.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to link Google account.'], 500);
         }
     }
 
@@ -292,15 +300,16 @@ class UserAuthController extends Controller
             $user = $request->user();
 
             if (!$user->google_login) {
-                return $this->errorResponse('Google account is not linked.', null, 400);
+                return response()->json(['message' => 'Google account is not linked.'], 400);
             }
 
             $user->update(['google_login' => false]);
 
-            return $this->successResponse('Google account unlinked successfully.');
+            return response()->json(['message' => 'Google account unlinked successfully.']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to unlink Google account.', $e->getMessage(), 500);
+            \Log::error('Failed to unlink Google account.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to unlink Google account.'], 500);
         }
     }
 }

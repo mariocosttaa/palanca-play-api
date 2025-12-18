@@ -50,7 +50,7 @@ test('business user can create booking with new client no email', function () {
         'paid_at_venue' => true,
     ]);
 
-    $response->assertStatus(200);
+    $response->assertStatus(201);
     
     // Verify client created
     $this->assertDatabaseHas('users', [
@@ -98,7 +98,7 @@ test('business user can create booking with existing client', function () {
         'end_time' => '11:00',
     ]);
 
-    $response->assertStatus(200);
+    $response->assertStatus(201);
     $this->assertDatabaseHas('bookings', [
         'user_id' => $client->id,
     ]);

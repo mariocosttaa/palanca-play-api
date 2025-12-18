@@ -189,6 +189,6 @@ class BlockSubscriptionCrudTest extends TestCase
             'court_type_id' => $courtTypeHashId,
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(201);
     }
 }

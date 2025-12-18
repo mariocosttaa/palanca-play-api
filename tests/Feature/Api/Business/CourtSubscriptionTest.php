@@ -48,7 +48,7 @@ class CourtSubscriptionTest extends TestCase
                 'number' => 1,
                 'court_type_id' => $courtTypeHashId,
             ]);
-        $response1->assertStatus(200);
+        $response1->assertStatus(201);
 
         // Create 2nd court
         $response2 = $this->actingAs($user, 'business')
@@ -57,7 +57,7 @@ class CourtSubscriptionTest extends TestCase
                 'number' => 2,
                 'court_type_id' => $courtTypeHashId,
             ]);
-        $response2->assertStatus(200);
+        $response2->assertStatus(201);
 
         // Try to create 3rd court (should fail)
         $response3 = $this->actingAs($user, 'business')

@@ -22,10 +22,11 @@ class CourtController extends Controller
             $tenant = $request->tenant;
             $courts = Court::forTenant($tenant->id)->get();
 
-            return $this->dataResponse(CourtResourceGeneral::collection($courts)->resolve());
+            return CourtResourceGeneral::collection($courts);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Houve um erro ao buscar as Quadras', $e->getMessage(), 500);
+            \Log::error('Houve um erro ao buscar as Quadras', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao buscar as Quadras'], 500);
         }
     }
 
@@ -36,10 +37,11 @@ class CourtController extends Controller
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
             $court = Court::forTenant($tenant->id)->findOrFail($courtId);
 
-            return $this->dataResponse(CourtResourceGeneral::make($court)->resolve());
+            return CourtResourceGeneral::make($court);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Houve um erro ao buscar a Quadra', $e->getMessage(), 500);
+            \Log::error('Houve um erro ao buscar a Quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao buscar a Quadra'], 500);
         }
     }
     public function create(CreateCourtRequest $request, string $tenantIdHashId)
@@ -60,10 +62,7 @@ class CourtController extends Controller
             $currentCourtsCount = $tenant->courts()->count();
             if ($currentCourtsCount >= $maxCourts) {
                 $this->rollBackSafe();
-                return $this->errorResponse(
-                    message: 'Limite de quadras atingido para o seu plano de subscrição.',
-                    status: 403
-                );
+                return response()->json(['message' => 'Limite de quadras atingido para o seu plano de subscrição.'], 403);
             }
 
             $court = new Court();
@@ -105,11 +104,12 @@ class CourtController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(CourtResourceGeneral::make($court)->resolve());
+            return CourtResourceGeneral::make($court);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao criar a Quadra: ' . $e->getMessage());
+            \Log::error('Houve um erro ao criar a Quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao criar a Quadra: ' . $e->getMessage()], 400);
         }
     }
 
@@ -124,18 +124,19 @@ class CourtController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Quadra não encontrada', status: 404);
+                return response()->json(['message' => 'Quadra não encontrada'], 404);
             }
 
             $court->update($request->validated());
 
             $this->commitSafe();
 
-            return $this->dataResponse(CourtResourceGeneral::make($court)->resolve());
+            return CourtResourceGeneral::make($court);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao actualizar a Quadra', $e->getMessage());
+            \Log::error('Houve um erro ao actualizar a Quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao actualizar a Quadra'], 400);
         }
     }
 
@@ -150,24 +151,25 @@ class CourtController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Quadra não encontrada', status: 404);
+                return response()->json(['message' => 'Quadra não encontrada'], 404);
             }
 
             //check if the court has any bookings associated
             if ($court->bookings()->exists()) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Quadra não pode ser deletada porque tem reservas associadas, apague as reservas primeiro', status: 400);
+                return response()->json(['message' => 'Quadra não pode ser deletada porque tem reservas associadas, apague as reservas primeiro'], 400);
             }
 
             $court->delete();
 
             $this->commitSafe();
 
-            return $this->successResponse('Quadra deletada com sucesso');
+            return response()->json(['message' => 'Quadra deletada com sucesso']);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao deletar a Quadra', $e->getMessage());
+            \Log::error('Houve um erro ao deletar a Quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao deletar a Quadra'], 400);
         }
     }
 }

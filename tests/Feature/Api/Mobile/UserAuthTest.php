@@ -29,10 +29,10 @@ test('user can register and receive verification code', function () {
 
     $response->assertStatus(201)
         ->assertJson(fn ($json) => $json
-            ->has('data')
-            ->has('data.token')
-            ->has('data.verification_needed')
-            ->has('data.user', fn ($user) => $user
+            ->has('token')
+            ->has('verification_needed')
+            ->has('message')
+            ->has('user', fn ($user) => $user
                 ->has('id')
                 ->where('name', 'John Doe')
                 ->where('email', $email)
@@ -67,7 +67,7 @@ test('user can verify email with valid code', function () {
         'phone' => '123456789',
     ]);
 
-    $token = $registerResponse->json('data.token');
+    $token = $registerResponse->json('token');
     $code = \App\Models\EmailSent::where('user_email', $email)->first()->code;
 
     // Verify
@@ -241,9 +241,8 @@ test('user can login with google', function () {
 
     $response->assertStatus(200)
         ->assertJson(fn ($json) => $json
-            ->has('data')
-            ->has('data.token')
-            ->has('data.user', fn ($user) => $user
+            ->has('token')
+            ->has('user', fn ($user) => $user
                 ->where('email', 'google@example.com')
                 ->where('name', 'Google User')
                 ->where('google_login', true)

@@ -7,7 +7,8 @@ Transform database models into consistent, secure, and optimized JSON responses 
 1.  **Dual Structure**: Use `General` resources for lists (performance) and `Specific` for details (completeness).
 2.  **Hash Everything**: All IDs must be encoded (e.g., `EasyHashAction::encode($id, 'user-id')`).
 3.  **No N+1**: Never load relationships in `General` resources unless explicitly eager loaded.
-4.  **Consistent Types**: Money as integers (cents), Dates as ISO 8601 strings.
+4.  **Wrap Relationships**: Always wrap relationships in their corresponding Resource class (e.g., `new CountryResource(...)`).
+5.  **Consistent Types**: Money as integers (cents), Dates as ISO 8601 strings.
 
 ## 📂 File Structure
 ```
@@ -140,6 +141,7 @@ Return both raw value (cents) and formatted string.
 | `'id' => $this->id` | `'id' => EasyHashAction::encode($this->id, 'type')` |
 | `'country' => new CountryResource($this->country)` (always loads) | `'country' => new CountryResourceGeneral($this->whenLoaded('country'))` (conditional) |
 | Only foreign key ID, no relationship | Both `country_id` AND `country` with `whenLoaded()` |
+| Returning raw relationship model/array | Wrapping relationship in `new Resource(...)` or `Resource::collection(...)` |
 | Nested Specific Resources | Nested **General** Resources (prevents infinite loops) |
 | Formatting dates in JS format | `$this->created_at->toISOString()` |
 | Logic/Calculations in Resource | Calculate in Model/Accessor, display in Resource |

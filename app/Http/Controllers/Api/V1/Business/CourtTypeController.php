@@ -22,12 +22,10 @@ class CourtTypeController extends Controller
             $tenant = $request->tenant;
             $courtTypes = CourtType::forTenant($tenant->id)->get();
 
-            return $this->dataResponse(
-                CourtTypeResourceGeneral::collection($courtTypes)->resolve()
-            );
-
+            return CourtTypeResourceGeneral::collection($courtTypes);
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar tipos de quadras', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar tipos de quadras', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar tipos de quadras'], 500);
         }
     }
 
@@ -38,12 +36,11 @@ class CourtTypeController extends Controller
             $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
             $courtType = CourtType::with('courts')->forTenant($tenant->id)->findOrFail($courtTypeId);
 
-            return $this->dataResponse(CourtTypeResourceGeneral::make(
-                    $courtType)->resolve()
-            );
+            return CourtTypeResourceGeneral::make($courtType);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar tipo de quadra', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar tipo de quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar tipo de quadra'], 500);
         }
     }
 
@@ -58,18 +55,19 @@ class CourtTypeController extends Controller
 
             if (!$courtType) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Tipo de quadra não encontrado', status: 404);
+                return response()->json(['message' => 'Tipo de quadra não encontrado'], 404);
             }
 
             $courtType->update($request->validated());
 
             $this->commitSafe();
 
-            return $this->dataResponse(CourtTypeResourceGeneral::make($courtType)->resolve());
+            return CourtTypeResourceGeneral::make($courtType);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao actualizar o tipo de Quadra', $e->getMessage());
+            \Log::error('Houve um erro ao actualizar o tipo de Quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao actualizar o tipo de Quadra'], 400);
         }
     }
 
@@ -101,11 +99,12 @@ class CourtTypeController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(CourtTypeResourceGeneral::make($courtType)->resolve());
+            return CourtTypeResourceGeneral::make($courtType);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao criar o tipo de quadra', $e->getMessage());
+            \Log::error('Houve um erro ao criar o tipo de quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao criar o tipo de quadra'], 400);
         }
     }
 
@@ -121,29 +120,30 @@ class CourtTypeController extends Controller
 
             if (!$courtType) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Tipo de quadra não encontrado', status: 404);
+                return response()->json(['message' => 'Tipo de quadra não encontrado'], 404);
             }
 
             //check if the court type has any courts associated
             if ($courtType->courts()->exists()) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Tipo de quadra não pode ser deletado porque tem quadras associadas, apague as quadras primeiro', status: 400);
+                return response()->json(['message' => 'Tipo de quadra não pode ser deletado porque tem quadras associadas, apague as quadras primeiro'], 400);
             }
 
             $courtType->delete();
 
             $this->commitSafe();
 
-            return $this->successResponse('Tipo de quadra deletado com sucesso');
+            return response()->json(['message' => 'Tipo de quadra deletado com sucesso']);
 
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Houve um erro ao deletar o tipo de Quadra', $e->getMessage());
+            \Log::error('Houve um erro ao deletar o tipo de Quadra', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Houve um erro ao deletar o tipo de Quadra'], 400);
         }
     }
     public function types()
     {
-        return $this->dataResponse(\App\Enums\CourtTypeEnum::values());
+        return response()->json(['data' => \App\Enums\CourtTypeEnum::values()]);
     }
 }

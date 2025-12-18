@@ -69,6 +69,7 @@ Route::prefix('v1')->group(function () {
             Route::prefix('tenants')->group(function () {
                 Route::get('/', [TenantController::class, 'index'])->name('tenant.index');
                 Route::put('/{tenant_id}', [TenantController::class, 'update'])->name('tenant.update');
+
             });
 
             // Countries and Currencies (no auth required on business side since these are reference data)
@@ -160,6 +161,8 @@ Route::prefix('v1')->group(function () {
                         Route::post('/', [ClientController::class, 'store'])->name('clients.store');
                         Route::get('/{client_id}', [ClientController::class, 'show'])->name('clients.show');
                         Route::put('/{client_id}', [ClientController::class, 'update'])->name('clients.update');
+                        Route::get('/{client_id}/stats', [ClientController::class, 'stats'])->name('clients.stats');
+                        Route::get('/{client_id}/bookings', [ClientController::class, 'bookings'])->name('clients.bookings');
                     });
 
                     // Financial routes

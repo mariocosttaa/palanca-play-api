@@ -25,7 +25,7 @@ class TenantResourceGeneral extends JsonResource
             'longitude' => $this->longitude,
             'currency' => $this->currency,
             'timezone' => $this->timezone,
-            'country' => $this->whenLoaded('country'),
+            'country' => new CountryResourceGeneral($this->whenLoaded('country')),
             'subscription_plan' => new SubscriptionPlanResourceGeneral($this->whenLoaded('subscriptionPlan')),
             'created_at' => $this->created_at?->toISOString(),
         ];

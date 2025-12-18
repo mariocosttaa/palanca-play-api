@@ -15,13 +15,14 @@ class MobileCurrencyController extends Controller
     /**
      * List all currencies
      */
-    public function index(): JsonResponse
+    public function index()
     {
         try {
             $currencies = CurrencyModel::all();
-            return $this->dataResponse(CurrencyResourceGeneral::collection($currencies)->resolve());
+            return CurrencyResourceGeneral::collection($currencies);
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to fetch currencies.', $e->getMessage(), 500);
+            \Log::error('Failed to fetch currencies.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to fetch currencies.'], 500);
         }
     }
 }

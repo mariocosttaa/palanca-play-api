@@ -39,7 +39,7 @@ class BookingVerificationController extends Controller
             $qrData = $qrReader->text();
             
             if (!$qrData) {
-                return $this->errorResponse('Não foi possível ler o QR Code', status: 400);
+                return response()->json(['message' => 'Não foi possível ler o QR Code'], 400);
             }
 
             // Decode the hashed booking ID from QR code
@@ -52,21 +52,22 @@ class BookingVerificationController extends Controller
             // Mark as verified
             $booking->update(['qr_code_verified' => true]);
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'booking' => BookingResource::make($booking)->resolve(),
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
             // Handle QR decode errors
             if (str_contains($e->getMessage(), 'Invalid') || $e instanceof \Hashids\HashidsException) {
-                return $this->errorResponse('QR Code inválido', status: 400);
+                return response()->json(['message' => 'QR Code inválido'], 400);
             }
             
             if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
-                return $this->errorResponse('Agendamento não encontrado', status: 404);
+                return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
             
-            return $this->errorResponse('Erro ao verificar agendamento', $e->getMessage(), 500);
+            \Log::error('Erro ao verificar agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao verificar agendamento'], 500);
         }
     }
 }

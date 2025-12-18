@@ -52,7 +52,8 @@ class CourtImageController extends Controller
             ], 200);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Erro ao adicionar imagem', $e->getMessage());
+            \Log::error('Erro ao adicionar imagem', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao adicionar imagem'], 400);
         }
     }
 
@@ -79,10 +80,11 @@ class CourtImageController extends Controller
 
             $this->commitSafe();
 
-            return $this->successResponse('Imagem removida com sucesso');
+            return response()->json(['message' => 'Imagem removida com sucesso']);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Erro ao remover imagem', $e->getMessage());
+            \Log::error('Erro ao remover imagem', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao remover imagem'], 400);
         }
     }
 }

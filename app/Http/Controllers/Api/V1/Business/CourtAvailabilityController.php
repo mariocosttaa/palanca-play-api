@@ -19,13 +19,14 @@ class CourtAvailabilityController extends Controller
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
-                return $this->errorResponse('Court not found.', null, 404);
+                return response()->json(['message' => 'Court not found.'], 404);
             }
 
-            return $this->dataResponse($court->availabilities);
+            return response()->json(['data' => $court->availabilities]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve availabilities.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve availabilities.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve availabilities.'], 500);
         }
     }
 
@@ -39,7 +40,7 @@ class CourtAvailabilityController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Court not found.', null, 404);
+                return response()->json(['message' => 'Court not found.'], 404);
             }
 
             $validated = $request->validate([
@@ -58,11 +59,12 @@ class CourtAvailabilityController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse($availability, 201);
+            return response()->json(['data' => $availability], 201);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Failed to create availability.', $e->getMessage(), 500);
+            \Log::error('Failed to create availability.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to create availability.'], 500);
         }
     }
 
@@ -76,14 +78,14 @@ class CourtAvailabilityController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Court not found.', null, 404);
+                return response()->json(['message' => 'Court not found.'], 404);
             }
 
             $availability = $court->availabilities()->find($availabilityId);
 
             if (!$availability) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Availability not found.', null, 404);
+                return response()->json(['message' => 'Availability not found.'], 404);
             }
 
             $validated = $request->validate([
@@ -100,11 +102,12 @@ class CourtAvailabilityController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse($availability);
+            return response()->json(['data' => $availability]);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Failed to update availability.', $e->getMessage(), 500);
+            \Log::error('Failed to update availability.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to update availability.'], 500);
         }
     }
 
@@ -118,25 +121,26 @@ class CourtAvailabilityController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Court not found.', null, 404);
+                return response()->json(['message' => 'Court not found.'], 404);
             }
 
             $availability = $court->availabilities()->find($availabilityId);
 
             if (!$availability) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Availability not found.', null, 404);
+                return response()->json(['message' => 'Availability not found.'], 404);
             }
 
             $availability->delete();
 
             $this->commitSafe();
 
-            return $this->successResponse('Availability removed successfully.');
+            return response()->json(['message' => 'Availability removed successfully.']);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Failed to delete availability.', $e->getMessage(), 500);
+            \Log::error('Failed to delete availability.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to delete availability.'], 500);
         }
     }
 
@@ -152,15 +156,16 @@ class CourtAvailabilityController extends Controller
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
-                return $this->errorResponse('Court not found.', null, 404);
+                return response()->json(['message' => 'Court not found.'], 404);
             }
 
             $dates = $court->getAvailableDates($request->start_date, $request->end_date);
 
-            return $this->dataResponse($dates);
+            return response()->json(['data' => $dates]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve available dates.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve available dates.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve available dates.'], 500);
         }
     }
 
@@ -172,22 +177,23 @@ class CourtAvailabilityController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Invalid date format.', $validator->errors()->first(), 422);
+                return response()->json(['message' => 'Invalid date format.', 'errors' => $validator->errors()->first()], 422);
             }
 
             $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
-                return $this->errorResponse('Court not found.', null, 404);
+                return response()->json(['message' => 'Court not found.'], 404);
             }
 
             $slots = $court->getAvailableSlots($date);
 
-            return $this->dataResponse($slots);
+            return response()->json(['data' => $slots]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve available slots.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve available slots.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve available slots.'], 500);
         }
     }
 }

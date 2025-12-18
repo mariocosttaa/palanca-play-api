@@ -85,7 +85,7 @@ test('user can get recent bookings with pagination', function () {
     $response = $this->getJson('/api/v1/bookings/recent?per_page=5');
 
     $response->assertStatus(200);
-    $response->assertJsonCount(5, 'data.data');
+    $response->assertJsonCount(5, 'data');
 });
 
 test('user can get next upcoming booking', function () {
@@ -168,9 +168,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
         ],
     ]);
 
-    if ($response->status() !== 201) {
-        $response->dump();
-    }
+
     $response->assertStatus(201);
     $response->assertJsonPath('data.is_pending', false); // Should be auto-confirmed
 });
@@ -213,9 +211,7 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
         ],
     ]);
 
-    if ($response->status() !== 201) {
-        $response->dump();
-    }
+
     $response->assertStatus(201);
     $response->assertJsonPath('data.is_pending', true); // Should be pending
 });

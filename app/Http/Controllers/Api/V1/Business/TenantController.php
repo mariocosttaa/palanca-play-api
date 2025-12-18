@@ -21,17 +21,21 @@ class TenantController extends Controller
     {
         try {
             $tenants = Tenant::forBusinessUser($request->user()->id)->get();
-            return $this->dataResponse(TenantResourceGeneral::collection($tenants)->resolve());
+            return TenantResourceGeneral::collection($tenants);
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao listar grupos ou empresas', $e->getMessage());
+            \Log::error('Erro ao listar grupos ou empresas', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao listar grupos ou empresas'], 500);
         }
     }
 
     public function show(Request $request, string $tenantIdHashId)
     {
-        return $this->dataResponse(TenantResourceGeneral::make($request->tenant)->resolve());
+        return TenantResourceGeneral::make($request->tenant);
     }
 
+    /**
+     * Update a tenant
+     */
     public function update(UpdateTenantRequest $request, string $tenantIdHashId)
     {
         try {
@@ -41,36 +45,26 @@ class TenantController extends Controller
             $tenant = Tenant::with('businessUsers')->where('id', $request->tenant_id)->first();
             if (!$tenant) {
                 $this->rollBackSafe();
-                return $this->errorResponse('O grupo ou empresa indicado não existe');
+                return response()->json(['message' => 'O grupo ou empresa indicado não existe'], 400);
             }
 
             if (!$tenant->businessUsers->contains($businessUserId)) {
                 $this->rollBackSafe();
-                return $this->errorResponse(message: 'Você não tem permissão para atualizar este grupo ou empresa', status: 500);
+                return response()->json(['message' => 'Você não tem permissão para atualizar este grupo ou empresa'], 500);
             }
 
             $data = $request->validated();
 
-            if ($request->hasFile('logo')) {
-                $file = $request->file('logo');
-                $fileInfo = TenantFileAction::save(
-                    tenantId: $tenant->id,
-                    file: $file,
-                    isPublic: true,
-                    path: 'logos',
-                    fileName: 'logo_' . time()
-                );
-                $data['logo'] = $fileInfo->url;
-            }
 
             $tenant->update($data);
 
             $this->commitSafe();
 
-            return $this->dataResponse(TenantResourceGeneral::make($tenant)->resolve());
+            return TenantResourceGeneral::make($tenant);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Erro ao atualizar o grupo ou empresa', $e->getMessage());
+            \Log::error('Erro ao atualizar o grupo ou empresa', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar o grupo ou empresa'], 400);
         }
     }
 
@@ -110,10 +104,11 @@ class TenantController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(TenantResourceGeneral::make($tenant)->resolve());
+            return TenantResourceGeneral::make($tenant);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Erro ao fazer upload do logo', $e->getMessage());
+            \Log::error('Erro ao fazer upload do logo', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao fazer upload do logo'], 400);
         }
     }
 
@@ -127,7 +122,7 @@ class TenantController extends Controller
             // Check if logo exists
             if (!$tenant->logo) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Nenhum logo encontrado para remover', status: 404);
+                return response()->json(['message' => 'Nenhum logo encontrado para remover'], 404);
             }
 
             // Delete logo file
@@ -139,7 +134,7 @@ class TenantController extends Controller
 
             if (!$deleted) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Erro ao remover o arquivo do logo');
+                return response()->json(['message' => 'Erro ao remover o arquivo do logo'], 400);
             }
 
             // Update tenant to remove logo URL
@@ -147,10 +142,12 @@ class TenantController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(TenantResourceGeneral::make($tenant)->resolve());
+            return TenantResourceGeneral::make($tenant);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Erro ao remover o logo', $e->getMessage());
+            \Log::error('Erro ao remover o logo', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao remover o logo'], 400);
         }
     }
+
 }

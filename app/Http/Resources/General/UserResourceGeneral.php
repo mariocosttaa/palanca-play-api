@@ -24,7 +24,7 @@ class UserResourceGeneral extends JsonResource
                 ? EasyHashAction::encode($this->country_id, 'country-id')
                 : null,
             'country' => new CountryResourceGeneral($this->whenLoaded('country')),
-            'created_at' => $this->created_at?->toISOString(),
+            'is_app_user' => $this->is_app_user,
         ];
     }
 }

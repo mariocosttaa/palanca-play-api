@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\General\BookingResourceGeneral;
+use App\Http\Resources\General\UserResourceGeneral;
 use App\Http\Resources\Specific\UserResourceSpecific;
+use App\Models\Booking;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,15 +26,18 @@ class ClientController extends Controller
         try {
             // List users with pagination
             // TODO: Filter by users who have bookings with this tenant
+            // List users with pagination
+            // TODO: Filter by users who have bookings with this tenant
             $clients = User::query()
+                ->with('country')
+                ->withCount('bookings')
                 ->paginate(15);
 
-            return response()->json(
-                UserResourceSpecific::collection($clients)->response()->getData(true)
-            );
+            return UserResourceGeneral::collection($clients);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve clients.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve clients.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve clients.'], 500);
         }
     }
 
@@ -53,14 +59,12 @@ class ClientController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(
-                (new UserResourceSpecific($client))->resolve(),
-                201
-            );
+            return UserResourceSpecific::make($client);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            return $this->errorResponse('Failed to create client.', $e->getMessage(), 500);
+            \Log::error('Failed to create client.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to create client.'], 500);
         }
     }
 
@@ -68,18 +72,19 @@ class ClientController extends Controller
     {
         try {
             $decodedId = EasyHashAction::decode($clientId, 'user-id');
-            $client = User::find($decodedId);
+            $client = User::with('country')
+                ->withCount('bookings')
+                ->find($decodedId);
 
             if (!$client) {
-                return $this->errorResponse('Client not found.', null, 404);
+                return response()->json(['message' => 'Client not found.'], 404);
             }
 
-            return $this->dataResponse(
-                (new UserResourceSpecific($client))->resolve()
-            );
+            return UserResourceSpecific::make($client);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve client.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve client.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve client.'], 500);
         }
     }
 
@@ -93,13 +98,13 @@ class ClientController extends Controller
 
             if (!$client) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Client not found.', null, 404);
+                return response()->json(['message' => 'Client not found.'], 404);
             }
 
             // Check permission - cannot edit app users
             if ($client->is_app_user) {
                 $this->rollBackSafe();
-                return $this->errorResponse('Cannot edit clients registered via mobile app.', null, 403);
+                return response()->json(['message' => 'Cannot edit clients registered via mobile app.'], 403);
             }
 
             $client->update([
@@ -112,13 +117,55 @@ class ClientController extends Controller
 
             $this->commitSafe();
 
-            return $this->dataResponse(
-                (new UserResourceSpecific($client))->resolve()
-            );
+            return UserResourceSpecific::make($client);
 
         } catch (\Exception $e) {
-            $this->rollBackSafe();
-            return $this->errorResponse('Failed to update client.', $e->getMessage(), 500);
+            \Log::error('Failed to update client.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to update client.'], 500);
+        }
+    }
+
+    public function stats(Request $request, $tenantId, $clientId)
+    {
+        try {
+            $decodedId = EasyHashAction::decode($clientId, 'user-id');
+            $client = User::findOrFail($decodedId);
+
+            $stats = [
+                'total' => $client->bookings()->count(),
+                'pending' => $client->bookings()->pending()->count(),
+                'cancelled' => $client->bookings()->cancelled()->count(),
+                'not_present' => $client->bookings()
+                    ->where('present', false)
+                    ->where('is_cancelled', false)
+                    ->where('is_pending', false)
+                    ->count(),
+            ];
+
+            return response()->json(['data' => $stats]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to retrieve client stats.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve client stats.'], 500);
+        }
+    }
+
+    public function bookings(Request $request, $tenantId, $clientId)
+    {
+        try {
+            $decodedId = EasyHashAction::decode($clientId, 'user-id');
+            $client = User::findOrFail($decodedId);
+
+            $perPage = $request->input('per_page', 15);
+            $bookings = $client->bookings()
+                ->latest()
+                ->paginate($perPage);
+
+            return BookingResourceGeneral::collection($bookings);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to retrieve client bookings.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve client bookings.'], 500);
         }
     }
 }

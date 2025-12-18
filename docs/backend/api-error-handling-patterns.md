@@ -48,7 +48,7 @@ Wrap critical logic in try-catch to control the output.
 try {
     // ... logic
 } catch (\Exception $e) {
-    Log::error('Server error: ' . $e->getMessage());
+    \Log::error('Server error: ', ['error' => $e->getMessage()]);
     return response()->json(['message' => 'Server error occurred'], 500);
 }
 ```

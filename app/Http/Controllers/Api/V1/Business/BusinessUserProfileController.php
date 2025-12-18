@@ -22,7 +22,7 @@ class BusinessUserProfileController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Dados inválidos', $validator->errors(), 422);
+                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
             }
 
             $businessUser = $request->user('business');
@@ -30,13 +30,14 @@ class BusinessUserProfileController extends Controller
                 'language' => $request->language,
             ]);
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'language' => $businessUser->language,
                 'message' => 'Idioma atualizado com sucesso',
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao atualizar idioma', $e->getMessage(), 500);
+            \Log::error('Erro ao atualizar idioma', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar idioma'], 500);
         }
     }
 
@@ -55,19 +56,20 @@ class BusinessUserProfileController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Dados inválidos', $validator->errors(), 422);
+                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
             }
 
             $businessUser = $request->user('business');
             $businessUser->update($request->only(['name', 'surname', 'phone', 'timezone', 'language']));
 
-            return $this->dataResponse([
+            return response()->json(['data' => [
                 'user' => $businessUser,
                 'message' => 'Perfil atualizado com sucesso',
-            ]);
+            ]]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao atualizar perfil', $e->getMessage(), 500);
+            \Log::error('Erro ao atualizar perfil', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar perfil'], 500);
         }
     }
 }

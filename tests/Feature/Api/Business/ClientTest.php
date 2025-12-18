@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\General\EasyHashAction;
+use App\Models\Booking;
 use App\Models\BusinessUser;
 use App\Models\Invoice;
 use App\Models\Tenant;
@@ -117,4 +118,55 @@ test('cannot update app user client', function () {
         'id' => $client->id,
         'name' => $client->name, // Should remain unchanged
     ]);
+});
+
+test('can get client stats', function () {
+    $tenant = Tenant::factory()->create();
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+
+    $client = User::factory()->create();
+    $clientHashId = EasyHashAction::encode($client->id, 'user-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    // Create bookings
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_pending' => true]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_cancelled' => true, 'is_pending' => false]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_pending' => false, 'is_cancelled' => false, 'present' => false]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_pending' => false, 'is_cancelled' => false, 'present' => true]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('clients.stats', ['tenant_id' => $tenantHashId, 'client_id' => $clientHashId]));
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'data' => [
+                'total' => 4,
+                'pending' => 1,
+                'cancelled' => 1,
+                'not_present' => 1,
+            ]
+        ]);
+});
+
+test('can get client bookings', function () {
+    $tenant = Tenant::factory()->create();
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+
+    $client = User::factory()->create();
+    $clientHashId = EasyHashAction::encode($client->id, 'user-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    Booking::factory()->count(3)->create(['user_id' => $client->id, 'tenant_id' => $tenant->id]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('clients.bookings', ['tenant_id' => $tenantHashId, 'client_id' => $clientHashId]));
+
+    $response->assertStatus(200);
+    $this->assertCount(3, $response->json('data'));
 });

@@ -43,6 +43,8 @@ class SubscriptionControllerTest extends TestCase
                         'date_start',
                         'date_end',
                         'price',
+                        'price_formatted',
+                        'currency',
                         'max_courts',
                         'status',
                         'created_at',

@@ -25,12 +25,11 @@ class NotificationController extends Controller
                 ->limit(5)
                 ->get();
 
-            return $this->dataResponse(
-                NotificationResourceGeneral::collection($notifications)->resolve()
-            );
+            return NotificationResourceGeneral::collection($notifications);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar notificações recentes', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar notificações recentes', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar notificações recentes'], 500);
         }
     }
 
@@ -47,12 +46,11 @@ class NotificationController extends Controller
                 ->latest()
                 ->paginate($perPage);
 
-            return $this->dataResponse(
-                NotificationResourceGeneral::collection($notifications)->response()->getData(true)
-            );
+            return NotificationResourceGeneral::collection($notifications);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar notificações', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar notificações', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar notificações'], 500);
         }
     }
 
@@ -70,12 +68,11 @@ class NotificationController extends Controller
 
             $notification->markAsRead();
 
-            return $this->dataResponse(
-                NotificationResourceGeneral::make($notification)->resolve()
-            );
+            return NotificationResourceGeneral::make($notification);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao marcar notificação como lida', $e->getMessage(), 500);
+            \Log::error('Erro ao marcar notificação como lida', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao marcar notificação como lida'], 500);
         }
     }
 }

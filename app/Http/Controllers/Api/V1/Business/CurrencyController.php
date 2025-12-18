@@ -15,9 +15,10 @@ class CurrencyController extends Controller
     {
         try {
             $currencies = CurrencyModel::all();
-            return $this->dataResponse(CurrencyResourceGeneral::collection($currencies)->resolve());
+            return CurrencyResourceGeneral::collection($currencies);
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao listar moedas', $e->getMessage());
+            \Log::error('Erro ao listar moedas', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao listar moedas'], 500);
         }
     }
 }

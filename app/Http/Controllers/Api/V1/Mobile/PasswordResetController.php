@@ -33,7 +33,7 @@ class PasswordResetController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Dados inválidos', $validator->errors(), 422);
+                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
             }
 
             $email = $request->email;
@@ -54,10 +54,11 @@ class PasswordResetController extends Controller
             // Send email with code
             $this->emailService->sendPasswordResetEmail($email, $code);
 
-            return $this->successResponse('Código de recuperação enviado para seu email');
+            return response()->json(['message' => 'Código de recuperação enviado para seu email']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao enviar código de recuperação', $e->getMessage(), 500);
+            \Log::error('Erro ao enviar código de recuperação', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao enviar código de recuperação'], 500);
         }
     }
 
@@ -74,7 +75,7 @@ class PasswordResetController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Dados inválidos', $validator->errors(), 422);
+                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
             }
 
             // Find valid code
@@ -84,7 +85,7 @@ class PasswordResetController extends Controller
                 ->first();
 
             if (!$resetCode) {
-                return $this->errorResponse('Código inválido ou expirado', status: 400);
+                return response()->json(['message' => 'Código inválido ou expirado'], 400);
             }
 
             // Update user password
@@ -96,10 +97,11 @@ class PasswordResetController extends Controller
             // Mark code as used
             $resetCode->markAsUsed();
 
-            return $this->successResponse('Senha redefinida com sucesso');
+            return response()->json(['message' => 'Senha redefinida com sucesso']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao redefinir senha', $e->getMessage(), 500);
+            \Log::error('Erro ao redefinir senha', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao redefinir senha'], 500);
         }
     }
 
@@ -114,7 +116,7 @@ class PasswordResetController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Código inválido', $validator->errors(), 422);
+                return response()->json(['message' => 'Código inválido', 'errors' => $validator->errors()], 422);
             }
 
             $resetCode = PasswordResetCode::where('code', $code)
@@ -122,20 +124,25 @@ class PasswordResetController extends Controller
                 ->first();
 
             if (!$resetCode) {
-                return $this->dataResponse([
-                    'valid' => false,
-                    'message' => 'Código inválido ou expirado',
+                return response()->json([
+                    'data' => [
+                        'valid' => false,
+                        'message' => 'Código inválido ou expirado',
+                    ]
                 ]);
             }
 
-            return $this->dataResponse([
-                'valid' => true,
-                'email' => $resetCode->email,
-                'expires_at' => $resetCode->expires_at->toIso8601String(),
+            return response()->json([
+                'data' => [
+                    'valid' => true,
+                    'email' => $resetCode->email,
+                    'expires_at' => $resetCode->expires_at->toIso8601String(),
+                ]
             ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao verificar código', $e->getMessage(), 500);
+            \Log::error('Erro ao verificar código', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao verificar código'], 500);
         }
     }
 }

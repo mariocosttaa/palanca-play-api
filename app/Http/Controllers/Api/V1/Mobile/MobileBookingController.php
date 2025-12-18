@@ -56,12 +56,11 @@ class MobileBookingController extends Controller
 
             $bookings = $query->latest('start_date')->paginate(20);
 
-            return $this->dataResponse(
-                BookingResource::collection($bookings)->response()->getData(true)
-            );
+            return BookingResource::collection($bookings);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar agendamentos', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar agendamentos', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar agendamentos'], 500);
         }
     }
 
@@ -153,14 +152,12 @@ class MobileBookingController extends Controller
 
             DB::commit();
 
-            return $this->dataResponse(
-                BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']))->resolve(),
-                status: 201
-            );
+            return BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Erro ao criar agendamento', $e->getMessage(), 500);
+            \Log::error('Erro ao criar agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao criar agendamento'], 500);
         }
     }
 
@@ -177,12 +174,11 @@ class MobileBookingController extends Controller
                 ->with(['court.courtType', 'court.images', 'court.tenant', 'currency'])
                 ->findOrFail($bookingId);
 
-            return $this->dataResponse(
-                BookingResource::make($booking)->resolve()
-            );
+            return BookingResource::make($booking);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar agendamento', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar agendamento'], 500);
         }
     }
 
@@ -200,11 +196,11 @@ class MobileBookingController extends Controller
 
             // Check if booking can be cancelled (e.g., not in the past, not already cancelled)
             if ($booking->is_cancelled) {
-                return $this->errorResponse('Este agendamento já foi cancelado', status: 400);
+                return response()->json(['message' => 'Este agendamento já foi cancelado'], 400);
             }
 
             if ($booking->start_date < now()->format('Y-m-d')) {
-                return $this->errorResponse('Não é possível cancelar agendamentos passados', status: 400);
+                return response()->json(['message' => 'Não é possível cancelar agendamentos passados'], 400);
             }
 
             // Mark as cancelled instead of deleting
@@ -242,10 +238,11 @@ class MobileBookingController extends Controller
                 ]);
             }
 
-            return $this->successResponse('Agendamento cancelado com sucesso');
+            return response()->json(['message' => 'Agendamento cancelado com sucesso']);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao cancelar agendamento', $e->getMessage(), 500);
+            \Log::error('Erro ao cancelar agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao cancelar agendamento'], 500);
         }
     }
 
@@ -279,16 +276,19 @@ class MobileBookingController extends Controller
                 ->where('is_cancelled', false)
                 ->count();
 
-            return $this->dataResponse([
-                'total_bookings' => $totalBookings,
-                'upcoming_bookings' => $upcomingBookings,
-                'past_bookings' => $pastBookings,
-                'cancelled_bookings' => $cancelledBookings,
-                'pending_bookings' => $pendingBookings,
+            return response()->json([
+                'data' => [
+                    'total_bookings' => $totalBookings,
+                    'upcoming_bookings' => $upcomingBookings,
+                    'past_bookings' => $pastBookings,
+                    'cancelled_bookings' => $cancelledBookings,
+                    'pending_bookings' => $pendingBookings,
+                ]
             ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar estatísticas', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar estatísticas', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar estatísticas'], 500);
         }
     }
 
@@ -307,12 +307,11 @@ class MobileBookingController extends Controller
                 ->latest('created_at')
                 ->paginate($perPage);
 
-            return $this->dataResponse(
-                BookingResource::collection($bookings)->response()->getData(true)
-            );
+            return BookingResource::collection($bookings);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar agendamentos recentes', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar agendamentos recentes', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar agendamentos recentes'], 500);
         }
     }
 
@@ -332,13 +331,11 @@ class MobileBookingController extends Controller
                 ->orderBy('start_time')
                 ->first();
 
-            return $this->dataResponse(
-                $nextBooking ? BookingResource::make($nextBooking)->resolve() : null
-            );
+            return $nextBooking ? BookingResource::make($nextBooking) : response()->json(['data' => null]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao buscar próximo agendamento', $e->getMessage(), 500);
+            \Log::error('Erro ao buscar próximo agendamento', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao buscar próximo agendamento'], 500);
         }
     }
 }
-

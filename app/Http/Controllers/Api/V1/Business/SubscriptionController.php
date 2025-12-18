@@ -25,12 +25,11 @@ class SubscriptionController extends Controller
                 ->latest()
                 ->paginate($perPage);
 
-            return $this->dataResponse(
-                InvoiceResourceGeneral::collection($invoices)->response()->getData(true)
-            );
+            return InvoiceResourceGeneral::collection($invoices);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve invoices.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve invoices.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve invoices.'], 500);
         }
     }
 
@@ -77,12 +76,11 @@ class SubscriptionController extends Controller
                 'invoice' => $latestInvoice,
             ];
 
-            return $this->dataResponse(
-                SubscriptionResourceSpecific::make($data)->resolve()
-            );
+            return SubscriptionResourceSpecific::make($data);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to retrieve subscription details.', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve subscription details.', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to retrieve subscription details.'], 500);
         }
     }
 }
