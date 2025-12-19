@@ -38,7 +38,21 @@ class BookingController extends Controller
             $query->forCourt($courtId);
         }
 
-        $bookings = $query->latest()->paginate(20);
+        // Search functionality
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                // Search by client name
+                $q->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('name', 'LIKE', "%{$search}%")
+                              ->orWhere('surname', 'LIKE', "%{$search}%");
+                })
+                // Search by court name
+                ->orWhereHas('court', function ($courtQuery) use ($search) {
+                    $courtQuery->where('name', 'LIKE', "%{$search}%");
+                });
+            });
+        }
 
         $bookings = $query->latest()->paginate(20);
 
