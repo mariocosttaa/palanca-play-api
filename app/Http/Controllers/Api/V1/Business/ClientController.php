@@ -26,12 +26,22 @@ class ClientController extends Controller
         try {
             // List users with pagination
             // TODO: Filter by users who have bookings with this tenant
-            // List users with pagination
-            // TODO: Filter by users who have bookings with this tenant
-            $clients = User::query()
+            $query = User::query()
                 ->with('country')
-                ->withCount('bookings')
-                ->paginate(15);
+                ->withCount('bookings');
+
+            // Search functionality
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('surname', 'LIKE', "%{$search}%")
+                      ->orWhere('email', 'LIKE', "%{$search}%")
+                      ->orWhere('phone', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $clients = $query->paginate(15);
 
             return UserResourceGeneral::collection($clients);
 
