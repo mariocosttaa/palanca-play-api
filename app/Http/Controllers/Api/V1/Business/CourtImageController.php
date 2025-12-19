@@ -18,12 +18,18 @@ class CourtImageController extends Controller
 {
     /**
      * Store a newly created resource in storage.
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"message": "Image added successfully", "data": {...}}
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Court not found"}
      */
     public function store(CreateCourtImageRequest $request, $tenantIdHashed, $courtId)
     {
         try {
             $tenantId = EasyHashAction::decode($tenantIdHashed, 'tenant-id');
-            $court = Court::where('tenant_id', $tenantId)->findOrFail($courtId);
+            $decodedCourtId = EasyHashAction::decode($courtId, 'court-id');
+            $court = Court::where('tenant_id', $tenantId)->findOrFail($decodedCourtId);
 
             $this->beginTransactionSafe();
 
@@ -59,13 +65,21 @@ class CourtImageController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"message": "Image deleted successfully"}
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Court or image not found"}
      */
     public function destroy($tenantIdHashed, $courtId, $imageId)
     {
         try {
             $tenantId = EasyHashAction::decode($tenantIdHashed, 'tenant-id');
-            $court = Court::where('tenant_id', $tenantId)->findOrFail($courtId);
-            $image = $court->images()->findOrFail($imageId);
+            $decodedCourtId = EasyHashAction::decode($courtId, 'court-id');
+            $decodedImageId = EasyHashAction::decode($imageId, 'court-image-id');
+            
+            $court = Court::where('tenant_id', $tenantId)->findOrFail($decodedCourtId);
+            $image = $court->images()->findOrFail($decodedImageId);
 
             $this->beginTransactionSafe();
 

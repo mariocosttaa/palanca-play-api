@@ -32,10 +32,11 @@ test('user can add image to court', function () {
     $court = Court::factory()->create(['tenant_id' => $tenant->id]);
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
     $image = UploadedFile::fake()->image('court_new.jpg');
 
     $response = $this->actingAs($user, 'business')
-        ->postJson(route('courts.images.store', ['tenant_id' => $tenantHashId, 'court_id' => $court->id]), [
+        ->postJson(route('courts.images.store', ['tenant_id' => $tenantHashId, 'court_id' => $courtHashId]), [
             'image' => $image,
             'is_primary' => true,
         ]);
@@ -83,12 +84,14 @@ test('user can delete image from court', function () {
     ]);
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
+    $imageHashId = EasyHashAction::encode($courtImage->id, 'court-image-id');
 
     $response = $this->actingAs($user, 'business')
         ->deleteJson(route('courts.images.destroy', [
             'tenant_id' => $tenantHashId, 
-            'court_id' => $court->id, 
-            'image_id' => $courtImage->id
+            'court_id' => $courtHashId, 
+            'image_id' => $imageHashId
         ]));
 
     $response->assertStatus(200);
