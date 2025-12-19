@@ -42,7 +42,12 @@ test('user can get all court types', function () {
     $response = $this->getJson(route('court-types.index', ['tenant_id' => $tenantHashId]));
 
     // Assert the response is successful
-    $response->assertStatus(200);
+    $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data',
+                'links',
+                'meta'
+            ]);
 
     // Assert the response contains the court types
     $response->assertJsonCount(3, 'data');

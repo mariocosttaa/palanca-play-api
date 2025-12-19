@@ -55,7 +55,6 @@ test('user can get all courts', function () {
 
     // Assert the response is successful
     $response->assertStatus(200)
-            ->assertJsonCount(3, 'data')
             ->assertJsonStructure([
                 'data' => [
                     '*' => [
@@ -66,8 +65,11 @@ test('user can get all courts', function () {
                         'status',
                         'created_at',
                     ]
-                ]
-            ]);
+                ],
+                'links',
+                'meta'
+            ])
+            ->assertJsonCount(3, 'data');
 
     // Assert images are included
     $responseData = $response->json('data');

@@ -35,11 +35,17 @@ test('business user can get all tenants they are attached to', function () {
 
     $response = $this->getJson(route('tenant.index', ['tenant_id' => $tenantHashId]));
     $response->assertStatus(200);
-    $response->assertJson(fn ($json) => $json
-        ->has('data', 1)
-        ->has('data.0.id')
-        ->has('data.0.name')
-    );
+    $response->assertJsonStructure([
+        'data' => [
+            '*' => [
+                'id',
+                'name',
+            ]
+        ],
+        'links',
+        'meta'
+    ]);
+    $response->assertJsonCount(1, 'data');
 });
 
 test('business user cannot get tenants they are not attached to', function () {
@@ -65,11 +71,16 @@ test('business user cannot get tenants they are not attached to', function () {
 
     $response = $this->getJson(route('tenant.index', ['tenant_id' => $tenantHashId]));
     $response->assertStatus(200);
-    $response->assertJson(fn ($json) => $json
-        ->has('data')
-        ->has('data.0.id')
-        ->has('data.0.name')
-    );
+    $response->assertJsonStructure([
+        'data' => [
+            '*' => [
+                'id',
+                'name',
+            ]
+        ],
+        'links',
+        'meta'
+    ]);
 
      //check only returned tenant they have access to
      $tenatVerified = [];
