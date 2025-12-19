@@ -44,7 +44,7 @@ class CourtAvailabilityController extends Controller
             }
 
             $validated = $request->validate([
-                'day_of_week_recurring' => 'nullable|string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+                'day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
                 'specific_date' => 'nullable|date',
                 'start_time' => 'required|date_format:H:i',
                 'end_time' => 'required|date_format:H:i|after:start_time',
@@ -89,7 +89,7 @@ class CourtAvailabilityController extends Controller
             }
 
             $validated = $request->validate([
-                'day_of_week_recurring' => 'nullable|string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+                'day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
                 'specific_date' => 'nullable|date',
                 'start_time' => 'sometimes|date_format:H:i',
                 'end_time' => 'sometimes|date_format:H:i|after:start_time',

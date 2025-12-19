@@ -2,16 +2,16 @@
 
 use App\Actions\General\EasyHashAction;
 use App\Models\BusinessUser;
-use App\Models\Court;
 use App\Models\CourtType;
 use App\Models\Tenant;
 use App\Models\Invoice;
+use Database\Factories\CourtTypeFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
-test('user can create court availability via endpoint', function () {
+test('user can create court type availability via endpoint', function () {
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
@@ -31,12 +31,13 @@ test('user can create court availability via endpoint', function () {
     // Encode the tenant ID
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    // Create a court type and court
-    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
-    $court = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType->id]);
+    // Create a court type for this tenant
+    $courtType = CourtType::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
 
-    // Encode the court ID
-    $courtIdHashId = EasyHashAction::encode($court->id, 'court-id');
+    // Encode the court type ID
+    $courtTypeIdHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
 
     $availabilityData = [
         'day_of_week_recurring' => 'Monday',
@@ -47,7 +48,7 @@ test('user can create court availability via endpoint', function () {
 
     // Create availability
     $response = $this->postJson(
-        route('courts.availabilities.store', ['tenant_id' => $tenantHashId, 'court_id' => $courtIdHashId]),
+        route('court-types.availabilities.store', ['tenant_id' => $tenantHashId, 'court_type_id' => $courtTypeIdHashId]),
         $availabilityData
     );
 
@@ -57,14 +58,14 @@ test('user can create court availability via endpoint', function () {
     // Assert availability was created in DB
     $this->assertDatabaseHas('courts_availabilities', [
         'tenant_id' => $tenant->id,
-        'court_id' => $court->id,
+        'court_type_id' => $courtType->id,
         'day_of_week_recurring' => 'Monday',
         'start_time' => '08:00',
         'end_time' => '22:00',
     ]);
 });
 
-test('user can update court availability via endpoint', function () {
+test('user can update court type availability via endpoint', function () {
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
@@ -84,12 +85,13 @@ test('user can update court availability via endpoint', function () {
     // Encode the tenant ID
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    // Create a court type and court
-    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
-    $court = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType->id]);
+    // Create a court type for this tenant
+    $courtType = CourtType::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
 
     // Create initial availability
-    $availability = $court->availabilities()->create([
+    $availability = $courtType->availabilities()->create([
         'tenant_id' => $tenant->id,
         'day_of_week_recurring' => 'Monday',
         'start_time' => '08:00',
@@ -97,8 +99,8 @@ test('user can update court availability via endpoint', function () {
         'is_available' => true,
     ]);
 
-    // Encode the court ID
-    $courtIdHashId = EasyHashAction::encode($court->id, 'court-id');
+    // Encode the court type ID
+    $courtTypeIdHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
 
     $updateData = [
         'day_of_week_recurring' => 'Tuesday',
@@ -109,9 +111,9 @@ test('user can update court availability via endpoint', function () {
 
     // Update availability
     $response = $this->putJson(
-        route('courts.availabilities.update', [
+        route('court-types.availabilities.update', [
             'tenant_id' => $tenantHashId,
-            'court_id' => $courtIdHashId,
+            'court_type_id' => $courtTypeIdHashId,
             'availability_id' => $availability->id
         ]),
         $updateData
@@ -129,7 +131,7 @@ test('user can update court availability via endpoint', function () {
     ]);
 });
 
-test('user can delete court availability via endpoint', function () {
+test('user can delete court type availability via endpoint', function () {
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
@@ -149,12 +151,13 @@ test('user can delete court availability via endpoint', function () {
     // Encode the tenant ID
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    // Create a court type and court
-    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
-    $court = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType->id]);
+    // Create a court type for this tenant
+    $courtType = CourtType::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
 
     // Create initial availability
-    $availability = $court->availabilities()->create([
+    $availability = $courtType->availabilities()->create([
         'tenant_id' => $tenant->id,
         'day_of_week_recurring' => 'Monday',
         'start_time' => '08:00',
@@ -162,14 +165,14 @@ test('user can delete court availability via endpoint', function () {
         'is_available' => true,
     ]);
 
-    // Encode the court ID
-    $courtIdHashId = EasyHashAction::encode($court->id, 'court-id');
+    // Encode the court type ID
+    $courtTypeIdHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
 
     // Delete availability
     $response = $this->deleteJson(
-        route('courts.availabilities.destroy', [
+        route('court-types.availabilities.destroy', [
             'tenant_id' => $tenantHashId,
-            'court_id' => $courtIdHashId,
+            'court_type_id' => $courtTypeIdHashId,
             'availability_id' => $availability->id
         ])
     );
@@ -183,7 +186,7 @@ test('user can delete court availability via endpoint', function () {
     ]);
 });
 
-test('user can list court availabilities via endpoint', function () {
+test('user can list court type availabilities via endpoint', function () {
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
@@ -203,12 +206,13 @@ test('user can list court availabilities via endpoint', function () {
     // Encode the tenant ID
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
-    // Create a court type and court
-    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
-    $court = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType->id]);
+    // Create a court type for this tenant
+    $courtType = CourtType::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
 
     // Create availabilities
-    $court->availabilities()->create([
+    $courtType->availabilities()->create([
         'tenant_id' => $tenant->id,
         'day_of_week_recurring' => 'Monday',
         'start_time' => '08:00',
@@ -216,7 +220,7 @@ test('user can list court availabilities via endpoint', function () {
         'is_available' => true,
     ]);
 
-    $court->availabilities()->create([
+    $courtType->availabilities()->create([
         'tenant_id' => $tenant->id,
         'day_of_week_recurring' => 'Tuesday',
         'start_time' => '09:00',
@@ -224,14 +228,14 @@ test('user can list court availabilities via endpoint', function () {
         'is_available' => true,
     ]);
 
-    // Encode the court ID
-    $courtIdHashId = EasyHashAction::encode($court->id, 'court-id');
+    // Encode the court type ID
+    $courtTypeIdHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
 
     // List availabilities
     $response = $this->getJson(
-        route('courts.availabilities.index', [
+        route('court-types.availabilities.index', [
             'tenant_id' => $tenantHashId,
-            'court_id' => $courtIdHashId
+            'court_type_id' => $courtTypeIdHashId
         ])
     );
 

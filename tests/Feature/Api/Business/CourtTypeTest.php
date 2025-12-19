@@ -176,15 +176,6 @@ test('user can create a court type', function () {
     ]);
 
     $data = $courtTypeData->toArray();
-    $data['availabilities'] = [
-        [
-            'day_of_week_recurring' => 'Monday',
-            'start_time' => '08:00',
-            'end_time' => '22:00',
-            'is_available' => true,
-        ]
-    ];
-
     // Create the court type route
     $response = $this->postJson(route('court-types.create', ['tenant_id' => $tenantHashId]), $data);
 
@@ -206,14 +197,6 @@ test('user can create a court type', function () {
     $dbData = $courtTypeData->toArray();
     $dbData['tenant_id'] = $tenant->id;
     $this->assertDatabaseHas('courts_type', $dbData);
-
-    // Assert availability was created
-    $this->assertDatabaseHas('courts_availabilities', [
-        'tenant_id' => $tenant->id,
-        'day_of_week_recurring' => 'Monday',
-        'start_time' => '08:00',
-        'end_time' => '22:00',
-    ]);
 });
 
 

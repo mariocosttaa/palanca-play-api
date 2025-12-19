@@ -62,12 +62,6 @@ class CreateCourtTypeRequest extends FormRequest
             'buffer_time_minutes' => 'required|integer|min:0|max:120',
             'price_per_interval' => 'required|integer|min:0',
             'status' => 'required|boolean|in:0,1',
-            'availabilities' => 'nullable|array',
-            'availabilities.*.day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'availabilities.*.specific_date' => 'nullable|date',
-            'availabilities.*.start_time' => 'required|date_format:H:i',
-            'availabilities.*.end_time' => 'required|date_format:H:i|after:availabilities.*.start_time',
-            'availabilities.*.is_available' => 'boolean',
         ];
     }
 
@@ -98,15 +92,6 @@ class CreateCourtTypeRequest extends FormRequest
             'status.required' => 'O status é obrigatório',
             'status.boolean' => 'O status está incorreto',
             'status.in' => 'O status deve estar ativo ou inativo',
-            'availabilities.array' => 'As disponibilidades devem ser um array',
-            'availabilities.*.day_of_week_recurring.in' => 'O dia da semana deve ser válido (Monday, Tuesday, etc.)',
-            'availabilities.*.specific_date.date' => 'A data específica deve ser uma data válida',
-            'availabilities.*.start_time.required' => 'A hora de início é obrigatória',
-            'availabilities.*.start_time.date_format' => 'A hora de início deve estar no formato HH:MM',
-            'availabilities.*.end_time.required' => 'A hora de término é obrigatória',
-            'availabilities.*.end_time.date_format' => 'A hora de término deve estar no formato HH:MM',
-            'availabilities.*.end_time.after' => 'A hora de término deve ser após a hora de início',
-            'availabilities.*.is_available.boolean' => 'A disponibilidade deve ser um booleano',
         ];
     }
 
@@ -120,7 +105,6 @@ class CreateCourtTypeRequest extends FormRequest
             'buffer_time_minutes' => 'Buffer de tempo',
             'price_per_interval' => 'Preço por intervalo',
             'status' => 'Estado',
-            'availabilities' => 'Disponibilidades',
         ];
     }
 }

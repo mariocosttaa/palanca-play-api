@@ -20,7 +20,7 @@ class CourtTypeController extends Controller
     {
         try {
             $tenant = $request->tenant;
-            $courtTypes = CourtType::forTenant($tenant->id)->get();
+            $courtTypes = CourtType::with('availabilities')->forTenant($tenant->id)->get();
 
             return CourtTypeResourceGeneral::collection($courtTypes);
         } catch (\Exception $e) {
@@ -34,7 +34,7 @@ class CourtTypeController extends Controller
         try {
             $tenant = $request->tenant;
             $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
-            $courtType = CourtType::with('courts')->forTenant($tenant->id)->findOrFail($courtTypeId);
+            $courtType = CourtType::with(['courts', 'availabilities'])->forTenant($tenant->id)->findOrFail($courtTypeId);
 
             return CourtTypeResourceGeneral::make($courtType);
 
@@ -82,20 +82,6 @@ class CourtTypeController extends Controller
             $courtType->fill($request->validated());
             $courtType->tenant_id = $tenant->id;
             $courtType->save();
-
-            // Create availabilities for this court type (template for courts of this type)
-            if ($request->has('availabilities')) {
-                foreach ($request->availabilities as $availabilityData) {
-                    $courtType->availabilities()->create([
-                        'tenant_id' => $tenant->id,
-                        'day_of_week_recurring' => $availabilityData['day_of_week_recurring'] ?? null,
-                        'specific_date' => $availabilityData['specific_date'] ?? null,
-                        'start_time' => $availabilityData['start_time'],
-                        'end_time' => $availabilityData['end_time'],
-                        'is_available' => $availabilityData['is_available'] ?? true,
-                    ]);
-                }
-            }
 
             $this->commitSafe();
 

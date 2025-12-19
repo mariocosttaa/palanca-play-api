@@ -99,6 +99,14 @@ Route::prefix('v1')->group(function () {
                         Route::put('/{court_type_id}', [CourtTypeController::class, 'update'])->name('court-types.update');
                         Route::get('/{court_type_id}', [CourtTypeController::class, 'show'])->name('court-types.show');
                         Route::delete('/{court_type_id}', [CourtTypeController::class, 'destroy'])->name('court-types.destroy');
+
+                        // Court Type Availabilities routes
+                        Route::prefix('{court_type_id}/availabilities')->group(function () {
+                            Route::get('/', [App\Http\Controllers\Api\V1\Business\CourtTypeAvailabilityController::class, 'index'])->name('court-types.availabilities.index');
+                            Route::post('/', [App\Http\Controllers\Api\V1\Business\CourtTypeAvailabilityController::class, 'store'])->name('court-types.availabilities.store');
+                            Route::put('/{availability_id}', [App\Http\Controllers\Api\V1\Business\CourtTypeAvailabilityController::class, 'update'])->name('court-types.availabilities.update');
+                            Route::delete('/{availability_id}', [App\Http\Controllers\Api\V1\Business\CourtTypeAvailabilityController::class, 'destroy'])->name('court-types.availabilities.destroy');
+                        });
                     });
 
                     // Courts routes
