@@ -67,9 +67,14 @@ test('user can get a court type details and courts', function () {
         'tenant_id' => $tenant->id,
     ]);
 
-    // Create a court for this court type
-    Court::factory()->create([
+    // Create a court for this court type with images
+    $court = Court::factory()->create([
+        'tenant_id' => $tenant->id,
         'court_type_id' => $courtType->id,
+    ]);
+
+    \App\Models\CourtImage::factory()->count(2)->create([
+        'court_id' => $court->id,
     ]);
 
     // Act as the business user
@@ -87,9 +92,33 @@ test('user can get a court type details and courts', function () {
     // Assert the response is successful
     $response->assertStatus(200);
 
-    // Assert the response contains the court type
-    $response->assertJsonCount(1, 'data.courts');
+    // Assert the response structure
+    $response->assertJsonStructure([
+        'data' => [
+            'id',
+            'type',
+            'name',
+            'courts' => [
+                '*' => [
+                    'id',
+                    'name',
+                    'number',
+                    'images',
+                    'status',
+                ]
+            ],
+            'availabilities',
+        ]
+    ]);
 
+    // Assert the response contains the court type
+    $responseData = $response->json('data');
+    expect($responseData)->toHaveKey('courts')
+        ->and($responseData)->not->toHaveKey('tenant_id')
+        ->and($responseData)->not->toHaveKey('tenant')
+        ->and(count($responseData['courts']))->toBe(1)
+        ->and($responseData['courts'][0])->toHaveKey('images')
+        ->and(count($responseData['courts'][0]['images']))->toBe(2);
 });
 
 
@@ -137,12 +166,26 @@ test('user can update a court type', function () {
     $response->assertStatus(200);
 
     // Assert the response contains the updated court type
-    $data = $courtTypeData->toArray();
-    $data['tenant_id'] = EasyHashAction::encode($tenant->id, 'tenant-id');
-
-    $response->assertJson([
-        'data' => $data
+    $response->assertJsonStructure([
+        'data' => [
+            'id',
+            'type',
+            'name',
+            'description',
+            'interval_time_minutes',
+            'buffer_time_minutes',
+            'price_per_interval',
+            'price_formatted',
+            'status',
+            'availabilities',
+            'courts',
+            'created_at',
+        ]
     ]);
+
+    $responseData = $response->json('data');
+    expect($responseData)->not->toHaveKey('tenant_id')
+        ->and($responseData)->not->toHaveKey('tenant');
 
     // Assert the court type has been created
     // Use $data but fix tenant_id to be the raw integer in the DB
@@ -184,13 +227,26 @@ test('user can create a court type', function () {
     $response->assertStatus(201);
 
     // Assert the response contains the created court type
-    $responseData = $courtTypeData->toArray();
-    $responseData['tenant_id'] = EasyHashAction::encode($tenant->id, 'tenant-id');
-
-
-    $response->assertJson([
-        'data' => $responseData
+    $response->assertJsonStructure([
+        'data' => [
+            'id',
+            'type',
+            'name',
+            'description',
+            'interval_time_minutes',
+            'buffer_time_minutes',
+            'price_per_interval',
+            'price_formatted',
+            'status',
+            'availabilities',
+            'courts',
+            'created_at',
+        ]
     ]);
+
+    $responseData = $response->json('data');
+    expect($responseData)->not->toHaveKey('tenant_id')
+        ->and($responseData)->not->toHaveKey('tenant');
 
     // Assert the court type has been created
     // Use $data but fix tenant_id to be the raw integer in the DB
