@@ -15,13 +15,21 @@ use Illuminate\Http\Request;
  */
 class CourtController extends Controller
 {
+    /**
+     * Get a list of all courts for the authenticated tenant
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function index(Request $request)
     {
         try {
             $tenant = $request->tenant;
+            $perPage = $request->input('per_page', 15);
             $courts = Court::forTenant($tenant->id)
                 ->with(['images'])
-                ->get();
+                ->paginate($perPage);
 
             return CourtResourceGeneral::collection($courts);
 
@@ -31,6 +39,14 @@ class CourtController extends Controller
         }
     }
 
+    /**
+     * Get a specific court by ID
+     * 
+     * @return CourtResourceGeneral
+     * @response 200 CourtResourceGeneral
+     * @response 404 {"message": "Court not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function show(Request $request, string $tenantIdHashId, string $courtIdHashId)
     {
         try {
@@ -46,6 +62,16 @@ class CourtController extends Controller
             return response()->json(['message' => 'Houve um erro ao buscar a Quadra'], 500);
         }
     }
+
+    /**
+     * Create a new court
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 201 CourtResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 403 {"message": "Subscription limit reached"}
+     * @response 500 {"message": "Server error"}
+     */
     public function create(CreateCourtRequest $request, string $tenantIdHashId)
     {
         try {
@@ -116,6 +142,15 @@ class CourtController extends Controller
         }
     }
 
+    /**
+     * Update an existing court
+     * 
+     * @return CourtResourceGeneral
+     * @response 200 CourtResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Court not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function update(UpdateCourtRequest $request, string $tenantIdHashId, string $courtIdHashId)
     {
         try {
@@ -144,6 +179,15 @@ class CourtController extends Controller
         }
     }
 
+    /**
+     * Delete a court
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"message": "Court deleted successfully"}
+     * @response 400 {"message": "Court cannot be deleted because it has associated bookings"}
+     * @response 404 {"message": "Court not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function destroy(Request $request, string $tenantIdHashId, string $courtIdHashId)
     {
         try {

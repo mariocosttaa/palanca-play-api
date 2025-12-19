@@ -16,11 +16,19 @@ use Illuminate\Http\Request;
  */
 class CourtTypeController extends Controller
 {
+    /**
+     * Get a list of all court types for the authenticated tenant
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtTypeResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtTypeResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function index(Request $request)
     {
         try {
             $tenant = $request->tenant;
-            $courtTypes = CourtType::with('availabilities')->forTenant($tenant->id)->get();
+            $perPage = $request->input('per_page', 15);
+            $courtTypes = CourtType::with('availabilities')->forTenant($tenant->id)->paginate($perPage);
 
             return CourtTypeResourceGeneral::collection($courtTypes);
         } catch (\Exception $e) {
@@ -29,6 +37,14 @@ class CourtTypeController extends Controller
         }
     }
 
+    /**
+     * Get a specific court type by ID
+     * 
+     * @return CourtTypeResourceGeneral
+     * @response 200 CourtTypeResourceGeneral
+     * @response 404 {"message": "Court type not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function show(Request $request, string $tenantIdHashId, string $courtTypeIdHashId)
     {
         try {
@@ -49,6 +65,15 @@ class CourtTypeController extends Controller
         }
     }
 
+    /**
+     * Update an existing court type
+     * 
+     * @return CourtTypeResourceGeneral
+     * @response 200 CourtTypeResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Court type not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function update(UpdateCourtTypeRequest $request, string $tenantIdHashId, string $courtTypeIdHashId)
     {
         try {
@@ -80,6 +105,14 @@ class CourtTypeController extends Controller
         }
     }
 
+    /**
+     * Create a new court type
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 201 CourtTypeResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
+     */
     public function create(CreateCourtTypeRequest $request, string $tenantIdHashId)
     {
         try {
@@ -107,7 +140,15 @@ class CourtTypeController extends Controller
         }
     }
 
-
+    /**
+     * Delete a court type
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"message": "Court type deleted successfully"}
+     * @response 400 {"message": "Court type cannot be deleted because it has associated courts"}
+     * @response 404 {"message": "Court type not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function destroy(Request $request, string $tenantIdHashId, string $courtTypeIdHashId)
     {
         try {
@@ -141,6 +182,12 @@ class CourtTypeController extends Controller
             return response()->json(['message' => 'Houve um erro ao deletar o tipo de Quadra'], 400);
         }
     }
+    /**
+     * Get available court type enum values
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": ["type1", "type2", ...]}
+     */
     public function types()
     {
         return response()->json(['data' => \App\Enums\CourtTypeEnum::values()]);

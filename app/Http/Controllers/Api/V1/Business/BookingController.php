@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
@@ -11,7 +10,6 @@ use App\Models\Booking;
 use App\Models\Court;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -20,10 +18,23 @@ use Illuminate\Support\Str;
  */
 class BookingController extends Controller
 {
+    /**
+     * Get a list of bookings with optional filters
+     *
+     * @queryParam search string Search by client name or court name. Example: "John"
+     * @queryParam date string Filter by specific date (Y-m-d). Example: "2024-12-19"
+     * @queryParam start_date string Start date for range filter. Example: "2024-12-01"
+     * @queryParam end_date string End date for range filter. Example: "2024-12-31"
+     * @queryParam court_id string Filter by court (hashed ID). Example: "Xy7z..."
+     *
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, BookingResource>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, BookingResource>
+     * @response 500 {"message": "Server error"}
+     */
     public function index(Request $request)
     {
         $tenant = $request->tenant;
-        $query = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
+        $query  = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
 
         if ($request->has('date')) {
             $query->onDate($request->date);
@@ -39,18 +50,18 @@ class BookingController extends Controller
         }
 
         // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 // Search by client name
                 $q->whereHas('user', function ($userQuery) use ($search) {
                     $userQuery->where('name', 'LIKE', "%{$search}%")
-                              ->orWhere('surname', 'LIKE', "%{$search}%");
+                        ->orWhere('surname', 'LIKE', "%{$search}%");
                 })
                 // Search by court name
-                ->orWhereHas('court', function ($courtQuery) use ($search) {
-                    $courtQuery->where('name', 'LIKE', "%{$search}%");
-                });
+                    ->orWhereHas('court', function ($courtQuery) use ($search) {
+                        $courtQuery->where('name', 'LIKE', "%{$search}%");
+                    });
             });
         }
 
@@ -59,67 +70,75 @@ class BookingController extends Controller
         return BookingResource::collection($bookings);
     }
 
+    /**
+     * Create a new booking
+     *
+     * @return BookingResource
+     * @response 200 BookingResource
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
+     */
     public function store(CreateBookingRequest $request)
     {
         try {
             $this->beginTransactionSafe();
 
             $tenant = $request->tenant;
-            $data = $request->validated();
-            
+            $data   = $request->validated();
+
             // Handle Client
             $clientId = $data['client_id'] ?? null;
-            
-            if (!$clientId && isset($data['client'])) {
+
+            if (! $clientId && isset($data['client'])) {
                 // Create new client
                 $clientData = $data['client'];
-                
+
                 // If email is provided, check if user exists (should be handled by validation, but double check)
-                if (!empty($clientData['email'])) {
+                if (! empty($clientData['email'])) {
                     $existingUser = User::where('email', $clientData['email'])->first();
                     if ($existingUser) {
                         $clientId = $existingUser->id;
                     }
                 }
-                
-                if (!$clientId) {
+
+                if (! $clientId) {
                     $newUser = User::create([
-                        'name' => $clientData['name'],
-                        'email' => $clientData['email'] ?? null,
-                        'phone' => $clientData['phone'] ?? null,
+                        'name'         => $clientData['name'],
+                        'email'        => $clientData['email'] ?? null,
+                        'phone'        => $clientData['phone'] ?? null,
                         'calling_code' => $clientData['calling_code'] ?? null,
-                        'password' => Hash::make(Str::random(16)),
-                        'country_id' => $tenant->country_id, // Default to tenant's country
+                        'password'     => Hash::make(Str::random(16)),
+                        'country_id'   => $tenant->country_id, // Default to tenant's country
                     ]);
                     $clientId = $newUser->id;
                 }
             }
 
-            if (!$clientId) {
+            if (! $clientId) {
                 return response()->json(['message' => 'Cliente inválido ou não fornecido.'], 400);
             }
 
             // Get Court
             $court = Court::find($data['court_id']);
-            if (!$court || $court->tenant_id !== $tenant->id) {
+            if (! $court || $court->tenant_id !== $tenant->id) {
                 return response()->json(['message' => 'Quadra inválida.'], 400);
             }
 
             // Prepare Booking Data
             $bookingData = [
-                'tenant_id' => $tenant->id,
-                'court_id' => $court->id,
-                'user_id' => $clientId,
-                'currency_id' => \App\Models\Manager\CurrencyModel::where('code', $tenant->currency)->first()->id ?? 1,
-                'start_date' => $data['start_date'],
-                'end_date' => $data['start_date'], // Single day booking for now
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
-                'price' => $data['price'] ?? 0, // Should calculate based on court price if not provided
+                'tenant_id'     => $tenant->id,
+                'court_id'      => $court->id,
+                'user_id'       => $clientId,
+                'currency_id'   => \App\Models\Manager\CurrencyModel::where('code', $tenant->currency)->first()->id ?? 1,
+                'start_date'    => $data['start_date'],
+                'end_date'      => $data['start_date'], // Single day booking for now
+                'start_time'    => $data['start_time'],
+                'end_time'      => $data['end_time'],
+                'price'         => $data['price'] ?? 0, // Should calculate based on court price if not provided
                 'paid_at_venue' => $data['paid_at_venue'] ?? false,
-                'is_paid' => $data['paid_at_venue'] ?? false,
-                'is_pending' => false, // Created by business, so confirmed by default? Or pending?
-                'is_cancelled' => false,
+                'is_paid'       => $data['paid_at_venue'] ?? false,
+                'is_pending'    => false, // Created by business, so confirmed by default? Or pending?
+                'is_cancelled'  => false,
             ];
 
             // If paid at venue, it is paid
@@ -128,7 +147,7 @@ class BookingController extends Controller
             }
 
             // Check availability
-            if (!$court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time'])) {
+            if (! $court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time'])) {
                 return response()->json(['message' => 'Horário indisponível.'], 400);
             }
 
@@ -137,25 +156,25 @@ class BookingController extends Controller
             // Generate QR code with hashed booking ID
             try {
                 $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
-                $qrCodeInfo = \App\Actions\General\QrCodeAction::create(
+                $qrCodeInfo      = \App\Actions\General\QrCodeAction::create(
                     $tenant->id,
                     $booking->id,
                     $bookingIdHashed
                 );
-                
+
                 // Update booking with QR code path
                 $booking->update(['qr_code' => $qrCodeInfo->url]);
             } catch (\Exception $qrException) {
                 // Log QR generation error but don't fail the booking
                 \Log::error('Failed to generate QR code for booking', [
                     'booking_id' => $booking->id,
-                    'error' => $qrException->getMessage()
+                    'error'      => $qrException->getMessage(),
                 ]);
             }
 
             $this->commitSafe();
 
-            return BookingResource::make($booking);
+            return new BookingResource($booking);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
@@ -164,37 +183,54 @@ class BookingController extends Controller
         }
     }
 
+    /**
+     * Get a specific booking by ID
+     *
+     * @return BookingResource
+     * @response 200 BookingResource
+     * @response 404 {"message": "Booking not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function show(Request $request, $bookingId)
     {
         $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
-        $booking = Booking::forTenant($request->tenant->id)->with(['user', 'court'])->find($bookingId);
+        $booking   = Booking::forTenant($request->tenant->id)->with(['user', 'court'])->find($bookingId);
 
-        if (!$booking) {
+        if (! $booking) {
             return response()->json(['message' => 'Agendamento não encontrado'], 404);
         }
 
-        return BookingResource::make($booking);
+        return new BookingResource($booking);
     }
 
+    /**
+     * Update an existing booking
+     *
+     * @return BookingResource
+     * @response 200 BookingResource
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Booking not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function update(UpdateBookingRequest $request, $bookingId)
     {
         try {
             // Use the decoded ID from the request (prepared in UpdateBookingRequest)
             $decodedBookingId = $request->booking_id;
-            
+
             // Fallback if not in request (shouldn't happen if request is used)
-            if (!$decodedBookingId) {
+            if (! $decodedBookingId) {
                 $decodedBookingId = EasyHashAction::decode($bookingId, 'booking-id');
             }
 
             $booking = Booking::forTenant($request->tenant->id)->find($decodedBookingId);
 
-            if (!$booking) {
+            if (! $booking) {
                 return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
 
             $data = $request->validated();
-            
+
             // Handle paid_at_venue logic
             if (isset($data['paid_at_venue'])) {
                 if ($data['paid_at_venue']) {
@@ -204,7 +240,7 @@ class BookingController extends Controller
 
             $booking->update($data);
 
-            return BookingResource::make($booking);
+            return new BookingResource($booking);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao atualizar agendamento', ['error' => $e->getMessage()]);
@@ -212,13 +248,21 @@ class BookingController extends Controller
         }
     }
 
+    /**
+     * Delete a booking
+     *
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"message": "Booking deleted successfully"}
+     * @response 404 {"message": "Booking not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function destroy(Request $request, $bookingId)
     {
         try {
             $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
-            $booking = Booking::forTenant($request->tenant->id)->find($bookingId);
+            $booking   = Booking::forTenant($request->tenant->id)->find($bookingId);
 
-            if (!$booking) {
+            if (! $booking) {
                 return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
 
@@ -231,13 +275,23 @@ class BookingController extends Controller
             return response()->json(['message' => 'Erro ao remover agendamento'], 400);
         }
     }
+
+    /**
+     * Confirm presence for a booking
+     *
+     * @return BookingResource
+     * @response 200 BookingResource
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Booking not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function confirmPresence(Request $request, $tenantId, $bookingId)
     {
         try {
             $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
-            $booking = Booking::forTenant($request->tenant->id)->find($bookingId);
+            $booking   = Booking::forTenant($request->tenant->id)->find($bookingId);
 
-            if (!$booking) {
+            if (! $booking) {
                 return response()->json(['message' => 'Agendamento não encontrado'], 404);
             }
 
@@ -249,7 +303,7 @@ class BookingController extends Controller
                 'present' => $request->present,
             ]);
 
-            return BookingResource::make($booking);
+            return new BookingResource($booking);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao confirmar presença', ['error' => $e->getMessage()]);

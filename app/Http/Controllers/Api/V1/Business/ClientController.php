@@ -21,6 +21,15 @@ use App\Http\Requests\Api\V1\Business\UpdateClientRequest;
  */
 class ClientController extends Controller
 {
+    /**
+     * Get a list of clients with optional search
+     * 
+     * @queryParam search string Search by name, surname, email, or phone. Example: "John"
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, UserResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, UserResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function index(Request $request, $tenantId)
     {
         try {
@@ -51,6 +60,13 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Create a new client
+     * 
+     * @return UserResourceSpecific
+     * @response 200 UserResourceSpecific
+     * @response 500 {"message": "Server error"}
+     */
     public function store(CreateClientRequest $request, $tenantId)
     {
         try {
@@ -69,7 +85,7 @@ class ClientController extends Controller
 
             $this->commitSafe();
 
-            return UserResourceSpecific::make($client);
+            return new UserResourceSpecific($client);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
@@ -78,6 +94,14 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Get a specific client by ID
+     * 
+     * @return UserResourceSpecific
+     * @response 200 UserResourceSpecific
+     * @response 404 {"message": "Client not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function show(Request $request, $tenantId, $clientId)
     {
         try {
@@ -90,7 +114,7 @@ class ClientController extends Controller
                 return response()->json(['message' => 'Client not found.'], 404);
             }
 
-            return UserResourceSpecific::make($client);
+            return new UserResourceSpecific($client);
 
         } catch (\Exception $e) {
             \Log::error('Failed to retrieve client.', ['error' => $e->getMessage()]);
@@ -98,6 +122,15 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Update an existing client
+     * 
+     * @return UserResourceSpecific
+     * @response 200 UserResourceSpecific
+     * @response 403 {"message": "Cannot edit clients registered via mobile app"}
+     * @response 404 {"message": "Client not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function update(UpdateClientRequest $request, $tenantId, $clientId)
     {
         try {
@@ -127,7 +160,7 @@ class ClientController extends Controller
 
             $this->commitSafe();
 
-            return UserResourceSpecific::make($client);
+            return new UserResourceSpecific($client);
 
         } catch (\Exception $e) {
             \Log::error('Failed to update client.', ['error' => $e->getMessage()]);
@@ -135,6 +168,14 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Get statistics for a specific client
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": {"total": 10, "pending": 2, "cancelled": 1, "not_present": 0}}
+     * @response 404 {"message": "Client not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function stats(Request $request, $tenantId, $clientId)
     {
         try {
@@ -160,6 +201,16 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Get bookings for a specific client
+     * 
+     * @queryParam per_page int Number of items per page. Example: 15
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, BookingResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, BookingResourceGeneral>
+     * @response 404 {"message": "Client not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function bookings(Request $request, $tenantId, $clientId)
     {
         try {

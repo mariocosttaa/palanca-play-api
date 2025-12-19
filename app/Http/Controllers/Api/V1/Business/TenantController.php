@@ -16,11 +16,18 @@ use Illuminate\Http\Request;
  */
 class TenantController extends Controller
 {
-
+    /**
+     * Get a list of all tenants for the authenticated business user
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, TenantResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, TenantResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function index(Request $request)
     {
         try {
-            $tenants = Tenant::forBusinessUser($request->user()->id)->get();
+            $perPage = $request->input('per_page', 15);
+            $tenants = Tenant::forBusinessUser($request->user()->id)->paginate($perPage);
             return TenantResourceGeneral::collection($tenants);
         } catch (\Exception $e) {
             \Log::error('Erro ao listar grupos ou empresas', ['error' => $e->getMessage()]);
@@ -28,13 +35,25 @@ class TenantController extends Controller
         }
     }
 
+    /**
+     * Get a specific tenant by ID
+     * 
+     * @return TenantResourceGeneral
+     * @response 200 TenantResourceGeneral
+     * @response 500 {"message": "Server error"}
+     */
     public function show(Request $request, string $tenantIdHashId)
     {
-        return TenantResourceGeneral::make($request->tenant);
+        return new TenantResourceGeneral($request->tenant);
     }
 
     /**
      * Update a tenant
+     * 
+     * @return TenantResourceGeneral
+     * @response 200 TenantResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
      */
     public function update(UpdateTenantRequest $request, string $tenantIdHashId)
     {
@@ -60,7 +79,7 @@ class TenantController extends Controller
 
             $this->commitSafe();
 
-            return TenantResourceGeneral::make($tenant);
+            return new TenantResourceGeneral($tenant);
         } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Erro ao atualizar o grupo ou empresa', ['error' => $e->getMessage()]);
@@ -68,6 +87,14 @@ class TenantController extends Controller
         }
     }
 
+    /**
+     * Upload a logo for the tenant
+     * 
+     * @return TenantResourceGeneral
+     * @response 200 TenantResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
+     */
     public function uploadLogo(Request $request, string $tenantIdHashId)
     {
         try {
@@ -104,7 +131,7 @@ class TenantController extends Controller
 
             $this->commitSafe();
 
-            return TenantResourceGeneral::make($tenant);
+            return new TenantResourceGeneral($tenant);
         } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Erro ao fazer upload do logo', ['error' => $e->getMessage()]);
@@ -112,6 +139,15 @@ class TenantController extends Controller
         }
     }
 
+    /**
+     * Delete the tenant logo
+     * 
+     * @return TenantResourceGeneral
+     * @response 200 TenantResourceGeneral
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Logo not found"}
+     * @response 500 {"message": "Server error"}
+     */
     public function deleteLogo(Request $request, string $tenantIdHashId)
     {
         try {
@@ -142,7 +178,7 @@ class TenantController extends Controller
 
             $this->commitSafe();
 
-            return TenantResourceGeneral::make($tenant);
+            return new TenantResourceGeneral($tenant);
         } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Erro ao remover o logo', ['error' => $e->getMessage()]);
