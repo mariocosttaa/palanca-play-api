@@ -15,6 +15,15 @@ use Illuminate\Http\Request;
  */
 class SubscriptionController extends Controller
 {
+    /**
+     * Get a list of invoices for the tenant
+     * 
+     * @queryParam per_page int Number of items per page. Example: 15
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, InvoiceResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, InvoiceResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function indexInvoices(Request $request)
     {
         try {
@@ -33,6 +42,13 @@ class SubscriptionController extends Controller
         }
     }
 
+    /**
+     * Get current subscription status
+     * 
+     * @return SubscriptionResourceSpecific
+     * @response 200 SubscriptionResourceSpecific
+     * @response 500 {"message": "Server error"}
+     */
     public function current(Request $request)
     {
         try {
@@ -76,7 +92,7 @@ class SubscriptionController extends Controller
                 'invoice' => $latestInvoice,
             ];
 
-            return SubscriptionResourceSpecific::make($data);
+            return new SubscriptionResourceSpecific($data);
 
         } catch (\Exception $e) {
             \Log::error('Failed to retrieve subscription details.', ['error' => $e->getMessage()]);

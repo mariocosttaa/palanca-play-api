@@ -11,6 +11,13 @@ use App\Models\Manager\CurrencyModel;
  */
 class CurrencyController extends Controller
 {
+    /**
+     * Get a list of all currencies
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CurrencyResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CurrencyResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function index()
     {
         try {

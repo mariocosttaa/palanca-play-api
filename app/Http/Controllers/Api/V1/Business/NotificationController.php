@@ -14,6 +14,10 @@ class NotificationController extends Controller
 {
     /**
      * Get recent notifications (last 5)
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, NotificationResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, NotificationResourceGeneral>
+     * @response 500 {"message": "Server error"}
      */
     public function recent(Request $request)
     {
@@ -35,6 +39,12 @@ class NotificationController extends Controller
 
     /**
      * Get all notifications with pagination
+     * 
+     * @queryParam per_page int Number of items per page. Example: 20
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, NotificationResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, NotificationResourceGeneral>
+     * @response 500 {"message": "Server error"}
      */
     public function index(Request $request)
     {
@@ -56,6 +66,11 @@ class NotificationController extends Controller
 
     /**
      * Mark notification as read
+     * 
+     * @return NotificationResourceGeneral
+     * @response 200 NotificationResourceGeneral
+     * @response 404 {"message": "Notification not found"}
+     * @response 500 {"message": "Server error"}
      */
     public function markAsRead(Request $request, string $notificationHashId)
     {
@@ -68,7 +83,7 @@ class NotificationController extends Controller
 
             $notification->markAsRead();
 
-            return NotificationResourceGeneral::make($notification);
+            return new NotificationResourceGeneral($notification);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao marcar notificação como lida', ['error' => $e->getMessage()]);

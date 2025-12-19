@@ -11,6 +11,13 @@ use App\Models\Country;
  */
 class CountryController extends Controller
 {
+    /**
+     * Get a list of all countries
+     * 
+     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CountryResourceGeneral>
+     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CountryResourceGeneral>
+     * @response 500 {"message": "Server error"}
+     */
     public function index()
     {
         try {
