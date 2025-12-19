@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
@@ -20,7 +19,9 @@ class CourtController extends Controller
     {
         try {
             $tenant = $request->tenant;
-            $courts = Court::forTenant($tenant->id)->get();
+            $courts = Court::forTenant($tenant->id)
+                ->with(['images'])
+                ->get();
 
             return CourtResourceGeneral::collection($courts);
 
@@ -33,13 +34,14 @@ class CourtController extends Controller
     public function show(Request $request, string $tenantIdHashId, string $courtIdHashId)
     {
         try {
-            $tenant = $request->tenant;
+            $tenant  = $request->tenant;
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
-            $court = Court::forTenant($tenant->id)->findOrFail($courtId);
+            $court   = Court::forTenant($tenant->id)
+                ->with(['images'])
+                ->findOrFail($courtId);
 
-            return CourtResourceGeneral::make($court);
-        }
-        catch (\Exception $e) {
+            return new CourtResourceGeneral($court);
+        } catch (\Exception $e) {
             \Log::error('Houve um erro ao buscar a Quadra', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Houve um erro ao buscar a Quadra'], 500);
         }
@@ -54,7 +56,7 @@ class CourtController extends Controller
             // Check subscription plan limits
             // Check subscription plan limits via valid invoice (injected by middleware)
             $validInvoice = $request->valid_invoice;
-            
+
             // Fallback to subscription plan if no invoice (e.g. for free tier or if middleware didn't block - though it should have)
             // But user requested to use invoice.
             $maxCourts = $validInvoice ? $validInvoice->max_courts : ($tenant->subscriptionPlan?->courts ?? 0);
@@ -82,7 +84,7 @@ class CourtController extends Controller
                     );
 
                     $court->images()->create([
-                        'path' => $fileInfo->url, // Storing the URL/route path
+                        'path'       => $fileInfo->url, // Storing the URL/route path
                         'is_primary' => $index === 0,
                     ]);
                 }
@@ -92,21 +94,22 @@ class CourtController extends Controller
             if ($request->has('availabilities')) {
                 foreach ($request->availabilities as $availabilityData) {
                     $court->availabilities()->create([
-                        'tenant_id' => $tenant->id,
+                        'tenant_id'             => $tenant->id,
                         'day_of_week_recurring' => $availabilityData['day_of_week_recurring'] ?? null,
-                        'specific_date' => $availabilityData['specific_date'] ?? null,
-                        'start_time' => $availabilityData['start_time'],
-                        'end_time' => $availabilityData['end_time'],
-                        'is_available' => $availabilityData['is_available'] ?? true,
+                        'specific_date'         => $availabilityData['specific_date'] ?? null,
+                        'start_time'            => $availabilityData['start_time'],
+                        'end_time'              => $availabilityData['end_time'],
+                        'is_available'          => $availabilityData['is_available'] ?? true,
                     ]);
                 }
             }
 
             $this->commitSafe();
 
-            return CourtResourceGeneral::make($court);
-        }
-        catch (\Exception $e) {
+            $court->load(['images']);
+
+            return (new CourtResourceGeneral($court))->response()->setStatusCode(201);
+        } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Houve um erro ao criar a Quadra', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Houve um erro ao criar a Quadra: ' . $e->getMessage()], 400);
@@ -118,11 +121,11 @@ class CourtController extends Controller
         try {
             $this->beginTransactionSafe();
 
-            $tenant = $request->tenant;
+            $tenant  = $request->tenant;
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
-            $court = Court::forTenant($tenant->id)->find($courtId);
+            $court   = Court::forTenant($tenant->id)->find($courtId);
 
-            if (!$court) {
+            if (! $court) {
                 $this->rollBackSafe();
                 return response()->json(['message' => 'Quadra não encontrada'], 404);
             }
@@ -131,9 +134,10 @@ class CourtController extends Controller
 
             $this->commitSafe();
 
-            return CourtResourceGeneral::make($court);
-        }
-        catch (\Exception $e) {
+            $court->load(['images']);
+
+            return new CourtResourceGeneral($court);
+        } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Houve um erro ao actualizar a Quadra', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Houve um erro ao actualizar a Quadra'], 400);
@@ -145,11 +149,11 @@ class CourtController extends Controller
         try {
             $this->beginTransactionSafe();
 
-            $tenant = $request->tenant;
+            $tenant  = $request->tenant;
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
-            $court = Court::forTenant($tenant->id)->where('id', $courtId)->first();
+            $court   = Court::forTenant($tenant->id)->where('id', $courtId)->first();
 
-            if (!$court) {
+            if (! $court) {
                 $this->rollBackSafe();
                 return response()->json(['message' => 'Quadra não encontrada'], 404);
             }
@@ -165,12 +169,10 @@ class CourtController extends Controller
             $this->commitSafe();
 
             return response()->json(['message' => 'Quadra deletada com sucesso']);
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Houve um erro ao deletar a Quadra', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Houve um erro ao deletar a Quadra'], 400);
         }
     }
 }
-

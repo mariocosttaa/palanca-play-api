@@ -23,7 +23,7 @@ class MobileCourtController extends Controller
             
             $query = Court::forTenant($tenantId)
                 ->active()
-                ->with(['courtType', 'primaryImage', 'images']);
+                ->with(['images']);
 
             // Filter by court type if provided
             if ($request->has('court_type_id')) {
@@ -52,10 +52,10 @@ class MobileCourtController extends Controller
             
             $court = Court::forTenant($tenantId)
                 ->active()
-                ->with(['courtType', 'images', 'primaryImage'])
+                ->with(['images'])
                 ->findOrFail($courtId);
 
-            return CourtResourceGeneral::make($court);
+            return new CourtResourceGeneral($court);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar quadra', ['error' => $e->getMessage()]);
