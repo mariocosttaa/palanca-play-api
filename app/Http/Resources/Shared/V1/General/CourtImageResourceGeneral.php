@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Resources\Shared\V1\General;
 
 use App\Actions\General\EasyHashAction;
@@ -16,13 +15,8 @@ class CourtImageResourceGeneral extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => EasyHashAction::encode($this->id, 'court-image-id'),
-            'court_id' => EasyHashAction::encode($this->court_id, 'court-id'),
-            'court' => new CourtResourceGeneral($this->whenLoaded('court')),
-            'path' => $this->path,
-            'alt' => $this->alt,
-            'is_primary' => $this->is_primary,
+            'id'  => EasyHashAction::encode($this->id, 'court-image-id'),
+            'url' => url('/' . ltrim($this->path, '/')),
         ];
     }
 }
-
