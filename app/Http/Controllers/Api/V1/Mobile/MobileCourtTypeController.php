@@ -24,8 +24,8 @@ class MobileCourtTypeController extends Controller
             
             $courtTypes = CourtType::forTenant($tenantId)
                 ->with(['courts' => function ($query) {
-                    $query->active()->with(['primaryImage']);
-                }])
+                    $query->active()->with('images');
+                }, 'availabilities'])
                 ->where('status', true)
                 ->get();
 
@@ -48,13 +48,16 @@ class MobileCourtTypeController extends Controller
             $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
             
             $courtType = CourtType::forTenant($tenantId)
-                ->with(['courts' => function ($query) {
-                    $query->active()->with(['images', 'primaryImage']);
-                }])
+                ->with([
+                    'courts' => function ($query) {
+                        $query->active()->with('images');
+                    },
+                    'availabilities'
+                ])
                 ->where('status', true)
                 ->findOrFail($courtTypeId);
 
-            return CourtTypeResourceGeneral::make($courtType);
+            return new CourtTypeResourceGeneral($courtType);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar tipo de quadra', ['error' => $e->getMessage()]);

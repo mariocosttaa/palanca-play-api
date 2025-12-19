@@ -34,9 +34,14 @@ class CourtTypeController extends Controller
         try {
             $tenant = $request->tenant;
             $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
-            $courtType = CourtType::with(['courts', 'availabilities'])->forTenant($tenant->id)->findOrFail($courtTypeId);
+            $courtType = CourtType::with([
+                'courts' => function ($query) {
+                    $query->with('images');
+                },
+                'availabilities'
+            ])->forTenant($tenant->id)->findOrFail($courtTypeId);
 
-            return CourtTypeResourceGeneral::make($courtType);
+            return new CourtTypeResourceGeneral($courtType);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar tipo de quadra', ['error' => $e->getMessage()]);
@@ -62,7 +67,11 @@ class CourtTypeController extends Controller
 
             $this->commitSafe();
 
-            return CourtTypeResourceGeneral::make($courtType);
+            $courtType->load(['availabilities', 'courts' => function ($query) {
+                $query->with('images');
+            }]);
+
+            return new CourtTypeResourceGeneral($courtType);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
@@ -85,7 +94,11 @@ class CourtTypeController extends Controller
 
             $this->commitSafe();
 
-            return CourtTypeResourceGeneral::make($courtType);
+            $courtType->load(['availabilities', 'courts' => function ($query) {
+                $query->with('images');
+            }]);
+
+            return (new CourtTypeResourceGeneral($courtType))->response()->setStatusCode(201);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
