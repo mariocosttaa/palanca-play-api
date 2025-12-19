@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
  * @property Tenant|null $tenant
  * @property int $court_type_id
  * @property string $name
- * @property string $number
+ * @property int $number
  * @property array $images
  * @property \Illuminate\Http\UploadedFile|null $images.*
  * @property bool $status

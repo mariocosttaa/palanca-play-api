@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
  * @property int|null $tenant_id
  * @property Tenant|null $tenant
  * @property string $name
- * @property string $number
+ * @property int $number
  *
  * Magic/inherited methods (MANDATORY):
  * @method bool hasFile(string $key)
