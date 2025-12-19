@@ -15,6 +15,11 @@ class FinancialController extends Controller
 {
     /**
      * Get current month financial report
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": {"year": 2024, "month": 12, "month_name": "December", "bookings": [...], "summary": {...}}}
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
      */
     public function currentMonth(Request $request, $tenant_id)
     {
@@ -32,7 +37,14 @@ class FinancialController extends Controller
 
     /**
      * Get monthly financial report with detailed booking list
-     * GET /business/{tenant_id}/financials/{year}/{month}
+     * 
+     * @param int $year Year (2000-2100)
+     * @param int $month Month (1-12)
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": {"year": 2024, "month": 12, "month_name": "December", "bookings": [...], "summary": {...}}}
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
      */
     public function monthlyReport(Request $request, $tenant_id, $year, $month)
     {
@@ -82,7 +94,14 @@ class FinancialController extends Controller
 
     /**
      * Get monthly statistics
-     * GET /business/{tenant_id}/financials/{year}/{month}/stats
+     * 
+     * @param int $year Year (2000-2100)
+     * @param int $month Month (1-12)
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": {"year": 2024, "month": 12, "month_name": "December", "statistics": {...}}}
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
      */
     public function monthlyStats(Request $request, $tenant_id, $year, $month)
     {
@@ -131,7 +150,13 @@ class FinancialController extends Controller
 
     /**
      * Get yearly statistics
-     * GET /business/{tenant_id}/financials/{year}/stats
+     * 
+     * @param int $year Year (2000-2100)
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": {"year": 2024, "statistics": {...}, "monthly_breakdown": [...]}}
+     * @response 400 {"message": "Error message"}
+     * @response 500 {"message": "Server error"}
      */
     public function yearlyStats(Request $request, $tenant_id, $year)
     {

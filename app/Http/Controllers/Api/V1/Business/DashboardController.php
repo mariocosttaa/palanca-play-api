@@ -17,6 +17,13 @@ use Carbon\Carbon;
  */
 class DashboardController extends Controller
 {
+    /**
+     * Get dashboard statistics including cards, lists, and charts
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"data": {"cards": {...}, "lists": {...}, "charts": {...}}}
+     * @response 500 {"message": "Server error"}
+     */
     public function index(Request $request, $tenantId)
     {
         try {
