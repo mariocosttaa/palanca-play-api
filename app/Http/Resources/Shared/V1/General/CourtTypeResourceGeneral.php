@@ -4,6 +4,7 @@ namespace App\Http\Resources\Shared\V1\General;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Resources\Business\V1\General\TenantResourceGeneral;
+use App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,6 +26,7 @@ class CourtTypeResourceGeneral extends JsonResource
             'price_per_interval' => $this->price_per_interval,
             'price_formatted' => $this->price_formatted,
             'status' => $this->status,
+            'availabilities' => CourtAvailabilityResourceGeneral::collection($this->whenLoaded('availabilities')),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }
