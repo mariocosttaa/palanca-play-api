@@ -288,4 +288,32 @@ test('user can delete a court type if no one courts associated', function () {
     ]);
 });
 
+test('court type validation fails if interval or buffer is not multiple of 5', function () {
+    $tenant = Tenant::factory()->create();
+    $businessUser = BusinessUser::factory()->create();
+    $businessUser->tenants()->attach($tenant);
+
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
+
+    Sanctum::actingAs($businessUser, [], 'business');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    $data = CourtTypeFactory::new()->make([
+        'tenant_id' => $tenant->id,
+        'interval_time_minutes' => 7, // Invalid
+        'buffer_time_minutes' => 3, // Invalid
+    ])->toArray();
+
+    $response = $this->postJson(route('court-types.create', ['tenant_id' => $tenantHashId]), $data);
+
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['interval_time_minutes', 'buffer_time_minutes']);
+});
+
+
 
