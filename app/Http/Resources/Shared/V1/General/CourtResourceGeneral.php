@@ -12,7 +12,7 @@ class CourtResourceGeneral extends JsonResource
         return [
             'id'         => EasyHashAction::encode($this->id, 'court-id'),
             'name'       => $this->name,
-            'number'     => $this->number,
+            'number'     => (int) $this->number,
             'images'     => CourtImageResourceGeneral::collection($this->whenLoaded('images')),
             'status'     => $this->status,
             'created_at' => $this->created_at?->toISOString(),

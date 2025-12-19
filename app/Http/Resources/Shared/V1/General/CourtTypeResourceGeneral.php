@@ -3,7 +3,6 @@
 namespace App\Http\Resources\Shared\V1\General;
 
 use App\Actions\General\EasyHashAction;
-use App\Http\Resources\Business\V1\General\TenantResourceGeneral;
 use App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -14,10 +13,6 @@ class CourtTypeResourceGeneral extends JsonResource
     {
         return [
             'id' => EasyHashAction::encode($this->id, 'court-type-id'),
-            'tenant_id' => EasyHashAction::encode($this->tenant_id, 'tenant-id'),
-            'tenant' => new TenantResourceGeneral($this->whenLoaded('tenant')),
-            'courts' => CourtResourceGeneral::collection($this->whenLoaded('courts')),
-            'courts_count' => $this->when($this->relationLoaded('courts'), $this->courts->count()),
             'type' => $this->type,
             'name' => $this->name,
             'description' => $this->description,
@@ -27,6 +22,8 @@ class CourtTypeResourceGeneral extends JsonResource
             'price_formatted' => $this->price_formatted,
             'status' => $this->status,
             'availabilities' => CourtAvailabilityResourceGeneral::collection($this->whenLoaded('availabilities')),
+            'courts' => CourtResourceGeneral::collection($this->whenLoaded('courts')),
+            'courts_count' => $this->when($this->relationLoaded('courts'), $this->courts->count()),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }
