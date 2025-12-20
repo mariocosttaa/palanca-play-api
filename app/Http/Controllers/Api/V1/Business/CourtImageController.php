@@ -6,6 +6,8 @@ use App\Actions\General\EasyHashAction;
 use App\Actions\General\TenantFileAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Business\CreateCourtImageRequest;
+use App\Http\Requests\Api\V1\Business\SetCourtImagePrimaryRequest;
+use App\Http\Resources\Shared\V1\General\CourtImageResourceGeneral;
 use App\Models\Court;
 use App\Models\CourtImage;
 use Illuminate\Http\JsonResponse;
@@ -52,9 +54,12 @@ class CourtImageController extends Controller
 
             $this->commitSafe();
 
+            // Reload the image with court relationship for resource
+            $courtImage->load('court');
+
             return response()->json([
                 'message' => 'Imagem adicionada com sucesso',
-                'data' => $courtImage,
+                'data' => new CourtImageResourceGeneral($courtImage),
             ], 200);
         } catch (\Exception $e) {
             $this->rollBackSafe();
@@ -99,6 +104,51 @@ class CourtImageController extends Controller
             $this->rollBackSafe();
             \Log::error('Erro ao remover imagem', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao remover imagem'], 400);
+        }
+    }
+
+    /**
+     * Set or unset primary status for an image.
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @response 200 {"message": "Primary status updated successfully", "data": {...}}
+     * @response 400 {"message": "Error message"}
+     * @response 404 {"message": "Court or image not found"}
+     */
+    public function setPrimary(SetCourtImagePrimaryRequest $request, $tenantIdHashed, $courtId, $imageId)
+    {
+        try {
+            $tenantId = EasyHashAction::decode($tenantIdHashed, 'tenant-id');
+            $decodedCourtId = EasyHashAction::decode($courtId, 'court-id');
+            $decodedImageId = EasyHashAction::decode($imageId, 'court-image-id');
+            
+            $court = Court::where('tenant_id', $tenantId)->findOrFail($decodedCourtId);
+            $image = $court->images()->findOrFail($decodedImageId);
+
+            $this->beginTransactionSafe();
+
+            $isPrimary = $request->boolean('is_primary');
+
+            // If setting as primary, unset all other primary images
+            if ($isPrimary) {
+                $court->images()->where('id', '!=', $decodedImageId)->update(['is_primary' => false]);
+            }
+
+            $image->update(['is_primary' => $isPrimary]);
+
+            $this->commitSafe();
+
+            // Reload the image with court relationship for resource
+            $image->load('court');
+
+            return response()->json([
+                'message' => $isPrimary ? 'Imagem definida como principal com sucesso' : 'Imagem removida como principal com sucesso',
+                'data' => new CourtImageResourceGeneral($image),
+            ], 200);
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            \Log::error('Erro ao definir imagem como principal', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao definir imagem como principal'], 400);
         }
     }
 }

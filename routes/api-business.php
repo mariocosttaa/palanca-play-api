@@ -1,19 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\Business\TenantController;
-use App\Http\Controllers\Api\V1\Business\CourtTypeController;
-use App\Http\Controllers\Api\V1\Business\CourtController;
-use App\Http\Controllers\Api\V1\Business\CourtImageController;
-use App\Http\Controllers\Api\V1\Business\CourtAvailabilityController;
-use App\Http\Controllers\Api\V1\Business\SubscriptionController;
+use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
 use App\Http\Controllers\Api\V1\Business\BookingController;
 use App\Http\Controllers\Api\V1\Business\BookingVerificationController;
 use App\Http\Controllers\Api\V1\Business\ClientController;
+use App\Http\Controllers\Api\V1\Business\CourtAvailabilityController;
+use App\Http\Controllers\Api\V1\Business\CourtController;
+use App\Http\Controllers\Api\V1\Business\CourtImageController;
+use App\Http\Controllers\Api\V1\Business\CourtTypeController;
 use App\Http\Controllers\Api\V1\Business\FinancialController;
-use App\Http\Controllers\Api\V1\Business\Auth\BusinessUserAuthController as AuthBusinessUserAuthController;
 use App\Http\Controllers\Api\V1\Business\NotificationController;
-
+use App\Http\Controllers\Api\V1\Business\SubscriptionController;
+use App\Http\Controllers\Api\V1\Business\TenantController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -121,28 +120,29 @@ Route::prefix('v1')->group(function () {
                         // Court Images routes
                         Route::prefix('{court_id}/images')->group(function () {
                             Route::post('/', [CourtImageController::class, 'store'])->name('courts.images.store');
+                            Route::patch('/{image_id}/primary', [CourtImageController::class, 'setPrimary'])->name('courts.images.set-primary');
                             Route::delete('/{image_id}', [CourtImageController::class, 'destroy'])->name('courts.images.destroy');
                         });
                     });
 
-                        // Court Availabilities routes
-                        // Court Availabilities routes
-                        Route::prefix('courts/{court_id}')->group(function () {
-                            // Availability CRUD
-                            Route::prefix('availabilities')->group(function () {
-                                Route::get('/', [CourtAvailabilityController::class, 'index'])->name('courts.availabilities.index');
-                                Route::post('/', [CourtAvailabilityController::class, 'store'])->name('courts.availabilities.store');
-                                Route::put('/{availability_id}', [CourtAvailabilityController::class, 'update'])->name('courts.availabilities.update');
-                                Route::delete('/{availability_id}', [CourtAvailabilityController::class, 'destroy'])->name('courts.availabilities.destroy');
-                            });
-
-                            // Availability Checks
-                            Route::prefix('availability')->group(function () {
-                                Route::get('/dates', [CourtAvailabilityController::class, 'getDates'])->name('courts.availability.dates');
-                                Route::get('/{date}/slots', [CourtAvailabilityController::class, 'getSlots'])->name('courts.availability.slots');
-                            });
+                    // Court Availabilities routes
+                    // Court Availabilities routes
+                    Route::prefix('courts/{court_id}')->group(function () {
+                        // Availability CRUD
+                        Route::prefix('availabilities')->group(function () {
+                            Route::get('/', [CourtAvailabilityController::class, 'index'])->name('courts.availabilities.index');
+                            Route::post('/', [CourtAvailabilityController::class, 'store'])->name('courts.availabilities.store');
+                            Route::put('/{availability_id}', [CourtAvailabilityController::class, 'update'])->name('courts.availabilities.update');
+                            Route::delete('/{availability_id}', [CourtAvailabilityController::class, 'destroy'])->name('courts.availabilities.destroy');
                         });
-    
+
+                        // Availability Checks
+                        Route::prefix('availability')->group(function () {
+                            Route::get('/dates', [CourtAvailabilityController::class, 'getDates'])->name('courts.availability.dates');
+                            Route::get('/{date}/slots', [CourtAvailabilityController::class, 'getSlots'])->name('courts.availability.slots');
+                        });
+                    });
+
                     // Subscription routes
                     Route::prefix('subscriptions')->group(function () {
                         Route::get('/invoices', [SubscriptionController::class, 'indexInvoices'])->name('subscriptions.invoices');
@@ -158,7 +158,7 @@ Route::prefix('v1')->group(function () {
                         Route::put('/{booking_id}', [BookingController::class, 'update'])->name('bookings.update');
                         Route::put('/{booking_id}/presence', [BookingController::class, 'confirmPresence'])->name('bookings.confirm-presence');
                         Route::delete('/{booking_id}', [BookingController::class, 'destroy'])->name('bookings.destroy');
-                        
+
                         // QR Code Verification - Upload QR image to verify booking
                         Route::post('/verify-qr', [BookingVerificationController::class, 'verify'])->name('bookings.verify-qr');
                     });
@@ -187,7 +187,6 @@ Route::prefix('v1')->group(function () {
                             ->name('financials.yearly-stats');
                     });
 
-            
                 });
             });
         });

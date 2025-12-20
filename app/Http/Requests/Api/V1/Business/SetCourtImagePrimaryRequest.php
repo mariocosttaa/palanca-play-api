@@ -1,9 +1,10 @@
 <?php
+
 namespace App\Http\Requests\Api\V1\Business;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class CreateCourtImageRequest extends FormRequest
+class SetCourtImagePrimaryRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -37,8 +38,17 @@ class CreateCourtImageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'image'      => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
-            'is_primary' => 'nullable|boolean',
+            'is_primary' => 'required|boolean',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'is_primary.required' => 'O campo is_primary é obrigatório',
+            'is_primary.boolean' => 'O campo is_primary deve ser verdadeiro ou falso',
         ];
     }
 }
+
+

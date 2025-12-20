@@ -15,8 +15,9 @@ class CourtImageResourceGeneral extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'  => EasyHashAction::encode($this->id, 'court-image-id'),
-            'url' => url('/' . ltrim($this->path, '/')),
+            'id'         => EasyHashAction::encode($this->id, 'court-image-id'),
+            'url'        => url($this->path),
+            'is_primary' => $this->is_primary,
         ];
     }
 }

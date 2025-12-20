@@ -38,7 +38,7 @@ class Court extends Model
 
     public function images()
     {
-        return $this->hasMany(CourtImage::class);
+        return $this->hasMany(CourtImage::class)->orderBy('is_primary', 'desc')->orderBy('created_at', 'asc');
     }
 
     public function primaryImage()
