@@ -19,6 +19,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'surname',
         'email',
+        'locale',
         'google_login',
         'country_id',
         'calling_code',
@@ -40,6 +41,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'google_login' => 'boolean',
             'is_app_user' => 'boolean',
+            'locale' => \App\Enums\LocaleEnum::class,
         ];
     }
 

@@ -24,7 +24,7 @@ class BusinessUser extends Authenticatable implements MustVerifyEmail
         'calling_code',
         'phone',
         'timezone',
-        'language',
+        'locale',
         'password',
     ];
 
@@ -38,7 +38,7 @@ class BusinessUser extends Authenticatable implements MustVerifyEmail
         return [
             'password' => 'hashed',
             'google_login' => 'boolean',
-            'language' => 'string',
+            'locale' => \App\Enums\LocaleEnum::class,
             'email_verified_at' => 'datetime',
         ];
     }
