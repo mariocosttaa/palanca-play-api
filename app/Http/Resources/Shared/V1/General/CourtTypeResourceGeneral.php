@@ -14,6 +14,7 @@ class CourtTypeResourceGeneral extends JsonResource
         return [
             'id' => EasyHashAction::encode($this->id, 'court-type-id'),
             'type' => $this->type,
+            'type_label' => $this->type->label(),
             'name' => $this->name,
             'description' => $this->description,
             'interval_time_minutes' => $this->interval_time_minutes,

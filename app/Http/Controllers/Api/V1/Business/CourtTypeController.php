@@ -32,8 +32,8 @@ class CourtTypeController extends Controller
 
             return CourtTypeResourceGeneral::collection($courtTypes);
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar tipos de quadras', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar tipos de quadras'], 500);
+            \Log::error('Error fetching court types', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error fetching the court types.')], 500);
         }
     }
 
@@ -60,8 +60,8 @@ class CourtTypeController extends Controller
             return new CourtTypeResourceGeneral($courtType);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar tipo de quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar tipo de quadra'], 500);
+            \Log::error('Error fetching court type', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error fetching the court type.')], 500);
         }
     }
 
@@ -85,7 +85,7 @@ class CourtTypeController extends Controller
 
             if (!$courtType) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Tipo de quadra não encontrado'], 404);
+                return response()->json(['message' => __('Court type not found.')], 404);
             }
 
             $courtType->update($request->validated());
@@ -100,8 +100,8 @@ class CourtTypeController extends Controller
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Houve um erro ao actualizar o tipo de Quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao actualizar o tipo de Quadra'], 400);
+            \Log::error('Error updating court type', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error updating the court type.')], 400);
         }
     }
 
@@ -135,8 +135,8 @@ class CourtTypeController extends Controller
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Houve um erro ao criar o tipo de quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao criar o tipo de quadra'], 400);
+            \Log::error('Error creating court type', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error creating the court type.')], 400);
         }
     }
 
@@ -160,36 +160,35 @@ class CourtTypeController extends Controller
 
             if (!$courtType) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Tipo de quadra não encontrado'], 404);
+                return response()->json(['message' => __('Court type not found.')], 404);
             }
 
             //check if the court type has any courts associated
             if ($courtType->courts()->exists()) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Tipo de quadra não pode ser deletado porque tem quadras associadas, apague as quadras primeiro'], 400);
+                return response()->json(['message' => __('Court type cannot be deleted because it has associated courts, please delete the courts first.')], 400);
             }
 
             $courtType->delete();
 
             $this->commitSafe();
 
-            return response()->json(['message' => 'Tipo de quadra deletado com sucesso']);
+            return response()->json(['message' => __('Court type deleted successfully.')]);
 
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Houve um erro ao deletar o tipo de Quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao deletar o tipo de Quadra'], 400);
+            \Log::error('Error deleting court type', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error deleting the court type.')], 400);
         }
     }
     /**
-     * Get available court type enum values
+     * Get available court type options with translated labels
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": ["type1", "type2", ...]}
+     * @response array{data: array<int, array{value: string, label: string}>}
      */
-    public function types()
+    public function types(): \Illuminate\Http\JsonResponse
     {
-        return response()->json(['data' => \App\Enums\CourtTypeEnum::values()]);
+        return response()->json(['data' => \App\Enums\CourtTypeEnum::options()]);
     }
 }
