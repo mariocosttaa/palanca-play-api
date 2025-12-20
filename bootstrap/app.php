@@ -30,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.log' => \App\Http\Middleware\LogApiRequest::class,
             'verified.api' => \App\Http\Middleware\EnsureEmailIsVerifiedApi::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\SetLocale::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
