@@ -43,11 +43,18 @@ class CourtAvailabilityController extends Controller
                 return response()->json(['message' => 'Court not found.'], 404);
             }
 
+            $data = $request->all();
+            if (isset($data['is_available']) && $data['is_available'] === false) {
+                $data['start_time'] = $data['start_time'] ?? '09:00';
+                $data['end_time'] = $data['end_time'] ?? '19:00';
+                $request->merge($data);
+            }
+
             $validated = $request->validate([
                 'day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
                 'specific_date' => 'nullable|date',
-                'start_time' => 'required|date_format:H:i',
-                'end_time' => 'required|date_format:H:i|after:start_time',
+                'start_time' => 'nullable|date_format:H:i',
+                'end_time' => 'nullable|date_format:H:i|after:start_time',
                 'is_available' => 'boolean',
                 'price_modifier' => 'nullable|numeric',
                 'reason' => 'nullable|string',
@@ -88,11 +95,19 @@ class CourtAvailabilityController extends Controller
                 return response()->json(['message' => 'Availability not found.'], 404);
             }
 
+            $data = $request->all();
+            if (isset($data['is_available']) && $data['is_available'] === false) {
+                 // Only set defaults if they are not provided or null
+                if (!isset($data['start_time'])) $data['start_time'] = '09:00';
+                if (!isset($data['end_time'])) $data['end_time'] = '19:00';
+                $request->merge($data);
+            }
+
             $validated = $request->validate([
                 'day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
                 'specific_date' => 'nullable|date',
-                'start_time' => 'sometimes|date_format:H:i',
-                'end_time' => 'sometimes|date_format:H:i|after:start_time',
+                'start_time' => 'nullable|date_format:H:i',
+                'end_time' => 'nullable|date_format:H:i|after:start_time',
                 'is_available' => 'boolean',
                 'price_modifier' => 'nullable|numeric',
                 'reason' => 'nullable|string',

@@ -49,6 +49,17 @@ class CreateCourtRequest extends FormRequest
         $this->merge([
             'court_type_id' => EasyHashAction::decode($this->court_type_id, 'court-type-id'),
         ]);
+
+        if ($this->has('availabilities')) {
+            $availabilities = $this->input('availabilities');
+            foreach ($availabilities as &$availability) {
+                if (isset($availability['is_available']) && $availability['is_available'] === false) {
+                    $availability['start_time'] = $availability['start_time'] ?? '09:00';
+                    $availability['end_time'] = $availability['end_time'] ?? '19:00';
+                }
+            }
+            $this->merge(['availabilities' => $availabilities]);
+        }
     }
 
     /**
@@ -70,8 +81,8 @@ class CreateCourtRequest extends FormRequest
             'availabilities' => 'nullable|array',
             'availabilities.*.day_of_week_recurring' => 'nullable|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'availabilities.*.specific_date' => 'nullable|date',
-            'availabilities.*.start_time' => 'required|date_format:H:i',
-            'availabilities.*.end_time' => 'required|date_format:H:i|after:availabilities.*.start_time',
+            'availabilities.*.start_time' => 'nullable|date_format:H:i',
+            'availabilities.*.end_time' => 'nullable|date_format:H:i|after:availabilities.*.start_time',
             'availabilities.*.is_available' => 'boolean',
         ];
     }
