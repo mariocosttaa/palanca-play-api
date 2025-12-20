@@ -34,8 +34,8 @@ class CourtController extends Controller
             return CourtResourceGeneral::collection($courts);
 
         } catch (\Exception $e) {
-            \Log::error('Houve um erro ao buscar as Quadras', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao buscar as Quadras'], 500);
+            \Log::error('Error fetching courts', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error fetching the courts.')], 500);
         }
     }
 
@@ -58,8 +58,8 @@ class CourtController extends Controller
 
             return new CourtResourceGeneral($court);
         } catch (\Exception $e) {
-            \Log::error('Houve um erro ao buscar a Quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao buscar a Quadra'], 500);
+            \Log::error('Error fetching court', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error fetching the court.')], 500);
         }
     }
 
@@ -90,7 +90,7 @@ class CourtController extends Controller
             $currentCourtsCount = $tenant->courts()->count();
             if ($currentCourtsCount >= $maxCourts) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Limite de quadras atingido para o seu plano de subscrição.'], 403);
+                return response()->json(['message' => __('Court limit reached for your subscription plan.')], 403);
             }
 
             $court = new Court();
@@ -137,8 +137,8 @@ class CourtController extends Controller
             return (new CourtResourceGeneral($court))->response()->setStatusCode(201);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Houve um erro ao criar a Quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao criar a Quadra: ' . $e->getMessage()], 400);
+            \Log::error('Error creating court', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error creating the court: :error', ['error' => $e->getMessage()])], 400);
         }
     }
 
@@ -162,7 +162,7 @@ class CourtController extends Controller
 
             if (! $court) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Quadra não encontrada'], 404);
+                return response()->json(['message' => __('Court not found.')], 404);
             }
 
             $validated = $request->validated();
@@ -176,8 +176,8 @@ class CourtController extends Controller
             return new CourtResourceGeneral($court);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Houve um erro ao actualizar a Quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao actualizar a Quadra'], 400);
+            \Log::error('Error updating court', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error updating the court.')], 400);
         }
     }
 
@@ -201,24 +201,24 @@ class CourtController extends Controller
 
             if (! $court) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Quadra não encontrada'], 404);
+                return response()->json(['message' => __('Court not found.')], 404);
             }
 
             //check if the court has any bookings associated
             if ($court->bookings()->exists()) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Quadra não pode ser deletada porque tem reservas associadas, apague as reservas primeiro'], 400);
+                return response()->json(['message' => __('Court cannot be deleted because it has associated bookings, please delete the bookings first.')], 400);
             }
 
             $court->delete();
 
             $this->commitSafe();
 
-            return response()->json(['message' => 'Quadra deletada com sucesso']);
+            return response()->json(['message' => __('Court deleted successfully.')]);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Houve um erro ao deletar a Quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Houve um erro ao deletar a Quadra'], 400);
+            \Log::error('Error deleting court', ['error' => $e->getMessage()]);
+            return response()->json(['message' => __('There was an error deleting the court.')], 400);
         }
     }
 }

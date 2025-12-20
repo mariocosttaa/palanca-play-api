@@ -87,49 +87,5 @@ class CreateCourtRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
-    {
-        return [
-            'court_type_id.required' => 'O tipo de quadra é obrigatório',
-            'court_type_id.integer' => 'O tipo de quadra deve ser um número inteiro',
-            'court_type_id.exists' => 'O tipo de quadra não existe',
-            'name.required' => 'O nome é obrigatório',
-            'name.string' => 'O nome deve ser uma string',
-            'name.min' => 'O nome deve ter pelo menos 3 caracteres',
-            'name.max' => 'O nome deve ter no máximo 255 caracteres',
-            'name.unique' => 'O nome já existe',
-            'number.required' => 'O número é obrigatório',
-            'number.numeric' => 'O número deve ser um número',
-            'number.min' => 'O número deve ser pelo menos 1',
-            'number.max' => 'O número deve ser no máximo 9999',
-            'number.unique' => 'O número já existe',
-            'status.boolean' => 'O status deve ser verdadeiro ou falso',
-            'images.array' => 'A(s) imagem(s) não estão válidas',
-            'images.*.image' => 'A imagem não está válida',
-            'images.*.mimes' => 'A imagem deve ser um arquivo de imagem (jpeg, png, jpg, gif, svg)',
-            'images.*.max' => 'A imagem deve ter no máximo 10MB',
-            'availabilities.array' => 'As disponibilidades devem ser um array',
-            'availabilities.*.day_of_week_recurring.in' => 'O dia da semana deve ser válido (Monday, Tuesday, etc.)',
-            'availabilities.*.specific_date.date' => 'A data específica deve ser uma data válida',
-            'availabilities.*.start_time.required' => 'A hora de início é obrigatória',
-            'availabilities.*.start_time.date_format' => 'A hora de início deve estar no formato HH:MM',
-            'availabilities.*.end_time.required' => 'A hora de término é obrigatória',
-            'availabilities.*.end_time.date_format' => 'A hora de término deve estar no formato HH:MM',
-            'availabilities.*.end_time.after' => 'A hora de término deve ser após a hora de início',
-            'availabilities.*.is_available.boolean' => 'A disponibilidade deve ser um booleano',
-        ];
-    }
-
-    public function attributes(): array
-    {
-        return [
-            'court_type_id' => 'Tipo de quadra',
-            'name' => 'Nome',
-            'number' => 'Número',
-            'status' => 'Estado',
-            'images' => 'Imagens',
-            'images.*' => 'Imagem',
-            'availabilities' => 'Disponibilidades',
-        ];
-    }
+    // messages and attributes are now handled by lang files
 }
