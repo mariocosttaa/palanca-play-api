@@ -12,8 +12,6 @@ use Illuminate\Validation\Rule;
  * Request validates
  *
  * Input fields:
- * @property int|null $tenant_id
- * @property Tenant|null $tenant
  * @property string $name
  * @property int $number
  *
@@ -42,12 +40,8 @@ class UpdateCourtRequest extends FormRequest
 
     public function prepareForValidation()
     {
-        $courtTypeId = $this->input('court_type_id');
         $this->merge([
             'id' => EasyHashAction::decode($this->route('court_id'), 'court-id'),
-            'court_type_id' => $courtTypeId && is_string($courtTypeId)
-                ? EasyHashAction::decode($courtTypeId, 'court-type-id')
-                : null,
         ]);
     }
 
@@ -58,22 +52,19 @@ class UpdateCourtRequest extends FormRequest
      */
     public function rules(): array
     {
-        $tenantId = $this->tenant?->id ?? $this->input('tenant_id');
+        $tenantId = $this->tenant->id;
         $courtId = $this->input('id');
 
         return [
-            'court_type_id' => ['nullable', 'integer', 'exists:courts_type,id'],
-            'name' => ['required', 'string', 'min:3', 'max:255', Rule::unique('courts', 'name')->where('tenant_id', $tenantId)->ignore($courtId)],
-            'number' => ['required', 'numeric', 'min:1', 'max:9999', Rule::unique('courts', 'number')->where('tenant_id', $tenantId)->ignore($courtId)],
-            'status' => 'nullable|boolean',
+            'name'          => ['sometimes', 'required', 'string', 'min:3', 'max:255', Rule::unique('courts', 'name')->where('tenant_id', $tenantId)->ignore($courtId)],
+            'number'        => ['sometimes', 'required', 'numeric', 'min:1', 'max:9999', Rule::unique('courts', 'number')->where('tenant_id', $tenantId)->ignore($courtId)],
+            'status'        => ['sometimes', 'boolean'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'court_type_id.integer' => 'O tipo de quadra deve ser um número inteiro',
-            'court_type_id.exists' => 'O tipo de quadra não existe',
             'name.required' => 'O nome é obrigatório',
             'name.string' => 'O nome deve ser uma string',
             'name.min' => 'O nome deve ter pelo menos 3 caracteres',
@@ -91,7 +82,6 @@ class UpdateCourtRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'court_type_id' => 'Tipo de quadra',
             'name' => 'Nome',
             'number' => 'Número',
             'status' => 'Estado',

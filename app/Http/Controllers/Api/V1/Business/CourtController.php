@@ -165,7 +165,9 @@ class CourtController extends Controller
                 return response()->json(['message' => 'Quadra não encontrada'], 404);
             }
 
-            $court->update($request->validated());
+            $validated = $request->validated();
+            
+            $court->update($validated);
 
             $this->commitSafe();
 
