@@ -19,9 +19,12 @@ test('can get court type enums', function () {
         ->getJson("/api/business/v1/business/{$tenantHashId}/court-types/modalities");
 
     $response->assertStatus(200)
-        ->assertJson([
-            'data' => CourtTypeEnum::values()
-        ]);
+        ->assertJsonStructure([
+            'data' => [
+                '*' => ['value', 'label']
+            ]
+        ])
+        ->assertJsonCount(7, 'data');
 });
 
 test('cannot create court type with invalid enum', function () {

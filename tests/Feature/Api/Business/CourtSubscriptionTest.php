@@ -67,7 +67,7 @@ class CourtSubscriptionTest extends TestCase
                 'court_type_id' => $courtTypeHashId,
             ]);
         $response3->assertStatus(403);
-        $response3->assertJson(['message' => 'Limite de quadras atingido para o seu plano de subscrição.']);
+        $response3->assertJson(['message' => 'Court limit reached for your subscription plan.']);
     }
 
     public function test_tenant_without_invoice_cannot_create_courts()

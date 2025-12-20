@@ -112,6 +112,6 @@ class SubscriptionMiddlewareTest extends TestCase
                 'number' => 2,
                 'court_type_id' => $courtTypeHashId,
             ])->assertStatus(403)
-            ->assertJson(['message' => 'Limite de quadras atingido para o seu plano de subscrição.']);
+            ->assertJson(['message' => 'Court limit reached for your subscription plan.']);
     }
 }
