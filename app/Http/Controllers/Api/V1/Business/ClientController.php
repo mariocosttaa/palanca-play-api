@@ -33,9 +33,10 @@ class ClientController extends Controller
     public function index(Request $request, $tenantId)
     {
         try {
-            // List users with pagination
-            // TODO: Filter by users who have bookings with this tenant
+            $tenant = $request->tenant;
+            // List users who belong to this tenant (have bookings or were created for this tenant)
             $query = User::query()
+                ->forTenant($tenant->id)
                 ->with('country')
                 ->withCount('bookings');
 
@@ -72,6 +73,8 @@ class ClientController extends Controller
         try {
             $this->beginTransactionSafe();
 
+            $tenant = $request->tenant;
+
             // Create user with is_app_user = false
             $client = User::create([
                 'name' => $request->name,
@@ -82,6 +85,9 @@ class ClientController extends Controller
                 'password' => Hash::make(\Illuminate\Support\Str::random(16)),
                 'is_app_user' => false,
             ]);
+
+            // Link user to tenant
+            $client->tenants()->attach($tenant->id);
 
             $this->commitSafe();
 
@@ -179,14 +185,16 @@ class ClientController extends Controller
     public function stats(Request $request, $tenantId, $clientId)
     {
         try {
+            $tenant = $request->tenant;
             $decodedId = EasyHashAction::decode($clientId, 'user-id');
             $client = User::findOrFail($decodedId);
 
             $stats = [
-                'total' => $client->bookings()->count(),
-                'pending' => $client->bookings()->pending()->count(),
-                'cancelled' => $client->bookings()->cancelled()->count(),
+                'total' => $client->bookings()->forTenant($tenant->id)->count(),
+                'pending' => $client->bookings()->forTenant($tenant->id)->pending()->count(),
+                'cancelled' => $client->bookings()->forTenant($tenant->id)->cancelled()->count(),
                 'not_present' => $client->bookings()
+                    ->forTenant($tenant->id)
                     ->where('present', false)
                     ->where('is_cancelled', false)
                     ->where('is_pending', false)
@@ -214,11 +222,13 @@ class ClientController extends Controller
     public function bookings(Request $request, $tenantId, $clientId)
     {
         try {
+            $tenant = $request->tenant;
             $decodedId = EasyHashAction::decode($clientId, 'user-id');
             $client = User::findOrFail($decodedId);
 
             $perPage = $request->input('per_page', 15);
             $bookings = $client->bookings()
+                ->forTenant($tenant->id)
                 ->latest()
                 ->paginate($perPage);
 
