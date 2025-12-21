@@ -153,6 +153,12 @@ class BookingController extends Controller
 
             $booking = Booking::create($bookingData);
 
+            // Link user to tenant if not already linked
+            \App\Models\UserTenant::firstOrCreate([
+                'user_id' => $clientId,
+                'tenant_id' => $tenant->id,
+            ]);
+
             // Generate QR code with hashed booking ID
             try {
                 $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
