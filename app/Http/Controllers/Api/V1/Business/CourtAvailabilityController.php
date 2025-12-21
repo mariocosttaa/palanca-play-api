@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral;
 use App\Models\Court;
 use Illuminate\Http\Request;
 
@@ -12,6 +13,42 @@ use Illuminate\Http\Request;
  */
 class CourtAvailabilityController extends Controller
 {
+    /**
+     * Get availabilities for a court
+     * 
+     * Returns court-specific availabilities if they exist,
+     * otherwise returns court type availabilities,
+     * otherwise returns empty array.
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     * @responseExample 200 {
+     *   "success": true,
+     *   "data": [
+     *     {
+     *       "id": "av1",
+     *       "tenant_id": "t1",
+     *       "court_id": "c1",
+     *       "court_type_id": null,
+     *       "day_of_week_recurring": "Monday",
+     *       "specific_date": null,
+     *       "start_time": "09:00",
+     *       "end_time": "22:00",
+     *       "is_available": true
+     *     },
+     *     {
+     *       "id": "av2",
+     *       "tenant_id": "t1",
+     *       "court_id": "c1",
+     *       "court_type_id": null,
+     *       "day_of_week_recurring": "Tuesday",
+     *       "specific_date": null,
+     *       "start_time": "09:00",
+     *       "end_time": "22:00",
+     *       "is_available": false
+     *     }
+     *   ]
+     * }
+     */
     public function index(Request $request, $tenantId, $courtId)
     {
         try {
@@ -22,7 +59,13 @@ class CourtAvailabilityController extends Controller
                 return response()->json(['message' => 'Court not found.'], 404);
             }
 
-            return response()->json(['data' => $court->availabilities]);
+            // Get effective availabilities (court-specific or fallback to court type)
+            $availabilities = $court->getEffectiveAvailabilities();
+
+            return response()->json([
+                'success' => true,
+                'data' => CourtAvailabilityResourceGeneral::collection($availabilities)
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Failed to retrieve availabilities.', ['error' => $e->getMessage()]);

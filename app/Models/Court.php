@@ -86,6 +86,38 @@ class Court extends Model
 
         return $this->courtType->availabilities ?? collect();
     }
+
+    /**
+     * Get effective availabilities for this court.
+     * 
+     * Logic:
+     * 1. If court has custom availabilities, return those
+     * 2. Otherwise, return court type availabilities
+     * 3. If neither exists, return empty collection
+     * 
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getEffectiveAvailabilities()
+    {
+        // Check if court has custom availabilities
+        $courtAvailabilities = $this->availabilities()->get();
+        
+        if ($courtAvailabilities->isNotEmpty()) {
+            return $courtAvailabilities;
+        }
+
+        // Otherwise, check court type availabilities
+        if ($this->courtType) {
+            $courtTypeAvailabilities = $this->courtType->availabilities()->get();
+            
+            if ($courtTypeAvailabilities->isNotEmpty()) {
+                return $courtTypeAvailabilities;
+            }
+        }
+
+        // Return empty collection if nothing found
+        return collect();
+    }
     // Availability Logic
     public function getAvailableDates($startDate, $endDate)
     {
