@@ -17,7 +17,11 @@ test('can list clients', function () {
     $user->tenants()->attach($tenant);
     Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
     
-    User::factory()->count(3)->create();
+    $clients = User::factory()->count(3)->create();
+    // Link clients to the tenant
+    foreach ($clients as $client) {
+        $client->tenants()->attach($tenant);
+    }
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -26,7 +30,7 @@ test('can list clients', function () {
     $response = $this->getJson(route('clients.index', ['tenant_id' => $tenantHashId]));
 
     $response->assertStatus(200);
-    $this->assertGreaterThanOrEqual(3, count($response->json('data')));
+    $this->assertCount(3, $response->json('data'));
 });
 
 test('can show client', function () {
@@ -68,6 +72,11 @@ test('can create client', function () {
     $this->assertDatabaseHas('users', [
         'email' => 'testclient@example.com',
         'is_app_user' => false,
+    ]);
+    
+    // Verify user is linked to tenant
+    $this->assertDatabaseHas('user_tenants', [
+        'tenant_id' => $tenant->id,
     ]);
 });
 
@@ -177,10 +186,14 @@ test('can search clients by name', function () {
     $user->tenants()->attach($tenant);
     Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
 
-    // Create clients with specific names
-    User::factory()->create(['name' => 'John', 'surname' => 'Doe']);
-    User::factory()->create(['name' => 'Jane', 'surname' => 'Smith']);
-    User::factory()->create(['name' => 'Bob', 'surname' => 'Johnson']);
+    // Create clients with specific names and link to tenant
+    $client1 = User::factory()->create(['name' => 'John', 'surname' => 'Doe']);
+    $client2 = User::factory()->create(['name' => 'Jane', 'surname' => 'Smith']);
+    $client3 = User::factory()->create(['name' => 'Bob', 'surname' => 'Johnson']);
+    
+    $client1->tenants()->attach($tenant);
+    $client2->tenants()->attach($tenant);
+    $client3->tenants()->attach($tenant);
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -203,10 +216,14 @@ test('can search clients by email', function () {
     $user->tenants()->attach($tenant);
     Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
 
-    // Create clients with specific emails
-    User::factory()->create(['email' => 'alice@example.com']);
-    User::factory()->create(['email' => 'bob@test.com']);
-    User::factory()->create(['email' => 'charlie@example.com']);
+    // Create clients with specific emails and link to tenant
+    $client1 = User::factory()->create(['email' => 'alice@example.com']);
+    $client2 = User::factory()->create(['email' => 'bob@test.com']);
+    $client3 = User::factory()->create(['email' => 'charlie@example.com']);
+    
+    $client1->tenants()->attach($tenant);
+    $client2->tenants()->attach($tenant);
+    $client3->tenants()->attach($tenant);
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -225,10 +242,14 @@ test('can search clients by phone', function () {
     $user->tenants()->attach($tenant);
     Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
 
-    // Create clients with specific phone numbers
-    User::factory()->create(['phone' => '123456789']);
-    User::factory()->create(['phone' => '987654321']);
-    User::factory()->create(['phone' => '123999888']);
+    // Create clients with specific phone numbers and link to tenant
+    $client1 = User::factory()->create(['phone' => '123456789']);
+    $client2 = User::factory()->create(['phone' => '987654321']);
+    $client3 = User::factory()->create(['phone' => '123999888']);
+    
+    $client1->tenants()->attach($tenant);
+    $client2->tenants()->attach($tenant);
+    $client3->tenants()->attach($tenant);
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
@@ -247,7 +268,8 @@ test('search returns no results when no match found', function () {
     $user->tenants()->attach($tenant);
     Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
 
-    User::factory()->create(['name' => 'Alice', 'email' => 'alice@example.com']);
+    $client = User::factory()->create(['name' => 'Alice', 'email' => 'alice@example.com']);
+    $client->tenants()->attach($tenant);
 
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
