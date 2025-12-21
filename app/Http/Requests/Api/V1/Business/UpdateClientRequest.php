@@ -42,7 +42,7 @@ class UpdateClientRequest extends FormRequest
     public function prepareForValidation()
     {
         $this->merge([
-            'id' => EasyHashAction::decode($this->route('clientId'), 'user-id'),
+            'id' => EasyHashAction::decode($this->route('client_id'), 'user-id'),
         ]);
     }
 

@@ -281,3 +281,47 @@ test('search returns no results when no match found', function () {
     $this->assertCount(0, $response->json('data'));
 });
 
+test('can update client with same email', function () {
+    $tenant = Tenant::factory()->create();
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+
+    $client = User::factory()->create(['email' => 'test@example.com', 'is_app_user' => false]);
+    $client->tenants()->attach($tenant);
+    $clientHashId = EasyHashAction::encode($client->id, 'user-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('clients.update', ['tenant_id' => $tenantHashId, 'client_id' => $clientHashId]), [
+        'email' => 'test@example.com',
+        'name' => 'Updated Name',
+    ]);
+
+    $response->assertStatus(200);
+});
+
+test('cannot update client with existing email', function () {
+    $tenant = Tenant::factory()->create();
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+
+    $existingClient = User::factory()->create(['email' => 'existing@example.com']);
+    $client = User::factory()->create(['email' => 'test@example.com', 'is_app_user' => false]);
+    $client->tenants()->attach($tenant);
+    
+    $clientHashId = EasyHashAction::encode($client->id, 'user-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('clients.update', ['tenant_id' => $tenantHashId, 'client_id' => $clientHashId]), [
+        'email' => 'existing@example.com',
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['email']);
+});
+
