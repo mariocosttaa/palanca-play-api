@@ -56,10 +56,23 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Booking::class);
     }
 
+    public function tenants()
+    {
+        return $this->belongsToMany(Tenant::class, 'user_tenants')
+            ->withTimestamps();
+    }
+
     // Scopes
     public function scopeForCountry($query, $countryId)
     {
         return $query->where('country_id', $countryId);
+    }
+
+    public function scopeForTenant($query, $tenantId)
+    {
+        return $query->whereHas('tenants', function ($q) use ($tenantId) {
+            $q->where('user_tenants.tenant_id', $tenantId);
+        });
     }
 
     // Accessors

@@ -50,6 +50,12 @@ class Tenant extends Model
             ->withTimestamps();
     }
 
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_tenants')
+            ->withTimestamps();
+    }
+
     public function courtTypes()
     {
         return $this->hasMany(CourtType::class);
