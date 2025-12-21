@@ -325,3 +325,71 @@ test('cannot update client with existing email', function () {
         ->assertJsonValidationErrors(['email']);
 });
 
+test('can create client with calling code and phone', function () {
+    $tenant = Tenant::factory()->create();
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+    
+    $country = \App\Models\Country::factory()->create(['calling_code' => '351']);
+
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->postJson(route('clients.store', ['tenant_id' => $tenantHashId]), [
+        'name' => 'Test Client',
+        'email' => 'testclient@example.com',
+        'calling_code' => '351',
+        'phone' => '912345678',
+        'country_id' => $country->id,
+    ]);
+
+    $response->assertStatus(201)
+        ->assertJsonFragment([
+            'name' => 'Test Client', 
+            'email' => 'testclient@example.com',
+            'calling_code' => '351',
+            'phone' => '912345678',
+        ]);
+
+    $this->assertDatabaseHas('users', [
+        'email' => 'testclient@example.com',
+        'calling_code' => '351',
+        'phone' => '912345678',
+    ]);
+});
+
+test('can update client with calling code and phone', function () {
+    $tenant = Tenant::factory()->create();
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addMonth()]);
+    
+    $country = \App\Models\Country::factory()->create(['calling_code' => '351']);
+
+    $client = User::factory()->create(['is_app_user' => false]);
+    $client->tenants()->attach($tenant);
+    $clientHashId = EasyHashAction::encode($client->id, 'user-id');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('clients.update', ['tenant_id' => $tenantHashId, 'client_id' => $clientHashId]), [
+        'calling_code' => '351',
+        'phone' => '987654321',
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonFragment([
+            'calling_code' => '351',
+            'phone' => '987654321',
+        ]);
+
+    $this->assertDatabaseHas('users', [
+        'id' => $client->id,
+        'calling_code' => '351',
+        'phone' => '987654321',
+    ]);
+});
+

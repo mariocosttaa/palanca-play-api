@@ -81,6 +81,7 @@ class ClientController extends Controller
                 'surname' => $request->surname,
                 'email' => $request->email,
                 'phone' => $request->phone,
+                'calling_code' => $request->calling_code,
                 'country_id' => $request->country_id,
                 'password' => Hash::make(\Illuminate\Support\Str::random(16)),
                 'is_app_user' => false,
@@ -161,6 +162,7 @@ class ClientController extends Controller
                 'surname' => $request->surname ?? $client->surname,
                 'email' => $request->email ?? $client->email,
                 'phone' => $request->phone ?? $client->phone,
+                'calling_code' => $request->calling_code ?? $client->calling_code,
                 'country_id' => $request->country_id ?? $client->country_id,
             ]);
 

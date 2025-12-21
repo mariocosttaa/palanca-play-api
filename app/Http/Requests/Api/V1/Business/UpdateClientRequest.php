@@ -41,9 +41,27 @@ class UpdateClientRequest extends FormRequest
 
     public function prepareForValidation()
     {
-        $this->merge([
+        $mergeData = [
             'id' => EasyHashAction::decode($this->route('client_id'), 'user-id'),
-        ]);
+        ];
+
+        if ($this->has('email')) {
+            $mergeData['email'] = $this->email ? trim(strtolower($this->email)) : null;
+        }
+        if ($this->has('name')) {
+            $mergeData['name'] = trim($this->name ?? '');
+        }
+        if ($this->has('surname')) {
+            $mergeData['surname'] = $this->surname ? trim($this->surname) : null;
+        }
+        if ($this->has('calling_code')) {
+            $mergeData['calling_code'] = $this->calling_code ? trim($this->calling_code) : null;
+        }
+        if ($this->has('phone')) {
+            $mergeData['phone'] = $this->phone ? trim($this->phone) : null;
+        }
+
+        $this->merge($mergeData);
     }
 
     /**
@@ -59,7 +77,8 @@ class UpdateClientRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'surname' => 'nullable|string|max:255',
             'email' => ['nullable', 'email', Rule::unique(User::class)->ignore($clientId)],
-            'phone' => 'nullable|string|max:20',
+            'calling_code' => ['nullable', 'string', 'max:10', Rule::exists(Country::class, 'calling_code'), 'required_with:phone'],
+            'phone' => ['nullable', 'integer', 'digits_between:4,20', 'required_with:calling_code'],
             'country_id' => ['nullable', Rule::exists(Country::class, 'id')],
         ];
     }
@@ -73,8 +92,11 @@ class UpdateClientRequest extends FormRequest
             'surname.max' => 'O sobrenome deve ter no máximo 255 caracteres',
             'email.email' => 'O email deve ser válido',
             'email.unique' => 'Este email já está em uso',
-            'phone.string' => 'O telefone deve ser uma string',
-            'phone.max' => 'O telefone deve ter no máximo 20 caracteres',
+            'calling_code.exists' => 'O código de país não é válido',
+            'calling_code.required_with' => 'O código de país é obrigatório quando o telefone é informado',
+            'phone.integer' => 'O telefone deve conter apenas números',
+            'phone.digits_between' => 'O telefone deve ter entre 4 e 20 dígitos',
+            'phone.required_with' => 'O telefone é obrigatório quando o código de país é informado',
             'country_id.exists' => 'O país selecionado não existe',
         ];
     }
@@ -85,6 +107,7 @@ class UpdateClientRequest extends FormRequest
             'name' => 'Nome',
             'surname' => 'Sobrenome',
             'email' => 'Email',
+            'calling_code' => 'Código do País',
             'phone' => 'Telefone',
             'country_id' => 'País',
         ];
