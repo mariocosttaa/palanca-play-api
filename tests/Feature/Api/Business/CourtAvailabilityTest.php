@@ -97,8 +97,9 @@ test('user can update court availability via endpoint', function () {
         'is_available' => true,
     ]);
 
-    // Encode the court ID
+    // Encode the court ID and availability ID
     $courtIdHashId = EasyHashAction::encode($court->id, 'court-id');
+    $availabilityIdHashId = EasyHashAction::encode($availability->id, 'court-availability-id');
 
     $updateData = [
         'day_of_week_recurring' => 'Tuesday',
@@ -112,7 +113,7 @@ test('user can update court availability via endpoint', function () {
         route('courts.availabilities.update', [
             'tenant_id' => $tenantHashId,
             'court_id' => $courtIdHashId,
-            'availability_id' => $availability->id
+            'availability_id' => $availabilityIdHashId
         ]),
         $updateData
     );
@@ -162,15 +163,16 @@ test('user can delete court availability via endpoint', function () {
         'is_available' => true,
     ]);
 
-    // Encode the court ID
+    // Encode the court ID and availability ID
     $courtIdHashId = EasyHashAction::encode($court->id, 'court-id');
+    $availabilityIdHashId = EasyHashAction::encode($availability->id, 'court-availability-id');
 
     // Delete availability
     $response = $this->deleteJson(
         route('courts.availabilities.destroy', [
             'tenant_id' => $tenantHashId,
             'court_id' => $courtIdHashId,
-            'availability_id' => $availability->id
+            'availability_id' => $availabilityIdHashId
         ])
     );
 

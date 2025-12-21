@@ -124,6 +124,7 @@ class CourtAvailabilityController extends Controller
             $this->beginTransactionSafe();
 
             $courtId = EasyHashAction::decode($courtId, 'court-id');
+            $availabilityId = EasyHashAction::decode($availabilityId, 'court-availability-id');
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
@@ -175,6 +176,7 @@ class CourtAvailabilityController extends Controller
             $this->beginTransactionSafe();
 
             $courtId = EasyHashAction::decode($courtId, 'court-id');
+            $availabilityId = EasyHashAction::decode($availabilityId, 'court-availability-id');
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
