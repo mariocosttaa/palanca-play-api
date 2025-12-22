@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1\Business;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 
 /**
  * @tags [API-BUSINESS] Profile
@@ -13,8 +15,13 @@ class BusinessUserProfileController extends Controller
 {
     /**
      * Update business user language preference
+     * 
+     * Updates the preferred language for the authenticated business user.
+     * 
+     * @return array{data: array{language: string, message: string}}
+     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
-    public function updateLanguage(Request $request)
+    public function updateLanguage(Request $request): JsonResponse
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -36,15 +43,20 @@ class BusinessUserProfileController extends Controller
             ]]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao atualizar idioma', ['error' => $e->getMessage()]);
+            Log::error('Erro ao atualizar idioma', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao atualizar idioma'], 500);
         }
     }
 
     /**
      * Update business user profile
+     * 
+     * Updates the profile information of the authenticated business user.
+     * 
+     * @return array{data: array{user: \App\Models\BusinessUser, message: string}}
+     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
-    public function updateProfile(Request $request)
+    public function updateProfile(Request $request): JsonResponse
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -68,7 +80,7 @@ class BusinessUserProfileController extends Controller
             ]]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao atualizar perfil', ['error' => $e->getMessage()]);
+            Log::error('Erro ao atualizar perfil', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao atualizar perfil'], 500);
         }
     }

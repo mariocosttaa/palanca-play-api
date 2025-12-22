@@ -10,6 +10,10 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Zxing\QrReader;
+use Illuminate\Http\JsonResponse;
+use Hashids\HashidsException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @tags [API-BUSINESS] Booking Verification
@@ -18,13 +22,13 @@ class BookingVerificationController extends Controller
 {
 
     /**
-     * Verify booking by scanning QR code image
-     * Accepts QR code image, decodes it, and returns booking details
+     * Verify booking via QR Code
      * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Verifies a booking by processing an uploaded QR code image. Decodes the QR code to find the booking and marks it as verified.
+     * 
+     * @return array{booking: \App\Http\Resources\Business\V1\Specific\BookingResource}
      */
-    public function verify(Request $request)
+    public function verify(Request $request, string $tenantId): JsonResponse
     {
         $request->validate([
             'qr_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
@@ -39,7 +43,7 @@ class BookingVerificationController extends Controller
             $qrData = $qrReader->text();
             
             if (!$qrData) {
-                return response()->json(['message' => 'Não foi possível ler o QR Code'], 400);
+                abort(400, 'Não foi possível ler o QR Code');
             }
 
             // Decode the hashed booking ID from QR code
@@ -52,22 +56,22 @@ class BookingVerificationController extends Controller
             // Mark as verified
             $booking->update(['qr_code_verified' => true]);
 
-            return response()->json(['data' => [
-                'booking' => BookingResource::make($booking)->resolve(),
-            ]]);
+            return response()->json([
+                'booking' => new BookingResource($booking)
+            ]);
 
         } catch (\Exception $e) {
             // Handle QR decode errors
-            if (str_contains($e->getMessage(), 'Invalid') || $e instanceof \Hashids\HashidsException) {
-                return response()->json(['message' => 'QR Code inválido'], 400);
+            if (str_contains($e->getMessage(), 'Invalid') || $e instanceof HashidsException) {
+                abort(400, 'QR Code inválido');
             }
             
-            if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
-                return response()->json(['message' => 'Agendamento não encontrado'], 404);
+            if ($e instanceof ModelNotFoundException) {
+                abort(404, 'Agendamento não encontrado');
             }
             
-            \Log::error('Erro ao verificar agendamento', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao verificar agendamento'], 500);
+            Log::error('Erro ao verificar agendamento', ['error' => $e->getMessage()]);
+            abort(500, 'Erro ao verificar agendamento');
         }
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Court;
 use App\Models\Invoice;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @tags [API-BUSINESS] Subscriptions
@@ -18,27 +19,27 @@ class SubscriptionController extends Controller
     /**
      * Get a list of invoices for the tenant
      * 
+     * @queryParam page int optional Page number. Example: 1
      * @queryParam per_page int Number of items per page. Example: 15
      * 
-     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, InvoiceResourceGeneral>
-     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, InvoiceResourceGeneral>
-     * @response 500 {"message": "Server error"}
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function indexInvoices(Request $request)
+    public function indexInvoices(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $tenant = $request->tenant;
             $perPage = $request->input('per_page', 15);
             
             $invoices = Invoice::forTenant($tenant->id)
+                ->with('tenant')
                 ->latest()
                 ->paginate($perPage);
 
             return InvoiceResourceGeneral::collection($invoices);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve invoices.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve invoices.'], 500);
+            Log::error('Failed to retrieve invoices.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve invoices.');
         }
     }
 
@@ -46,10 +47,8 @@ class SubscriptionController extends Controller
      * Get current subscription status
      * 
      * @return SubscriptionResourceSpecific
-     * @response 200 SubscriptionResourceSpecific
-     * @response 500 {"message": "Server error"}
      */
-    public function current(Request $request)
+    public function current(Request $request, string $tenantId): SubscriptionResourceSpecific
     {
         try {
             $tenant = $request->tenant;
@@ -95,8 +94,8 @@ class SubscriptionController extends Controller
             return new SubscriptionResourceSpecific($data);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve subscription details.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve subscription details.'], 500);
+            Log::error('Failed to retrieve subscription details.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve subscription details.');
         }
     }
 }
