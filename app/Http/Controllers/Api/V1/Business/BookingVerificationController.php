@@ -31,23 +31,54 @@ class BookingVerificationController extends Controller
     public function verify(Request $request, string $tenantId): JsonResponse
     {
         $request->validate([
-            'qr_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'qr_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,heic|max:5120',
         ]);
 
         try {
             // Get uploaded QR code image
             $image = $request->file('qr_image');
+            $imagePath = $image->getRealPath();
+            $isTemporary = false;
+
+            // Handle HEIC images using sips (macOS)
+            if (strtolower($image->getClientOriginalExtension()) === 'heic') {
+                $tempPath = sys_get_temp_dir() . '/' . uniqid('qr_') . '.jpg';
+                
+                // Use sips to convert HEIC to JPEG
+                exec("sips -s format jpeg " . escapeshellarg($imagePath) . " --out " . escapeshellarg($tempPath));
+                
+                if (file_exists($tempPath)) {
+                    $imagePath = $tempPath;
+                    $isTemporary = true;
+                } else {
+                    Log::warning('HEIC conversion failed', ['path' => $imagePath]);
+                }
+            }
             
             // Decode QR code from image
-            $qrReader = new QrReader($image->getRealPath());
+            $qrReader = new QrReader($imagePath);
             $qrData = $qrReader->text();
             
+            // Clean up temporary file if created
+            if ($isTemporary && file_exists($imagePath)) {
+                unlink($imagePath);
+            }
+            
+            Log::info('QR Verification', [
+                'qr_data_found' => (bool) $qrData,
+                'qr_data' => $qrData
+            ]);
+
             if (!$qrData) {
                 abort(400, 'Não foi possível ler o QR Code');
             }
 
             // Decode the hashed booking ID from QR code
             $bookingId = EasyHashAction::decode($qrData, 'booking-id');
+            
+            if (!$bookingId) {
+                 abort(400, 'QR Code inválido (ID não encontrado)');
+            }
             
             // Find the booking
             $booking = Booking::with(['court.courtType', 'court.tenant', 'user', 'currency'])
