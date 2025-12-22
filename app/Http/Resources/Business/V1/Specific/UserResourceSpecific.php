@@ -22,6 +22,7 @@ class UserResourceSpecific extends JsonResource
             'name' => $this->name,
             'surname' => $this->surname,
             'email' => $this->email,
+            'email_verified' => $this->hasVerifiedEmail(),
             'is_app_user' => (bool) $this->is_app_user,
             'google_login' => $this->google_login,
             'country_id' => $this->country_id
