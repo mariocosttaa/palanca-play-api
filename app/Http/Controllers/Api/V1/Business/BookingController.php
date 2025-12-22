@@ -78,7 +78,7 @@ class BookingController extends Controller
      * 
      * Creates a new booking for a court at a specific date and time.
      * 
-     * @response 201 {"data": {"id": "mGbnVK9ryOK1y4Y6XlQgJ", "court_id": "2pX9g4KPNdz6dojQYaw16", "user_id": "W39mX2xdzrz8a5lVQLRoE", "start_date": "2025-12-22", "end_date": "2025-12-22", "start_time": "09:00", "end_time": "10:00", "price": 0, "currency": "aoa", "is_pending": false, "is_cancelled": false, "is_paid": false, "paid_at_venue": false, "qr_code": "file/0Pa2e1K9y4bz4xRGpYBbv/qr-codes/booking_58_qr.svg", "qr_code_verified": false, "created_at": "2025-12-22T14:37:53.000000Z"}}
+     * @response 201 {"data": {"id": "mGbnVK9ryOK1y4Y6XlQgJ", "court_id": "2pX9g4KPNdz6dojQYaw16", "user_id": "W39mX2xdzrz8a5lVQLRoE", "start_date": "2025-12-22", "end_date": "2025-12-22", "start_time": "09:00", "end_time": "10:00", "price": 0, "currency": "aoa", "is_pending": false, "is_cancelled": false, "is_paid": false, "paid_at_venue": false, "created_at": "2025-12-22T14:37:53.000000Z"}}
      * 
      * @responseExample 400 {"message": "Este horário já está reservado (10:00 - 11:00)."}
      * @responseExample 400 {"message": "Horário solicitado está fora do horário de funcionamento da quadra (09:00 - 21:00)."}
@@ -98,36 +98,7 @@ class BookingController extends Controller
             $data   = $request->validated();
 
             // Handle Client
-            $clientId = $data['client_id'] ?? null;
-
-            if (! $clientId && isset($data['client'])) {
-                // Create new client
-                $clientData = $data['client'];
-
-                // If email is provided, check if user exists (should be handled by validation, but double check)
-                if (! empty($clientData['email'])) {
-                    $existingUser = User::where('email', $clientData['email'])->first();
-                    if ($existingUser) {
-                        $clientId = $existingUser->id;
-                    }
-                }
-
-                if (! $clientId) {
-                    $newUser = User::create([
-                        'name'         => $clientData['name'],
-                        'email'        => $clientData['email'] ?? null,
-                        'phone'        => $clientData['phone'] ?? null,
-                        'calling_code' => $clientData['calling_code'] ?? null,
-                        'password'     => Hash::make(Str::random(16)),
-                        'country_id'   => $tenant->country_id, // Default to tenant's country
-                    ]);
-                    $clientId = $newUser->id;
-                }
-            }
-
-            if (! $clientId) {
-                abort(400, 'Cliente inválido ou não fornecido.');
-            }
+            $clientId = $data['client_id'];
 
             // Get Court
             $court = Court::find($data['court_id']);
