@@ -51,12 +51,12 @@ Route::prefix('v1')->group(function () {
 
     // Protected routes - requires authentication
     Route::middleware('auth:sanctum')->group(function () {
-        // User authentication routes (No verification required to access these)
+        // User authentication routes (NO verification required to access these)
         Route::prefix('users')->group(function () {
             Route::post('/logout', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'logout']);
             Route::get('/me', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'me']);
             
-            // Verification Routes
+            // Verification Routes (accessible without email verification)
             Route::prefix('verification')->group(function () {
                 Route::post('/verify', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'verifyEmail']);
                 Route::post('/resend', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'resendVerificationCode']);
@@ -64,15 +64,15 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-        // Routes requiring Email Verification
-        Route::middleware('verified.api')->group(function () {
-            // Notifications
-            Route::prefix('notifications')->group(function () {
-                Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'recent']);
-                Route::get('/', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'index']);
-                Route::patch('/{notification_id}/read', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'markAsRead']);
-            });
+        // Notifications (NO verification required)
+        Route::prefix('notifications')->group(function () {
+            Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'recent']);
+            Route::get('/', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'index']);
+            Route::patch('/{notification_id}/read', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'markAsRead']);
+        });
 
+        // Routes requiring Email Verification - ONLY booking operations
+        Route::middleware('verified.api')->group(function () {
             // Bookings (user-specific, not tenant-scoped in URL)
             Route::prefix('bookings')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'index']);
