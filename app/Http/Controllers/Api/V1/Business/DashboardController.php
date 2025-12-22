@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Business\V1\Specific\BookingResource;
 use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
 use App\Models\Booking;
 use App\Models\Court;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
 
 /**
@@ -20,11 +21,14 @@ class DashboardController extends Controller
     /**
      * Get dashboard statistics including cards, lists, and charts
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": {"cards": {...}, "lists": {...}, "charts": {...}}}
-     * @response 500 {"message": "Server error"}
+     * Retrieves a comprehensive set of statistics for the dashboard, including revenue, bookings, client activity, and charts.
+     * 
+    /**
+     * Get dashboard statistics including cards, lists, and charts
+     * 
+     * Retrieves a comprehensive set of statistics for the dashboard, including revenue, bookings, client activity, and charts.
      */
-    public function index(Request $request, $tenantId)
+    public function index(Request $request, $tenantId): \App\Http\Resources\Business\V1\Specific\DashboardResource
     {
         try {
             $tenant = $request->tenant;
@@ -97,7 +101,10 @@ class DashboardController extends Controller
             $activeClientsWithStats = $activeClients->map(function ($user) use ($activeClientsData) {
                 $stat = $activeClientsData->firstWhere('user_id', $user->id);
                 $user->total_bookings_count = $stat ? $stat->total_bookings : 0;
-                return $user;
+                return array_merge(
+                    (new UserResourceSpecific($user))->resolve(),
+                    ['total_bookings_count' => $user->total_bookings_count]
+                );
             })->sortByDesc('total_bookings_count')->values();
 
 
@@ -115,7 +122,10 @@ class DashboardController extends Controller
             $popularCourtsWithStats = $popularCourts->map(function ($court) use ($popularCourtsData) {
                 $stat = $popularCourtsData->firstWhere('court_id', $court->id);
                 $court->total_bookings_count = $stat ? $stat->total_bookings : 0;
-                return $court;
+                return array_merge(
+                    $court->toArray(),
+                    ['total_bookings_count' => $court->total_bookings_count]
+                );
             })->sortByDesc('total_bookings_count')->values();
 
 
@@ -136,9 +146,9 @@ class DashboardController extends Controller
                 $date = $startOfMonth->copy()->day($day)->format('Y-m-d');
                 
                 // Filter bookings for this day
-                $dayRevenue = $dailyRevenueBookings->filter(function ($booking) use ($date) {
-                    return $booking->start_date->format('Y-m-d') === $date;
-                })->sum('price');
+            $dayRevenue = $dailyRevenueBookings->filter(function ($booking) use ($date) {
+                return Carbon::parse($booking->start_date)->format('Y-m-d') === $date;
+            })->sum('price');
                 
                 $dailyRevenue[] = [
                     'date' => $date,
@@ -149,39 +159,21 @@ class DashboardController extends Controller
             }
 
 
-            return response()->json(['data' => [
-                'cards' => [
-                    'total_revenue' => $totalRevenue,
-                    'total_revenue_formatted' => $this->formatMoney($totalRevenue, $tenant),
-                    'total_open_bookings' => $totalOpenBookings,
-                    'total_clients' => $totalClients,
-                    'total_court_usage_hours' => $totalHours,
-                ],
-                'lists' => [
-                    'recent_bookings' => BookingResource::collection($recentBookings)->resolve(),
-                    'active_clients' => $activeClientsWithStats->map(function ($user) {
-                        return array_merge(
-                            (new UserResourceSpecific($user))->resolve(),
-                            ['total_bookings_count' => $user->total_bookings_count]
-                        );
-                    }),
-                    'popular_courts' => $popularCourtsWithStats->map(function ($court) {
-                        // Use toArray() since we don't have a specific resource handy and want to include the attribute
-                        // Or better, construct a simple array to be safe
-                        return array_merge(
-                            $court->toArray(),
-                            ['total_bookings_count' => $court->total_bookings_count]
-                        );
-                    }),
-                ],
-                'charts' => [
-                    'daily_revenue' => $dailyRevenue,
-                ]
-            ]]);
+            return new \App\Http\Resources\Business\V1\Specific\DashboardResource([
+                'total_revenue' => $totalRevenue,
+                'total_revenue_formatted' => $this->formatMoney($totalRevenue, $tenant),
+                'total_open_bookings' => $totalOpenBookings,
+                'total_clients' => $totalClients,
+                'total_court_usage_hours' => $totalHours,
+                'recent_bookings' => $recentBookings,
+                'active_clients' => $activeClientsWithStats,
+                'popular_courts' => $popularCourtsWithStats,
+                'daily_revenue' => $dailyRevenue,
+            ]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve dashboard statistics.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve dashboard statistics.'], 500);
+            Log::error('Failed to retrieve dashboard statistics.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve dashboard statistics.');
         }
     }
 
