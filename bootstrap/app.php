@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.show' => \App\Http\Middleware\EnsureTenantAccess::class,
             'mobile.cors' => \App\Http\Middleware\MobileCorsMiddleware::class,
             'business.cors' => \App\Http\Middleware\BusinessCorsMiddleware::class,
-            'api.log' => \App\Http\Middleware\LogApiRequest::class,
+            'api.log' => \App\Http\Middleware\LogApiRequests::class,
             'verified.api' => \App\Http\Middleware\EnsureEmailIsVerifiedApi::class,
         ]);
 
