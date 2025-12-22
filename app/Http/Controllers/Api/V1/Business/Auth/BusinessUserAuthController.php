@@ -9,9 +9,15 @@ use App\Http\Resources\Business\V1\Specific\BusinessUserResourceSpecific;
 use App\Models\BusinessUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Enums\EmailTypeEnum;
+use App\Services\EmailVerificationCodeService;
+use App\Http\Resources\Business\V1\Specific\AuthResponseResource;
+use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @tags [API-BUSINESS] Auth
@@ -19,16 +25,19 @@ use App\Enums\EmailTypeEnum;
 class BusinessUserAuthController extends Controller
 {
     /**
-     * Register business user (Step 1: Create User & Send Verification Code)
+     * Register business user
+     * 
+     * Registers a new business user and sends a verification email.
+     * 
      * @unauthenticated
      */
-    public function register(BusinessUserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    public function register(BusinessUserRegisterRequest $request, EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
             $this->beginTransactionSafe();
 
             $businessUser = BusinessUser::create([
-                'name' => $request->name,
+                 'name' => $request->name,
                 'surname' => $request->surname,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
@@ -38,35 +47,34 @@ class BusinessUserAuthController extends Controller
                 'timezone' => $request->timezone,
             ]);
 
-            // Send verification code
-            try {
-                $emailService->sendVerificationCode($businessUser->email, EmailTypeEnum::CONFIRMATION_EMAIL);
-            } catch (\App\Exceptions\EmailRateLimitException $e) {
-                // Suppress rate limit error on registration
-            }
+            $emailService->sendVerificationCode($businessUser->email, EmailTypeEnum::CONFIRMATION_EMAIL);
 
             $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
 
             $this->commitSafe();
 
-            return response()->json(['data' => [
+            return (new AuthResponseResource([
                 'token' => $token,
-                'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
+                'user' => $businessUser,
                 'verification_needed' => true,
                 'message' => 'User registered successfully. Please verify your email.'
-            ]], 201);
+            ]))->response()->setStatusCode(201);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Failed to register business user.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to register business user.'], 500);
+            Log::error('Failed to register business user.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to register business user.');
         }
     }
 
     /**
-     * Verify Email (Step 2: Verify Code)
+     * Verify Email
+     * 
+     * Verifies the user's email address using the provided verification code.
+     * 
+     * @return array{message: string}
      */
-    public function verifyEmail(Request $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    public function verifyEmail(Request $request, EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
             $request->validate([
@@ -88,15 +96,19 @@ class BusinessUserAuthController extends Controller
             return response()->json(['message' => 'Email verified successfully.']);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to verify email.', ['error' => $e->getMessage()]);
+            Log::error('Failed to verify email.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to verify email.'], 500);
         }
     }
 
     /**
      * Resend Verification Code
+     * 
+     * Resends the email verification code to the authenticated user.
+     * 
+     * @return array{message: string}
      */
-    public function resendVerificationCode(Request $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
+    public function resendVerificationCode(Request $request, EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
             $user = $request->user();
@@ -112,13 +124,17 @@ class BusinessUserAuthController extends Controller
         } catch (\App\Exceptions\EmailRateLimitException $e) {
             return response()->json(['message' => $e->getMessage()], $e->getCode());
         } catch (\Exception $e) {
-            \Log::error('Failed to send verification code.', ['error' => $e->getMessage()]);
+            Log::error('Failed to send verification code.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to send verification code.'], 500);
         }
     }
 
     /**
      * Check Verification Status
+     * 
+     * Checks if the authenticated user's email is verified.
+     * 
+     * @return array{data: array{verified: bool, email: string}}
      */
     public function checkVerificationStatus(Request $request): JsonResponse
     {
@@ -131,43 +147,51 @@ class BusinessUserAuthController extends Controller
             ]]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to check status.', ['error' => $e->getMessage()]);
+            Log::error('Failed to check status.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to check status.'], 500);
         }
     }
 
     /**
      * Login business user
+     * 
+     * Authenticates a business user and returns an access token.
+     * 
      * @unauthenticated
      */
-    public function login(BusinessUserLoginRequest $request): JsonResponse
+    public function login(BusinessUserLoginRequest $request): AuthResponseResource
     {
         try {
             $request->authenticate();
 
             $businessUser = BusinessUser::where('email', $request->email)->first();
             
-            if (!$businessUser) {
-                return response()->json(['message' => 'Invalid credentials.'], 401);
+            if (!$businessUser || !Hash::check($request->password, $businessUser->password)) {
+                 abort(401, 'Invalid credentials.');
             }
+
 
             $token = $businessUser->createToken($request->device_name ?? 'api-client')->plainTextToken;
 
-            return response()->json(['data' => [
+            return new AuthResponseResource([
                 'token' => $token,
-                'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
-            ]]);
+                'user' => $businessUser,
+            ]);
 
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            \Log::error('Login failed.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Login failed.'], 500);
+            Log::error('Login failed.', ['error' => $e->getMessage()]);
+            abort(500, 'Login failed.');
         }
     }
 
     /**
-     * Logout business user (revoke current token)
+     * Logout business user
+     * 
+     * Revokes the current access token for the authenticated user.
+     * 
+     * @return array{message: string}
      */
     public function logout(Request $request): JsonResponse
     {
@@ -177,41 +201,42 @@ class BusinessUserAuthController extends Controller
             return response()->json(['message' => 'Logged out successfully.']);
 
         } catch (\Exception $e) {
-            \Log::error('Logout failed.', ['error' => $e->getMessage()]);
+            Log::error('Logout failed.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Logout failed.'], 500);
         }
     }
 
     /**
      * Get authenticated business user
+     * 
+     * Retrieves the profile information of the currently authenticated business user.
      */
-    public function me(Request $request): JsonResponse
+    public function me(Request $request): BusinessUserResourceSpecific
     {
-
-        //get the token
-        
-
         try {
             $businessUser = $request->user()->load('country');
 
-            return BusinessUserResourceSpecific::make($businessUser)->response();
+            return new BusinessUserResourceSpecific($businessUser);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve user profile.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve user profile.'], 500);
+            Log::error('Failed to retrieve user profile.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve user profile.');
         }
     }
     /**
      * Google Login
+     * 
+     * Authenticates or registers a user using a Google OAuth token.
+     * 
      * @unauthenticated
      */
-    public function googleLogin(Request $request): JsonResponse
+    public function googleLogin(Request $request): AuthResponseResource
     {
         try {
             $request->validate(['token' => 'required|string']);
 
             // Verify the token with Google
-            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->userFromToken($request->token);
+            $googleUser = Socialite::driver('google')->stateless()->userFromToken($request->token);
 
             $this->beginTransactionSafe();
 
@@ -220,7 +245,7 @@ class BusinessUserAuthController extends Controller
                 [
                     'name' => $googleUser->getName(),
                     'surname' => '', // Google doesn't always provide surname separately
-                    'password' => Hash::make(\Illuminate\Support\Str::random(24)),
+                    'password' => Hash::make(Str::random(24)),
                     'google_login' => true,
                     'email_verified_at' => now(),
                 ]
@@ -240,21 +265,24 @@ class BusinessUserAuthController extends Controller
 
             $this->commitSafe();
 
-            return response()->json(['data' => [
+            return new AuthResponseResource([
                 'token' => $token,
-                'user' => (new BusinessUserResourceSpecific($businessUser))->resolve(),
-            ]]);
+                'user' => $businessUser,
+            ]);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            $this->rollBackSafe();
-            \Log::error('Google login failed.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Google login failed.'], 401);
+            Log::error('Google login failed.', ['error' => $e->getMessage()]);
+            abort(401, 'Google login failed.');
         }
     }
 
     /**
      * Link Google Account
+     * 
+     * Links a Google account to the authenticated user's account.
+     * 
+     * @return array{message: string}
      */
     public function linkGoogle(Request $request): JsonResponse
     {
@@ -264,7 +292,7 @@ class BusinessUserAuthController extends Controller
             $user = $request->user();
 
             // Verify the token with Google
-            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->userFromToken($request->token);
+            $googleUser = Socialite::driver('google')->stateless()->userFromToken($request->token);
 
             // Enforce email matching
             if ($googleUser->getEmail() !== $user->email) {
@@ -276,13 +304,17 @@ class BusinessUserAuthController extends Controller
             return response()->json(['message' => 'Google account linked successfully.']);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to link Google account.', ['error' => $e->getMessage()]);
+            Log::error('Failed to link Google account.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to link Google account.'], 500);
         }
     }
 
     /**
      * Unlink Google Account
+     * 
+     * Unlinks the Google account from the authenticated user's account.
+     * 
+     * @return array{message: string}
      */
     public function unlinkGoogle(Request $request): JsonResponse
     {
@@ -298,7 +330,7 @@ class BusinessUserAuthController extends Controller
             return response()->json(['message' => 'Google account unlinked successfully.']);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to unlink Google account.', ['error' => $e->getMessage()]);
+            Log::error('Failed to unlink Google account.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to unlink Google account.'], 500);
         }
     }

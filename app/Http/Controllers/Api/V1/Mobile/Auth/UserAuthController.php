@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Auth\UserLoginRequest;
 use App\Http\Requests\Api\V1\Auth\UserRegisterRequest;
 use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
+use App\Http\Resources\Business\V1\Specific\UserAuthResponseResource;
 use App\Models\User;
 use App\Models\Country;
 use Illuminate\Http\JsonResponse;
@@ -61,23 +62,25 @@ class UserAuthController extends Controller
 
             $this->commitSafe();
 
-            return response()->json([
+            return (new UserAuthResponseResource([
                 'token' => $token,
-                'user' => (new UserResourceSpecific($user))->resolve(),
+                'user' => $user,
                 'verification_needed' => true,
                 'message' => 'User registered successfully. Please verify your email.'
-            ], 201);
+            ]))->response()->setStatusCode(201);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
             $this->rollBackSafe();
             \Log::error('Failed to register user.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to register user.'], 500);
+            abort(500, 'Failed to register user.');
         }
     }
 
     /**
      * Verify Email (Step 2: Verify Code)
+     * 
+     * @return array{message: string}
      */
     public function verifyEmail(Request $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
     {
@@ -108,6 +111,8 @@ class UserAuthController extends Controller
 
     /**
      * Resend Verification Code
+     * 
+     * @return array{message: string}
      */
     public function resendVerificationCode(Request $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
     {
@@ -132,6 +137,8 @@ class UserAuthController extends Controller
 
     /**
      * Check Verification Status
+     * 
+     * @return array{verified: bool, email: string}
      */
     public function checkVerificationStatus(Request $request): JsonResponse
     {
@@ -153,7 +160,7 @@ class UserAuthController extends Controller
      * Login user
      * @unauthenticated
      */
-    public function login(UserLoginRequest $request): JsonResponse
+    public function login(UserLoginRequest $request): UserAuthResponseResource
     {
         try {
             $request->authenticate();
@@ -161,26 +168,28 @@ class UserAuthController extends Controller
             $user = User::where('email', $request->email)->first();
             
             if (!$user) {
-                return response()->json(['message' => 'Invalid credentials.'], 401);
+                abort(401, 'Invalid credentials.');
             }
 
             $token = $user->createToken($request->device_name ?? 'api-client')->plainTextToken;
 
-            return response()->json([
+            return new UserAuthResponseResource([
                 'token' => $token,
-                'user' => (new UserResourceSpecific($user))->resolve(),
+                'user' => $user,
             ]);
 
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
             \Log::error('Login failed.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Login failed.'], 500);
+            abort(500, 'Login failed.');
         }
     }
 
     /**
      * Logout user (revoke current token)
+     * 
+     * @return array{message: string}
      */
     public function logout(Request $request): JsonResponse
     {
@@ -198,23 +207,23 @@ class UserAuthController extends Controller
     /**
      * Get authenticated user
      */
-    public function me(Request $request)
+    public function me(Request $request): UserResourceSpecific
     {
         try {
             $user = $request->user()->load('country');
 
-            return UserResourceSpecific::make($user);
+            return new UserResourceSpecific($user);
 
         } catch (\Exception $e) {
             \Log::error('Failed to retrieve user.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve user.'], 500);
+            abort(500, 'Failed to retrieve user.');
         }
     }
     /**
      * Google Login
      * @unauthenticated
      */
-    public function googleLogin(Request $request): JsonResponse
+    public function googleLogin(Request $request): UserAuthResponseResource
     {
         try {
             $request->validate(['token' => 'required|string']);
@@ -251,20 +260,22 @@ class UserAuthController extends Controller
 
             $this->commitSafe();
 
-            return response()->json([
+            return new UserAuthResponseResource([
                 'token' => $token,
-                'user' => (new UserResourceSpecific($user))->resolve(),
+                'user' => $user,
             ]);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Google login failed.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Google login failed.'], 401);
+            abort(401, 'Google login failed.');
         }
     }
 
     /**
      * Link Google Account
+     * 
+     * @return array{message: string}
      */
     public function linkGoogle(Request $request): JsonResponse
     {
@@ -293,6 +304,8 @@ class UserAuthController extends Controller
 
     /**
      * Unlink Google Account
+     * 
+     * @return array{message: string}
      */
     public function unlinkGoogle(Request $request): JsonResponse
     {
