@@ -81,8 +81,8 @@ class GenerateTestBookings extends Command
                 $court = $courts->random();
                 $user = $users->random();
                 
-                // Generate random future date
-                $startDate = fake()->dateTimeBetween('now', '+1 month');
+                // Generate random date (past, present, future)
+                $startDate = fake()->dateTimeBetween('-1 month', '+1 month');
                 $startTime = fake()->numberBetween(9, 20) . ':00:00';
                 $endTime = date('H:i:s', strtotime($startTime) + (90 * 60)); // 90 mins later
                 
