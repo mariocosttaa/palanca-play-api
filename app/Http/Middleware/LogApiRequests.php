@@ -55,7 +55,10 @@ class LogApiRequests
                 'execution_time_ms' => round($executionTime, 2),
             ];
 
-            Log::channel('api')->info('API Request', $logData);
+            // Format log message in a readable way
+            $formattedLog = $this->formatLogMessage($logData);
+            
+            Log::channel('api')->info($formattedLog);
         } catch (\Exception $e) {
             // Don't break the request if logging fails
             Log::error('Failed to log API request', [
@@ -171,5 +174,90 @@ class LogApiRequests
         }
 
         return $sanitized;
+    }
+
+    /**
+     * Format log message in a readable multi-line format
+     */
+    private function formatLogMessage(array $logData): string
+    {
+        $user = $logData['user'];
+        $request = $logData['request'];
+        $response = $logData['response'];
+        
+        $userInfo = $user['authenticated'] 
+            ? "{$user['type']} (ID: {$user['id']}, Email: {$user['email']})"
+            : 'Guest';
+
+        $lines = [
+            '',
+            '════════════════════════════════════════════════════════════════',
+            "🔵 {$request['method']} {$request['path']}",
+            '════════════════════════════════════════════════════════════════',
+            '',
+            '📋 REQUEST INFO:',
+            "   Request ID: {$logData['request_id']}",
+            "   Timestamp:  {$logData['timestamp']}",
+            "   User:       {$userInfo}",
+            "   IP:         {$request['ip']}",
+            "   User Agent: {$request['user_agent']}",
+            '',
+        ];
+
+        // Add query parameters if any
+        if (!empty($request['query'])) {
+            $lines[] = '🔍 QUERY PARAMETERS:';
+            $lines[] = '   ' . json_encode($request['query'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $lines[] = '';
+        }
+
+        // Add request body if any
+        if (!empty($request['body'])) {
+            $lines[] = '📤 REQUEST BODY:';
+            $lines[] = $this->indentJson($request['body']);
+            $lines[] = '';
+        }
+
+        // Add response info
+        $statusEmoji = $response['status'] >= 500 ? '❌' : ($response['status'] >= 400 ? '⚠️' : '✅');
+        $lines[] = "{$statusEmoji} RESPONSE:";
+        $lines[] = "   Status: {$response['status']}";
+        $lines[] = "   Size:   {$response['size']} bytes";
+        $lines[] = "   Time:   {$logData['execution_time_ms']} ms";
+        $lines[] = '';
+
+        // Add response body (limited to avoid huge logs)
+        if (!empty($response['body'])) {
+            $bodyJson = is_string($response['body']) ? $response['body'] : json_encode($response['body']);
+            
+            // Limit response body size in logs (max 2000 chars)
+            if (strlen($bodyJson) > 2000) {
+                $bodyJson = substr($bodyJson, 0, 2000) . '... [truncated]';
+            }
+            
+            $lines[] = '📥 RESPONSE BODY:';
+            $lines[] = $this->indentJson(json_decode($bodyJson, true) ?? $bodyJson);
+            $lines[] = '';
+        }
+
+        $lines[] = '════════════════════════════════════════════════════════════════';
+        $lines[] = '';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Indent JSON for better readability
+     */
+    private function indentJson(mixed $data): string
+    {
+        if (is_string($data)) {
+            return '   ' . $data;
+        }
+
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $lines = explode("\n", $json);
+        
+        return implode("\n", array_map(fn($line) => '   ' . $line, $lines));
     }
 }

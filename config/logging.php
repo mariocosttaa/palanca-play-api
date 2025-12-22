@@ -129,7 +129,7 @@ return [
 
         'api' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/api.log'),
+            'path' => storage_path('logs/api/api.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 30,
             'replace_placeholders' => true,
