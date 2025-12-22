@@ -193,9 +193,12 @@ class CourtAvailabilityController extends Controller
     /**
      * Get available dates for a court
      * 
-     * Returns a list of dates with availability status within a given range.
+     * Returns a list of dates (Y-m-d format) that have available slots within the given date range.
      * 
-     * @return array{data: array}
+     * @queryParam start_date date required Start date of the range. Example: 2025-12-22
+     * @queryParam end_date date required End date of the range. Example: 2025-12-31
+     * 
+     * @return array{data: string[]}
      */
     public function getDates(Request $request, $tenantId, $courtId): JsonResponse
     {
@@ -226,8 +229,11 @@ class CourtAvailabilityController extends Controller
      * Get available slots for a court on a specific date
      * 
      * Returns a list of available time slots for a court on a given date.
+     * Each slot includes a start and end time in H:i format.
      * 
-     * @return array{data: array}
+     * @urlParam date string required Date in Y-m-d format. Example: 2025-12-22
+     * 
+     * @return array{data: array<int, array{start: string, end: string}>}
      */
     public function getSlots(Request $request, $tenantId, $courtId, $date): JsonResponse
     {
