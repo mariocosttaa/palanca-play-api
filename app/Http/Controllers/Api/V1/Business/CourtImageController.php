@@ -12,6 +12,7 @@ use App\Models\Court;
 use App\Models\CourtImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @tags [API-BUSINESS] Court Images
@@ -20,13 +21,8 @@ class CourtImageController extends Controller
 {
     /**
      * Store a newly created resource in storage.
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"message": "Image added successfully", "data": {...}}
-     * @response 400 {"message": "Error message"}
-     * @response 404 {"message": "Court not found"}
      */
-    public function store(CreateCourtImageRequest $request, $tenantIdHashed, $courtId)
+    public function store(CreateCourtImageRequest $request, $tenantIdHashed, $courtId): CourtImageResourceGeneral
     {
         try {
             $tenantId = EasyHashAction::decode($tenantIdHashed, 'tenant-id');
@@ -57,26 +53,18 @@ class CourtImageController extends Controller
             // Reload the image with court relationship for resource
             $courtImage->load('court');
 
-            return response()->json([
-                'message' => 'Imagem adicionada com sucesso',
-                'data' => new CourtImageResourceGeneral($courtImage),
-            ], 200);
+            return (new CourtImageResourceGeneral($courtImage))->additional(['message' => 'Imagem adicionada com sucesso']);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Erro ao adicionar imagem', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao adicionar imagem'], 400);
+            Log::error('Erro ao adicionar imagem', ['error' => $e->getMessage()]);
+            abort(400, 'Erro ao adicionar imagem');
         }
     }
 
     /**
      * Remove the specified resource from storage.
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"message": "Image deleted successfully"}
-     * @response 400 {"message": "Error message"}
-     * @response 404 {"message": "Court or image not found"}
      */
-    public function destroy($tenantIdHashed, $courtId, $imageId)
+    public function destroy($tenantIdHashed, $courtId, $imageId): JsonResponse
     {
         try {
             $tenantId = EasyHashAction::decode($tenantIdHashed, 'tenant-id');
@@ -102,20 +90,15 @@ class CourtImageController extends Controller
             return response()->json(['message' => 'Imagem removida com sucesso']);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Erro ao remover imagem', ['error' => $e->getMessage()]);
+            Log::error('Erro ao remover imagem', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao remover imagem'], 400);
         }
     }
 
     /**
      * Set or unset primary status for an image.
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"message": "Primary status updated successfully", "data": {...}}
-     * @response 400 {"message": "Error message"}
-     * @response 404 {"message": "Court or image not found"}
      */
-    public function setPrimary(SetCourtImagePrimaryRequest $request, $tenantIdHashed, $courtId, $imageId)
+    public function setPrimary(SetCourtImagePrimaryRequest $request, $tenantIdHashed, $courtId, $imageId): CourtImageResourceGeneral
     {
         try {
             $tenantId = EasyHashAction::decode($tenantIdHashed, 'tenant-id');
@@ -141,14 +124,11 @@ class CourtImageController extends Controller
             // Reload the image with court relationship for resource
             $image->load('court');
 
-            return response()->json([
-                'message' => $isPrimary ? 'Imagem definida como principal com sucesso' : 'Imagem removida como principal com sucesso',
-                'data' => new CourtImageResourceGeneral($image),
-            ], 200);
+            return (new CourtImageResourceGeneral($image))->additional(['message' => 'Imagem definida como principal com sucesso']);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Erro ao definir imagem como principal', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao definir imagem como principal'], 400);
+            Log::error('Erro ao definir imagem como principal', ['error' => $e->getMessage()]);
+            abort(400, 'Erro ao definir imagem como principal');
         }
     }
 }

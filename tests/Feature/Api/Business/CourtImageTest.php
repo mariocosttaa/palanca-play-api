@@ -41,7 +41,7 @@ test('user can add image to court', function () {
             'is_primary' => true,
         ]);
 
-    $response->assertStatus(200);
+    $response->assertStatus(201);
     $this->assertDatabaseHas('courts_images', [
         'court_id' => $court->id,
         'is_primary' => true,
@@ -94,7 +94,7 @@ test('user can upload image with string boolean for is_primary', function () {
             'is_primary' => 'false', // String boolean
         ]);
 
-    $response->assertStatus(200);
+    $response->assertStatus(201);
     $this->assertDatabaseHas('courts_images', [
         'court_id' => $court->id,
         'is_primary' => false,
@@ -108,7 +108,7 @@ test('user can upload image with string boolean for is_primary', function () {
             'is_primary' => 'true', // String boolean
         ]);
 
-    $response2->assertStatus(200);
+    $response2->assertStatus(201);
     $this->assertDatabaseHas('courts_images', [
         'court_id' => $court->id,
         'is_primary' => true,
@@ -138,7 +138,7 @@ test('user can upload image without setting as primary', function () {
             'is_primary' => false,
         ]);
 
-    $response->assertStatus(200);
+    $response->assertStatus(201);
     $this->assertDatabaseHas('courts_images', [
         'court_id' => $court->id,
         'is_primary' => false,
@@ -226,7 +226,7 @@ test('uploading primary image unsets other primary images', function () {
             'is_primary' => true,
         ]);
 
-    $response->assertStatus(200);
+    $response->assertStatus(201);
     
     // New image should be primary
     $newCourtImage = CourtImage::where('court_id', $court->id)
