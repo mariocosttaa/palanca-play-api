@@ -75,6 +75,19 @@ class BookingController extends Controller
 
     /**
      * Create a new booking
+     * 
+     * Creates a new booking for a court at a specific date and time.
+     * 
+     * @response 201 {"data": {"id": "mGbnVK9ryOK1y4Y6XlQgJ", "court_id": "2pX9g4KPNdz6dojQYaw16", "user_id": "W39mX2xdzrz8a5lVQLRoE", "start_date": "2025-12-22", "end_date": "2025-12-22", "start_time": "09:00", "end_time": "10:00", "price": 0, "currency": "aoa", "is_pending": false, "is_cancelled": false, "is_paid": false, "paid_at_venue": false, "qr_code": "file/0Pa2e1K9y4bz4xRGpYBbv/qr-codes/booking_58_qr.svg", "qr_code_verified": false, "created_at": "2025-12-22T14:37:53.000000Z"}}
+     * 
+     * @responseExample 400 {"message": "Este horário já está reservado (10:00 - 11:00)."}
+     * @responseExample 400 {"message": "Horário solicitado está fora do horário de funcionamento da quadra (09:00 - 21:00)."}
+     * @responseExample 400 {"message": "Quadra não possui horário de funcionamento configurado para esta data."}
+     * @responseExample 400 {"message": "Quadra marcada como indisponível nesta data."}
+     * @responseExample 400 {"message": "Horário conflita com uma pausa configurada (12:00 - 13:00)."}
+     * @responseExample 400 {"message": "Cliente inválido ou não fornecido."}
+     * @responseExample 400 {"message": "Quadra inválida."}
+     * @responseExample 500 {"message": "Erro inesperado ao criar agendamento. Por favor, tente novamente."}
      */
     public function store(CreateBookingRequest $request): BookingResource
     {
@@ -122,6 +135,12 @@ class BookingController extends Controller
                 abort(400, 'Quadra inválida.');
             }
 
+            // Check availability and get specific error if not available
+            $availabilityError = $court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time']);
+            if ($availabilityError) {
+                abort(400, $availabilityError);
+            }
+
             // Prepare Booking Data
             $bookingData = [
                 'tenant_id'     => $tenant->id,
@@ -142,11 +161,6 @@ class BookingController extends Controller
             // If paid at venue, it is paid
             if ($bookingData['paid_at_venue']) {
                 $bookingData['is_paid'] = true;
-            }
-
-            // Check availability
-            if (! $court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time'])) {
-                abort(400, 'Horário indisponível.');
             }
 
             $booking = Booking::create($bookingData);
@@ -180,10 +194,18 @@ class BookingController extends Controller
 
             return new BookingResource($booking);
 
-        } catch (\Exception $e) {
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            // Let HTTP exceptions (abort calls) bubble up with their specific messages
             $this->rollBackSafe();
-            Log::error('Erro ao criar agendamento', ['error' => $e->getMessage()]);
-            abort(400, 'Erro ao criar agendamento');
+            throw $e;
+        } catch (\Exception $e) {
+            // Only catch unexpected exceptions
+            $this->rollBackSafe();
+            Log::error('Erro inesperado ao criar agendamento', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            abort(500, 'Erro inesperado ao criar agendamento. Por favor, tente novamente.');
         }
     }
 

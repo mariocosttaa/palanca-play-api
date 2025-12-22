@@ -238,44 +238,84 @@ class Court extends Model
         return $slots;
     }
 
+    /**
+     * Check if a time slot is available for booking
+     * 
+     * @param string $date Date in Y-m-d format
+     * @param string $startTime Start time in H:i format
+     * @param string $endTime End time in H:i format
+     * @return string|null Returns null if available, or error message string if not available
+     */
     public function checkAvailability($date, $startTime, $endTime)
     {
-        $availableSlots = $this->getAvailableSlots($date);
-        $reqStart = \Carbon\Carbon::parse($date . ' ' . $startTime);
-        $reqEnd = \Carbon\Carbon::parse($date . ' ' . $endTime);
+        $date = \Carbon\Carbon::parse($date);
+        $dayOfWeek = strtolower($date->format('l'));
+        $reqStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
+        $reqEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
 
-        // If no slots available, return false
-        if ($availableSlots->isEmpty()) {
-            return false;
+        // 1. Check if there's any availability configuration
+        $availability = $this->availabilities()
+            ->whereDate('specific_date', $date->format('Y-m-d'))
+            ->first();
+
+        if (!$availability) {
+            $availability = $this->availabilities()
+                ->where('day_of_week_recurring', $dayOfWeek)
+                ->first();
         }
 
-        $current = $reqStart->copy();
-        
-        // Iterate until we cover the entire requested period
-        while ($current->lt($reqEnd)) {
-            $found = false;
+        if (!$availability) {
+            return 'Quadra não possui horário de funcionamento configurado para esta data.';
+        }
+
+        // 2. Check if court is marked as unavailable
+        if (!$availability->is_available) {
+            return 'Quadra marcada como indisponível nesta data.';
+        }
+
+        // 3. Check if requested time is within operating hours
+        $operatingStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time);
+        $operatingEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
+
+        if ($reqStart->lt($operatingStart) || $reqEnd->gt($operatingEnd)) {
+            return 'Horário solicitado está fora do horário de funcionamento da quadra (' 
+                . $availability->start_time . ' - ' . $availability->end_time . ').';
+        }
+
+        // 4. Check if time conflicts with a break
+        $breaks = $availability->breaks ?? [];
+        foreach ($breaks as $break) {
+            $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
+            $breakEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
             
-            foreach ($availableSlots as $slot) {
-                $slotStart = \Carbon\Carbon::parse($date . ' ' . $slot['start']);
-                $slotEnd = \Carbon\Carbon::parse($date . ' ' . $slot['end']);
-
-                // Find a slot that starts exactly at the current required time
-                if ($slotStart->eq($current)) {
-                    // Advance current time to the end of this slot
-                    $current = $slotEnd;
-                    $found = true;
-                    break;
-                }
-            }
-
-            // If we couldn't find a slot to cover the next segment, availability fails
-            if (!$found) {
-                return false;
+            if ($reqStart->lt($breakEnd) && $reqEnd->gt($breakStart)) {
+                return 'Horário conflita com uma pausa configurada (' 
+                    . $break['start'] . ' - ' . $break['end'] . ').';
             }
         }
 
-        // If we successfully advanced current to >= reqEnd, it's available
-        return $current->gte($reqEnd);
+        // 5. Check if time conflicts with existing bookings
+        $bookings = $this->bookings()
+            ->whereDate('start_date', $date->format('Y-m-d'))
+            ->where('is_cancelled', false)
+            ->get();
+
+        $buffer = $this->tenant->buffer_between_bookings_minutes ?? 0;
+
+        foreach ($bookings as $booking) {
+            $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
+            $bookingEnd = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
+            $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
+
+            if ($reqStart->lt($bookingEndWithBuffer) && $reqEnd->gt($bookingStart)) {
+                return 'Este horário já está reservado (' 
+                    . $booking->start_time->format('H:i') . ' - ' . $booking->end_time->format('H:i') . ').';
+            }
+        }
+
+        // If we get here, the slot is available
+        return null;
     }
 
 }
+
