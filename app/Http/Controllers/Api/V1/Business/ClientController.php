@@ -11,7 +11,9 @@ use App\Models\Booking;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 
 use App\Http\Requests\Api\V1\Business\CreateClientRequest;
 use App\Http\Requests\Api\V1\Business\UpdateClientRequest;
@@ -25,12 +27,12 @@ class ClientController extends Controller
      * Get a list of clients with optional search
      * 
      * @queryParam search string Search by name, surname, email, or phone. Example: "John"
+     * @queryParam page int optional Page number. Example: 1
+     * @queryParam per_page int optional Items per page. Example: 15
      * 
-     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, UserResourceGeneral>
-     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, UserResourceGeneral>
-     * @response 500 {"message": "Server error"}
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function index(Request $request, $tenantId)
+    public function index(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $tenant = $request->tenant;
@@ -54,10 +56,9 @@ class ClientController extends Controller
             $clients = $query->paginate(15);
 
             return UserResourceGeneral::collection($clients);
-
         } catch (\Exception $e) {
             \Log::error('Failed to retrieve clients.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve clients.'], 500);
+            abort(500, 'Failed to retrieve clients.');
         }
     }
 
@@ -65,10 +66,8 @@ class ClientController extends Controller
      * Create a new client
      * 
      * @return UserResourceSpecific
-     * @response 200 UserResourceSpecific
-     * @response 500 {"message": "Server error"}
      */
-    public function store(CreateClientRequest $request, $tenantId)
+    public function store(CreateClientRequest $request, $tenantId): UserResourceSpecific
     {
         try {
             $this->beginTransactionSafe();
@@ -83,7 +82,7 @@ class ClientController extends Controller
                 'phone' => $request->phone,
                 'calling_code' => $request->calling_code,
                 'country_id' => $request->country_id,
-                'password' => Hash::make(\Illuminate\Support\Str::random(16)),
+                'password' => Hash::make(Str::random(16)),
                 'is_app_user' => false,
             ]);
 
@@ -93,11 +92,10 @@ class ClientController extends Controller
             $this->commitSafe();
 
             return new UserResourceSpecific($client);
-
         } catch (\Exception $e) {
             $this->rollBackSafe();
             \Log::error('Failed to create client.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to create client.'], 500);
+            abort(500, 'Failed to create client.');
         }
     }
 
@@ -105,11 +103,8 @@ class ClientController extends Controller
      * Get a specific client by ID
      * 
      * @return UserResourceSpecific
-     * @response 200 UserResourceSpecific
-     * @response 404 {"message": "Client not found"}
-     * @response 500 {"message": "Server error"}
      */
-    public function show(Request $request, $tenantId, $clientId)
+    public function show(Request $request, string $tenantId, $clientId): UserResourceSpecific
     {
         try {
             $decodedId = EasyHashAction::decode($clientId, 'user-id');
@@ -118,14 +113,15 @@ class ClientController extends Controller
                 ->find($decodedId);
 
             if (!$client) {
-                return response()->json(['message' => 'Client not found.'], 404);
+                abort(404, 'Client not found.');
             }
 
             return new UserResourceSpecific($client);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve client.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve client.'], 500);
+            Log::error('Failed to retrieve client.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve client.');
         }
     }
 
@@ -133,12 +129,8 @@ class ClientController extends Controller
      * Update an existing client
      * 
      * @return UserResourceSpecific
-     * @response 200 UserResourceSpecific
-     * @response 403 {"message": "Cannot edit clients registered via mobile app"}
-     * @response 404 {"message": "Client not found"}
-     * @response 500 {"message": "Server error"}
      */
-    public function update(UpdateClientRequest $request, $tenantId, $clientId)
+    public function update(UpdateClientRequest $request, $tenantId, $clientId): UserResourceSpecific
     {
         try {
             $this->beginTransactionSafe();
@@ -148,13 +140,13 @@ class ClientController extends Controller
 
             if (!$client) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Client not found.'], 404);
+                abort(404, 'Client not found.');
             }
 
             // Check permission - cannot edit app users
             if ($client->is_app_user) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Cannot edit clients registered via mobile app.'], 403);
+                abort(403, 'Cannot edit clients registered via mobile app.');
             }
 
             $client->update([
@@ -169,22 +161,23 @@ class ClientController extends Controller
             $this->commitSafe();
 
             return new UserResourceSpecific($client);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e; // Re-throw HTTP exceptions (abort calls)
         } catch (\Exception $e) {
-            \Log::error('Failed to update client.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to update client.'], 500);
+            $this->rollBackSafe();
+            Log::error('Failed to update client.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to update client.');
         }
     }
 
     /**
      * Get statistics for a specific client
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": {"total": 10, "pending": 2, "cancelled": 1, "not_present": 0}}
-     * @response 404 {"message": "Client not found"}
-     * @response 500 {"message": "Server error"}
+     * Retrieves booking statistics for a client, including total, pending, cancelled, and not present counts.
+     * 
+     * @return array{data: array{total: int, pending: int, cancelled: int, not_present: int}}
      */
-    public function stats(Request $request, $tenantId, $clientId)
+    public function stats(Request $request, string $tenantId, $clientId): JsonResponse
     {
         try {
             $tenant = $request->tenant;
@@ -204,24 +197,23 @@ class ClientController extends Controller
             ];
 
             return response()->json(['data' => $stats]);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve client stats.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve client stats.'], 500);
+            Log::error('Failed to retrieve client stats.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve client stats.');
         }
     }
 
     /**
      * Get bookings for a specific client
      * 
+     * @queryParam page int optional Page number. Example: 1
      * @queryParam per_page int Number of items per page. Example: 15
      * 
-     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, BookingResourceGeneral>
-     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, BookingResourceGeneral>
-     * @response 404 {"message": "Client not found"}
-     * @response 500 {"message": "Server error"}
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function bookings(Request $request, $tenantId, $clientId)
+    public function bookings(Request $request, string $tenantId, $clientId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $tenant = $request->tenant;
@@ -235,10 +227,11 @@ class ClientController extends Controller
                 ->paginate($perPage);
 
             return BookingResourceGeneral::collection($bookings);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve client bookings.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve client bookings.'], 500);
+            Log::error('Failed to retrieve client bookings.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve client bookings.');
         }
     }
 }

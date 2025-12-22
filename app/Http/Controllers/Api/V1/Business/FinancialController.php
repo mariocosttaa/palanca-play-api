@@ -7,6 +7,9 @@ use App\Http\Resources\Business\V1\Specific\FinancialResource;
 use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 
 /**
  * @tags [API-BUSINESS] Financials
@@ -15,38 +18,28 @@ class FinancialController extends Controller
 {
     /**
      * Get current month financial report
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": {"year": 2024, "month": 12, "month_name": "December", "bookings": [...], "summary": {...}}}
-     * @response 400 {"message": "Error message"}
-     * @response 500 {"message": "Server error"}
      */
-    public function currentMonth(Request $request, $tenant_id)
+    public function currentMonth(Request $request, $tenant_id): JsonResponse
     {
         try {
             $tenant = $request->tenant;
             $now = now();
             
             return $this->monthlyReport($request, $tenant_id, $now->year, $now->month);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve current month report.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve current month report.'], 500);
+            Log::error('Failed to retrieve current month report.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve current month report.');
         }
     }
 
     /**
-     * Get monthly financial report with detailed booking list
+     * Get monthly financial report
      * 
-     * @param int $year Year (2000-2100)
-     * @param int $month Month (1-12)
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": {"year": 2024, "month": 12, "month_name": "December", "bookings": [...], "summary": {...}}}
-     * @response 400 {"message": "Error message"}
-     * @response 500 {"message": "Server error"}
+     * Retrieves a detailed financial report for a specific month and year, including a list of all bookings and a financial summary.
      */
-    public function monthlyReport(Request $request, $tenant_id, $year, $month)
+    public function monthlyReport(Request $request, $tenant_id, $year, $month): JsonResponse
     {
         try {
             $tenant = $request->tenant;
@@ -58,7 +51,7 @@ class FinancialController extends Controller
             // Validate year and month
             $validated = $this->validateYearMonth($year, $month);
             if ($validated !== true) {
-                return $validated;
+                // validateYearMonth returns true or aborts
             }
 
             // Get start and end dates for the month
@@ -67,7 +60,7 @@ class FinancialController extends Controller
 
             // Validate not in future
             if ($startDate->isFuture()) {
-                return response()->json(['message' => 'Cannot query future months.'], 400);
+                abort(400, 'Cannot query future months.');
             }
 
             // Get bookings for the month
@@ -82,28 +75,23 @@ class FinancialController extends Controller
                 'year' => (int) $year,
                 'month' => (int) $month,
                 'month_name' => $startDate->translatedFormat('F'),
-                'bookings' => FinancialResource::collection($bookings)->resolve(),
+                'bookings' => FinancialResource::collection($bookings),
                 'summary' => $this->calculateMonthlySummary($bookings, $tenant),
             ]]);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve monthly report.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve monthly report.'], 500);
+            Log::error('Failed to retrieve monthly report.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve monthly report.');
         }
     }
 
     /**
      * Get monthly statistics
      * 
-     * @param int $year Year (2000-2100)
-     * @param int $month Month (1-12)
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": {"year": 2024, "month": 12, "month_name": "December", "statistics": {...}}}
-     * @response 400 {"message": "Error message"}
-     * @response 500 {"message": "Server error"}
+     * Retrieves aggregated financial statistics for a specific month, including counts and amounts for different booking statuses (paid, pending, cancelled, unpaid).
      */
-    public function monthlyStats(Request $request, $tenant_id, $year, $month)
+    public function monthlyStats(Request $request, $tenant_id, $year, $month): JsonResponse
     {
         try {
             $tenant = $request->tenant;
@@ -113,10 +101,7 @@ class FinancialController extends Controller
             $month = (int) $month;
             
             // Validate year and month
-            $validated = $this->validateYearMonth($year, $month);
-            if ($validated !== true) {
-                return $validated;
-            }
+            $this->validateYearMonth($year, $month);
 
             // Get start and end dates for the month
             $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
@@ -124,7 +109,7 @@ class FinancialController extends Controller
 
             // Validate not in future
             if ($startDate->isFuture()) {
-                return response()->json(['message' => 'Cannot query future months.'], 400);
+                abort(400, 'Cannot query future months.');
             }
 
             // Get bookings for the month
@@ -141,24 +126,20 @@ class FinancialController extends Controller
                 'month_name' => $startDate->translatedFormat('F'),
                 'statistics' => $stats,
             ]]);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve monthly statistics.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve monthly statistics.'], 500);
+            Log::error('Failed to retrieve monthly statistics.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve monthly statistics.');
         }
     }
 
     /**
      * Get yearly statistics
      * 
-     * @param int $year Year (2000-2100)
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"data": {"year": 2024, "statistics": {...}, "monthly_breakdown": [...]}}
-     * @response 400 {"message": "Error message"}
-     * @response 500 {"message": "Server error"}
+     * Retrieves aggregated financial statistics for a specific year, including a monthly breakdown of revenue and bookings.
      */
-    public function yearlyStats(Request $request, $tenant_id, $year)
+    public function yearlyStats(Request $request, $tenant_id, $year): JsonResponse
     {
         try {
             $tenant = $request->tenant;
@@ -168,15 +149,15 @@ class FinancialController extends Controller
             
             // Validate year
             if ($year < 2000 || $year > 2100) {
-                return response()->json(['message' => 'Invalid year.'], 400);
+                abort(400, 'Invalid year.');
             }
 
-            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
 
             // Validate not in future
             if ($startDate->isFuture()) {
-                return response()->json(['message' => 'Cannot query future years.'], 400);
+                abort(400, 'Cannot query future years.');
             }
 
             // Get all bookings for the year
@@ -191,11 +172,11 @@ class FinancialController extends Controller
             // Calculate monthly breakdown
             $monthlyBreakdown = [];
             for ($month = 1; $month <= 12; $month++) {
-                $monthStart = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+                $monthStart = Carbon::createFromDate($year, $month, 1)->startOfMonth();
                 $monthEnd = $monthStart->copy()->endOfMonth();
                 
                 $monthBookings = $bookings->filter(function ($booking) use ($monthStart, $monthEnd) {
-                    $bookingDate = \Carbon\Carbon::parse($booking->start_date);
+                    $bookingDate = Carbon::parse($booking->start_date);
                     return $bookingDate->between($monthStart, $monthEnd);
                 });
 
@@ -215,10 +196,11 @@ class FinancialController extends Controller
                 'statistics' => $yearlyStats,
                 'monthly_breakdown' => $monthlyBreakdown,
             ]]);
-
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve yearly statistics.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve yearly statistics.'], 500);
+            Log::error('Failed to retrieve yearly statistics.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve yearly statistics.');
         }
     }
 
@@ -337,11 +319,11 @@ class FinancialController extends Controller
         $month = (int) $month;
         
         if ($year < 2000 || $year > 2100) {
-            return response()->json(['message' => 'Ano inválido.'], 400);
+            abort(400, 'Ano inválido.');
         }
 
         if ($month < 1 || $month > 12) {
-            return response()->json(['message' => 'Mês inválido.'], 400);
+            abort(400, 'Mês inválido.');
         }
 
         return true;

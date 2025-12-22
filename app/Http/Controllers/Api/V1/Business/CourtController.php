@@ -9,6 +9,8 @@ use App\Http\Requests\Api\V1\Business\UpdateCourtRequest;
 use App\Http\Resources\Shared\V1\General\CourtResourceGeneral;
 use App\Models\Court;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 
 /**
  * @tags [API-BUSINESS] Courts
@@ -18,11 +20,12 @@ class CourtController extends Controller
     /**
      * Get a list of all courts for the authenticated tenant
      * 
-     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtResourceGeneral>
-     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtResourceGeneral>
-     * @response 500 {"message": "Server error"}
+     * @queryParam page int optional Page number. Example: 1
+     * @queryParam per_page int optional Items per page. Example: 15
+     *
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function index(Request $request)
+    public function index(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $tenant = $request->tenant;
@@ -32,10 +35,9 @@ class CourtController extends Controller
                 ->paginate($perPage);
 
             return CourtResourceGeneral::collection($courts);
-
         } catch (\Exception $e) {
-            \Log::error('Error fetching courts', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error fetching the courts.')], 500);
+            Log::error('Error fetching courts', ['error' => $e->getMessage()]);
+            abort(500, __('There was an error fetching the courts.'));
         }
     }
 
@@ -43,36 +45,31 @@ class CourtController extends Controller
      * Get a specific court by ID
      * 
      * @return CourtResourceGeneral
-     * @response 200 CourtResourceGeneral
-     * @response 404 {"message": "Court not found"}
-     * @response 500 {"message": "Server error"}
      */
-    public function show(Request $request, string $tenantIdHashId, string $courtIdHashId)
+    public function show(Request $request, string $tenantId, $courtId): CourtResourceGeneral
     {
         try {
             $tenant  = $request->tenant;
-            $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
+            $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court   = Court::forTenant($tenant->id)
                 ->with(['images'])
                 ->findOrFail($courtId);
 
             return new CourtResourceGeneral($court);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            \Log::error('Error fetching court', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error fetching the court.')], 500);
+            Log::error('Error fetching court', ['error' => $e->getMessage()]);
+            abort(500, __('There was an error fetching the court.'));
         }
     }
 
     /**
      * Create a new court
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 201 CourtResourceGeneral
-     * @response 400 {"message": "Error message"}
-     * @response 403 {"message": "Subscription limit reached"}
-     * @response 500 {"message": "Server error"}
+     * Creates a new court with optional images and availabilities.
      */
-    public function create(CreateCourtRequest $request, string $tenantIdHashId)
+    public function create(CreateCourtRequest $request, string $tenantId): CourtResourceGeneral
     {
         try {
             $this->beginTransactionSafe();
@@ -90,7 +87,7 @@ class CourtController extends Controller
             $currentCourtsCount = $tenant->courts()->count();
             if ($currentCourtsCount >= $maxCourts) {
                 $this->rollBackSafe();
-                return response()->json(['message' => __('Court limit reached for your subscription plan.')], 403);
+                abort(403, __('Court limit reached for your subscription plan.'));
             }
 
             $court = new Court();
@@ -134,11 +131,14 @@ class CourtController extends Controller
 
             $court->load(['images']);
 
-            return (new CourtResourceGeneral($court))->response()->setStatusCode(201);
+            return new CourtResourceGeneral($court);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->rollBackSafe();
+            throw $e;
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Error creating court', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error creating the court: :error', ['error' => $e->getMessage()])], 400);
+            Log::error('Error creating court', ['error' => $e->getMessage()]);
+            abort(400, __('There was an error creating the court: :error', ['error' => $e->getMessage()]));
         }
     }
 
@@ -146,23 +146,19 @@ class CourtController extends Controller
      * Update an existing court
      * 
      * @return CourtResourceGeneral
-     * @response 200 CourtResourceGeneral
-     * @response 400 {"message": "Error message"}
-     * @response 404 {"message": "Court not found"}
-     * @response 500 {"message": "Server error"}
      */
-    public function update(UpdateCourtRequest $request, string $tenantIdHashId, string $courtIdHashId)
+    public function update(UpdateCourtRequest $request, $tenantId, $courtId): CourtResourceGeneral
     {
         try {
             $this->beginTransactionSafe();
 
             $tenant  = $request->tenant;
-            $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
+            $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court   = Court::forTenant($tenant->id)->find($courtId);
 
             if (! $court) {
                 $this->rollBackSafe();
-                return response()->json(['message' => __('Court not found.')], 404);
+                abort(404, __('Court not found.'));
             }
 
             $validated = $request->validated();
@@ -174,29 +170,28 @@ class CourtController extends Controller
             $court->load(['images']);
 
             return new CourtResourceGeneral($court);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->rollBackSafe();
+            throw $e;
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Error updating court', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error updating the court.')], 400);
+            Log::error('Error updating court', ['error' => $e->getMessage()]);
+            abort(400, __('There was an error updating the court.'));
         }
     }
 
     /**
      * Delete a court
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"message": "Court deleted successfully"}
-     * @response 400 {"message": "Court cannot be deleted because it has associated bookings"}
-     * @response 404 {"message": "Court not found"}
-     * @response 500 {"message": "Server error"}
+     * Deletes a court if it has no associated bookings.
      */
-    public function destroy(Request $request, string $tenantIdHashId, string $courtIdHashId)
+    public function destroy(Request $request, string $tenantId, $courtId): JsonResponse
     {
         try {
             $this->beginTransactionSafe();
 
             $tenant  = $request->tenant;
-            $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
+            $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court   = Court::forTenant($tenant->id)->where('id', $courtId)->first();
 
             if (! $court) {
@@ -217,7 +212,7 @@ class CourtController extends Controller
             return response()->json(['message' => __('Court deleted successfully.')]);
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Error deleting court', ['error' => $e->getMessage()]);
+            Log::error('Error deleting court', ['error' => $e->getMessage()]);
             return response()->json(['message' => __('There was an error deleting the court.')], 400);
         }
     }
