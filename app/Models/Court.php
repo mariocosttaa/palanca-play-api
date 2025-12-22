@@ -136,7 +136,7 @@ class Court extends Model
     public function getAvailableSlots($date)
     {
         $date = \Carbon\Carbon::parse($date);
-        $dayOfWeek = strtolower($date->format('l'));
+        $dayOfWeek = $date->format('l');
 
         // 1. Get Operating Hours
         // Check specific date first
@@ -249,7 +249,7 @@ class Court extends Model
     public function checkAvailability($date, $startTime, $endTime)
     {
         $date = \Carbon\Carbon::parse($date);
-        $dayOfWeek = strtolower($date->format('l'));
+        $dayOfWeek = $date->format('l');
         $reqStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
         $reqEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
 

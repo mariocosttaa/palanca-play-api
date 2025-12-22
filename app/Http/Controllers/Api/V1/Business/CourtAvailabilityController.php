@@ -193,20 +193,48 @@ class CourtAvailabilityController extends Controller
     /**
      * Get available dates for a court
      * 
-     * Returns a list of dates (Y-m-d format) that have available slots within the given date range.
+     * Returns a list of dates (Y-m-d format) that have available slots for the specified month.
+     * If month and year are not provided, defaults to the current month and year.
      * 
-     * @queryParam start_date date required Start date of the range. Example: 2025-12-22
-     * @queryParam end_date date required End date of the range. Example: 2025-12-31
+     * @queryParam month integer optional Month (1-12). Defaults to current month. Example: 12
+     * @queryParam year integer optional Year (YYYY). Defaults to current year. Example: 2025
      * 
      * @return array{data: string[]}
      */
     public function getDates(Request $request, $tenantId, $courtId): JsonResponse
     {
         try {
-            $request->validate([
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
+            $validated = $request->validate([
+                'month' => 'nullable|integer|min:1|max:12',
+                'year' => 'nullable|integer|min:2000|max:2100',
             ]);
+
+            // Default to current month and year if not provided
+            $month = $validated['month'] ?? now()->month;
+            $year = $validated['year'] ?? now()->year;
+
+            // Calculate start and end dates for the month
+            try {
+                $requestedDate = \Carbon\Carbon::create($year, $month, 1);
+                $startDate = $requestedDate->copy()->startOfMonth();
+                $endDate = $requestedDate->copy()->endOfMonth();
+
+                // Ensure we don't return past dates
+                $today = now()->startOfDay();
+
+                if ($endDate->lt($today)) {
+                    return response()->json(['data' => []]);
+                }
+
+                if ($startDate->lt($today)) {
+                    $startDate = $today;
+                }
+
+                $startDate = $startDate->format('Y-m-d');
+                $endDate = $endDate->format('Y-m-d');
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Invalid month or year provided.'], 422);
+            }
 
             $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court = Court::forTenant($request->tenant->id)->find($courtId);
@@ -215,10 +243,12 @@ class CourtAvailabilityController extends Controller
                 return response()->json(['message' => 'Court not found.'], 404);
             }
 
-            $dates = $court->getAvailableDates($request->start_date, $request->end_date);
+            $dates = $court->getAvailableDates($startDate, $endDate);
 
             return response()->json(['data' => $dates]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to retrieve available dates.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to retrieve available dates.'], 500);
