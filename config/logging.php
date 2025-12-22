@@ -38,6 +38,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API Logging Control
+    |--------------------------------------------------------------------------
+    |
+    | Enable/disable API request logging. Set to false in production if you
+    | don't need request logging to improve performance.
+    |
+    */
+
+    'api_enabled' => env('API_LOGGING_ENABLED', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Log Channels
     |--------------------------------------------------------------------------
     |

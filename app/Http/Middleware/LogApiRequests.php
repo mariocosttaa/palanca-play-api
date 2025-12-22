@@ -38,6 +38,11 @@ class LogApiRequests
         // Get the response
         $response = $next($request);
 
+        // Skip logging if disabled via environment variable
+        if (!config('logging.api_enabled', true)) {
+            return $response;
+        }
+
         // Only log API routes
         if (!$this->isApiRoute($request)) {
             return $response;
