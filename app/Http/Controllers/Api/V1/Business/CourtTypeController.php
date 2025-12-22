@@ -10,6 +10,9 @@ use App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral;
 use App\Models\CourtType;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
+use App\Enums\CourtTypeEnum;
 
 /**
  * @tags [API-BUSINESS] Court Types
@@ -19,11 +22,12 @@ class CourtTypeController extends Controller
     /**
      * Get a list of all court types for the authenticated tenant
      * 
-     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtTypeResourceGeneral>
-     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CourtTypeResourceGeneral>
-     * @response 500 {"message": "Server error"}
+     * @queryParam page int optional Page number. Example: 1
+     * @queryParam per_page int optional Items per page. Example: 15
+     *
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function index(Request $request)
+    public function index(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $tenant = $request->tenant;
@@ -32,8 +36,8 @@ class CourtTypeController extends Controller
 
             return CourtTypeResourceGeneral::collection($courtTypes);
         } catch (\Exception $e) {
-            \Log::error('Error fetching court types', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error fetching the court types.')], 500);
+            Log::error('Error fetching court types', ['error' => $e->getMessage()]);
+            abort(500, __('There was an error fetching the court types.'));
         }
     }
 
@@ -41,15 +45,12 @@ class CourtTypeController extends Controller
      * Get a specific court type by ID
      * 
      * @return CourtTypeResourceGeneral
-     * @response 200 CourtTypeResourceGeneral
-     * @response 404 {"message": "Court type not found"}
-     * @response 500 {"message": "Server error"}
      */
-    public function show(Request $request, string $tenantIdHashId, string $courtTypeIdHashId)
+    public function show(Request $request, string $tenantId, $courtTypeId): CourtTypeResourceGeneral
     {
         try {
             $tenant = $request->tenant;
-            $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
+            $courtTypeId = EasyHashAction::decode($courtTypeId, 'court-type-id');
             $courtType = CourtType::with([
                 'courts' => function ($query) {
                     $query->with('images');
@@ -60,8 +61,8 @@ class CourtTypeController extends Controller
             return new CourtTypeResourceGeneral($courtType);
 
         } catch (\Exception $e) {
-            \Log::error('Error fetching court type', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error fetching the court type.')], 500);
+            Log::error('Error fetching court type', ['error' => $e->getMessage()]);
+            abort(500, __('There was an error fetching the court type.'));
         }
     }
 
@@ -69,18 +70,14 @@ class CourtTypeController extends Controller
      * Update an existing court type
      * 
      * @return CourtTypeResourceGeneral
-     * @response 200 CourtTypeResourceGeneral
-     * @response 400 {"message": "Error message"}
-     * @response 404 {"message": "Court type not found"}
-     * @response 500 {"message": "Server error"}
      */
-    public function update(UpdateCourtTypeRequest $request, string $tenantIdHashId, string $courtTypeIdHashId)
+    public function update(UpdateCourtTypeRequest $request, $tenantId, $courtTypeId): CourtTypeResourceGeneral
     {
         try {
             $this->beginTransactionSafe();
 
             $tenant = $request->tenant;
-            $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
+            $courtTypeId = EasyHashAction::decode($courtTypeId, 'court-type-id');
             $courtType = CourtType::forTenant($tenant->id)->find($courtTypeId);
 
             if (!$courtType) {
@@ -100,20 +97,17 @@ class CourtTypeController extends Controller
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Error updating court type', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error updating the court type.')], 400);
+            Log::error('Error updating court type', ['error' => $e->getMessage()]);
+            abort(400, __('There was an error updating the court type.'));
         }
     }
 
     /**
      * Create a new court type
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 201 CourtTypeResourceGeneral
-     * @response 400 {"message": "Error message"}
-     * @response 500 {"message": "Server error"}
+     * Creates a new court type definition.
      */
-    public function create(CreateCourtTypeRequest $request, string $tenantIdHashId)
+    public function create(CreateCourtTypeRequest $request, $tenantId): CourtTypeResourceGeneral
     {
         try {
             $this->beginTransactionSafe();
@@ -131,31 +125,27 @@ class CourtTypeController extends Controller
                 $query->with('images');
             }]);
 
-            return (new CourtTypeResourceGeneral($courtType))->response()->setStatusCode(201);
+            return new CourtTypeResourceGeneral($courtType);
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Error creating court type', ['error' => $e->getMessage()]);
-            return response()->json(['message' => __('There was an error creating the court type.')], 400);
+            Log::error('Error creating court type', ['error' => $e->getMessage()]);
+            abort(400, __('There was an error creating the court type.'));
         }
     }
 
     /**
      * Delete a court type
      * 
-     * @return \Illuminate\Http\JsonResponse
-     * @response 200 {"message": "Court type deleted successfully"}
-     * @response 400 {"message": "Court type cannot be deleted because it has associated courts"}
-     * @response 404 {"message": "Court type not found"}
-     * @response 500 {"message": "Server error"}
+     * Deletes a court type if it has no associated courts.
      */
-    public function destroy(Request $request, string $tenantIdHashId, string $courtTypeIdHashId)
+    public function destroy(Request $request, string $tenantId, $courtTypeId): JsonResponse
     {
         try {
             $this->beginTransactionSafe();
 
             $tenant = $request->tenant;
-            $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
+            $courtTypeId = EasyHashAction::decode($courtTypeId, 'court-type-id');
             $courtType = CourtType::forTenant($tenant->id)->where('id', $courtTypeId)->first();
 
             if (!$courtType) {
@@ -178,7 +168,7 @@ class CourtTypeController extends Controller
         }
         catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Error deleting court type', ['error' => $e->getMessage()]);
+            Log::error('Error deleting court type', ['error' => $e->getMessage()]);
             return response()->json(['message' => __('There was an error deleting the court type.')], 400);
         }
     }
@@ -187,8 +177,8 @@ class CourtTypeController extends Controller
      * 
      * @response array{data: array<int, array{value: string, label: string}>}
      */
-    public function types(): \Illuminate\Http\JsonResponse
+    public function types(): JsonResponse
     {
-        return response()->json(['data' => \App\Enums\CourtTypeEnum::options()]);
+        return response()->json(['data' => CourtTypeEnum::options()]);
     }
 }

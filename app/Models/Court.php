@@ -244,22 +244,38 @@ class Court extends Model
         $reqStart = \Carbon\Carbon::parse($date . ' ' . $startTime);
         $reqEnd = \Carbon\Carbon::parse($date . ' ' . $endTime);
 
-        foreach ($availableSlots as $slot) {
-            $slotStart = \Carbon\Carbon::parse($date . ' ' . $slot['start']);
-            $slotEnd = \Carbon\Carbon::parse($date . ' ' . $slot['end']);
+        // If no slots available, return false
+        if ($availableSlots->isEmpty()) {
+            return false;
+        }
 
-            // Check if requested time fits EXACTLY or WITHIN an available slot?
-            // Usually for fixed slots, it must match exactly or be a subset?
-            // Let's assume it must match one of the available slots exactly for now, 
-            // OR if the user can pick multiple slots, we need to check if the range is covered by contiguous slots.
+        $current = $reqStart->copy();
+        
+        // Iterate until we cover the entire requested period
+        while ($current->lt($reqEnd)) {
+            $found = false;
             
-            // Simple check: is there a slot that starts at reqStart and ends at reqEnd?
-            if ($slotStart->eq($reqStart) && $slotEnd->eq($reqEnd)) {
-                return true;
+            foreach ($availableSlots as $slot) {
+                $slotStart = \Carbon\Carbon::parse($date . ' ' . $slot['start']);
+                $slotEnd = \Carbon\Carbon::parse($date . ' ' . $slot['end']);
+
+                // Find a slot that starts exactly at the current required time
+                if ($slotStart->eq($current)) {
+                    // Advance current time to the end of this slot
+                    $current = $slotEnd;
+                    $found = true;
+                    break;
+                }
+            }
+
+            // If we couldn't find a slot to cover the next segment, availability fails
+            if (!$found) {
+                return false;
             }
         }
 
-        return false;
+        // If we successfully advanced current to >= reqEnd, it's available
+        return $current->gte($reqEnd);
     }
 
 }

@@ -7,6 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral;
 use App\Models\Court;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\JsonResponse;
 
 /**
  * @tags [API-BUSINESS] Court Availability
@@ -19,61 +22,34 @@ class CourtAvailabilityController extends Controller
      * Returns court-specific availabilities if they exist,
      * otherwise returns court type availabilities,
      * otherwise returns empty array.
-     * 
-     * @return \Illuminate\Http\JsonResponse
-     * @responseExample 200 {
-     *   "success": true,
-     *   "data": [
-     *     {
-     *       "id": "av1",
-     *       "tenant_id": "t1",
-     *       "court_id": "c1",
-     *       "court_type_id": null,
-     *       "day_of_week_recurring": "Monday",
-     *       "specific_date": null,
-     *       "start_time": "09:00",
-     *       "end_time": "22:00",
-     *       "is_available": true
-     *     },
-     *     {
-     *       "id": "av2",
-     *       "tenant_id": "t1",
-     *       "court_id": "c1",
-     *       "court_type_id": null,
-     *       "day_of_week_recurring": "Tuesday",
-     *       "specific_date": null,
-     *       "start_time": "09:00",
-     *       "end_time": "22:00",
-     *       "is_available": false
-     *     }
-     *   ]
-     * }
      */
-    public function index(Request $request, $tenantId, $courtId)
+    public function index(Request $request, $tenantId, $courtId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
-                return response()->json(['message' => 'Court not found.'], 404);
+                abort(404, 'Court not found.');
             }
 
             // Get effective availabilities (court-specific or fallback to court type)
             $availabilities = $court->getEffectiveAvailabilities();
 
-            return response()->json([
-                'success' => true,
-                'data' => CourtAvailabilityResourceGeneral::collection($availabilities)
-            ]);
+            return \App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral::collection($availabilities);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve availabilities.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve availabilities.'], 500);
+            Log::error('Failed to retrieve availabilities.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to retrieve availabilities.');
         }
     }
 
-    public function store(Request $request, $tenantId, $courtId)
+    /**
+     * Create a new availability for a court
+     * 
+     * Adds a new availability slot or rule for a specific court.
+     */
+    public function store(Request $request, $tenantId, $courtId): \App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral
     {
         try {
             $this->beginTransactionSafe();
@@ -83,7 +59,7 @@ class CourtAvailabilityController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Court not found.'], 404);
+                abort(404, 'Court not found.');
             }
 
             $data = $request->all();
@@ -109,16 +85,21 @@ class CourtAvailabilityController extends Controller
 
             $this->commitSafe();
 
-            return response()->json(['data' => $availability], 201);
+            return new \App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral($availability);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Failed to create availability.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to create availability.'], 500);
+            Log::error('Failed to create availability.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to create availability.');
         }
     }
 
-    public function update(Request $request, $tenantId, $courtId, $availabilityId)
+    /**
+     * Update an existing availability
+     * 
+     * Modifies an existing availability rule for a court.
+     */
+    public function update(Request $request, $tenantId, $courtId, $availabilityId): \App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral
     {
         try {
             $this->beginTransactionSafe();
@@ -129,14 +110,14 @@ class CourtAvailabilityController extends Controller
 
             if (!$court) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Court not found.'], 404);
+                abort(404, 'Court not found.');
             }
 
             $availability = $court->availabilities()->find($availabilityId);
 
             if (!$availability) {
                 $this->rollBackSafe();
-                return response()->json(['message' => 'Availability not found.'], 404);
+                abort(404, 'Availability not found.');
             }
 
             $data = $request->all();
@@ -161,16 +142,21 @@ class CourtAvailabilityController extends Controller
 
             $this->commitSafe();
 
-            return response()->json(['data' => $availability]);
+            return new \App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral($availability);
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Failed to update availability.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to update availability.'], 500);
+            Log::error('Failed to update availability.', ['error' => $e->getMessage()]);
+            abort(500, 'Failed to update availability.');
         }
     }
 
-    public function destroy(Request $request, $tenantId, $courtId, $availabilityId)
+    /**
+     * Delete an availability
+     * 
+     * Removes an availability rule from a court.
+     */
+    public function destroy(Request $request, $tenantId, $courtId, $availabilityId): JsonResponse
     {
         try {
             $this->beginTransactionSafe();
@@ -199,12 +185,19 @@ class CourtAvailabilityController extends Controller
 
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            \Log::error('Failed to delete availability.', ['error' => $e->getMessage()]);
+            Log::error('Failed to delete availability.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to delete availability.'], 500);
         }
     }
 
-    public function getDates(Request $request, $tenantId, $courtId)
+    /**
+     * Get available dates for a court
+     * 
+     * Returns a list of dates with availability status within a given range.
+     * 
+     * @return array{data: array}
+     */
+    public function getDates(Request $request, $tenantId, $courtId): JsonResponse
     {
         try {
             $request->validate([
@@ -224,15 +217,22 @@ class CourtAvailabilityController extends Controller
             return response()->json(['data' => $dates]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve available dates.', ['error' => $e->getMessage()]);
+            Log::error('Failed to retrieve available dates.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to retrieve available dates.'], 500);
         }
     }
 
-    public function getSlots(Request $request, $tenantId, $courtId, $date)
+    /**
+     * Get available slots for a court on a specific date
+     * 
+     * Returns a list of available time slots for a court on a given date.
+     * 
+     * @return array{data: array}
+     */
+    public function getSlots(Request $request, $tenantId, $courtId, $date): JsonResponse
     {
         try {
-            $validator = \Illuminate\Support\Facades\Validator::make(['date' => $date], [
+            $validator = Validator::make(['date' => $date], [
                 'date' => 'required|date',
             ]);
 
@@ -252,7 +252,7 @@ class CourtAvailabilityController extends Controller
             return response()->json(['data' => $slots]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve available slots.', ['error' => $e->getMessage()]);
+            Log::error('Failed to retrieve available slots.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Failed to retrieve available slots.'], 500);
         }
     }
