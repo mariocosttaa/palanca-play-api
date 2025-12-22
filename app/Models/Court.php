@@ -179,8 +179,9 @@ class Court extends Model
             ->get();
 
         // 3. Generate Slots
-        $interval = $this->tenant->booking_interval_minutes ?? 60;
-        $buffer = $this->tenant->buffer_between_bookings_minutes ?? 0;
+        // Use court type's interval and buffer time settings
+        $interval = $this->courtType->interval_time_minutes ?? $this->tenant->booking_interval_minutes ?? 60;
+        $buffer = $this->courtType->buffer_time_minutes ?? 0;
         $slots = collect();
 
         $currentSlotStart = $startTime->copy();
@@ -300,7 +301,8 @@ class Court extends Model
             ->where('is_cancelled', false)
             ->get();
 
-        $buffer = $this->tenant->buffer_between_bookings_minutes ?? 0;
+        // Use court type's buffer time setting
+        $buffer = $this->courtType->buffer_time_minutes ?? 0;
 
         foreach ($bookings as $booking) {
             $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
