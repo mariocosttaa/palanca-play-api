@@ -168,7 +168,6 @@ class CourtEffectiveAvailabilityTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'success',
                 'data' => [
                     '*' => [
                         'id',

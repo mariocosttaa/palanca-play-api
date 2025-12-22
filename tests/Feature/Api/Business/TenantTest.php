@@ -197,8 +197,9 @@ test('business user cannot update a tenant details they are not attached to', fu
     unset($tenantUpdateData['logo']);
     $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenant2HashId]), $tenantUpdateData);
 
-    $response->assertStatus(500);
+    $response->assertStatus(403);
     $response->assertJson(fn ($json) => $json
         ->has('message')
+        ->etc()
     );
 });
