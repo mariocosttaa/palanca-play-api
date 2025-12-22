@@ -25,7 +25,7 @@ class BusinessUserResourceSpecific extends JsonResource
             'country_id' => $this->country_id
                 ? EasyHashAction::encode($this->country_id, 'country-id')
                 : null,
-            'country' => new CountryResourceGeneral($this->whenLoaded('country')),
+            'country' => $this->country ? new CountryResourceGeneral($this->country) : null,
             'calling_code' => $this->calling_code,
             'phone' => $this->phone,
             'timezone' => $this->timezone,

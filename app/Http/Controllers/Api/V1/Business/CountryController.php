@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Business;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Shared\V1\General\CountryResourceGeneral;
 use App\Models\Country;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @tags [API-BUSINESS] Countries
@@ -13,19 +14,15 @@ class CountryController extends Controller
 {
     /**
      * Get a list of all countries
-     * 
-     * @return \Illuminate\Http\Resources\Json\ResourceCollection<int, CountryResourceGeneral>
-     * @response 200 \Illuminate\Http\Resources\Json\ResourceCollection<int, CountryResourceGeneral>
-     * @response 500 {"message": "Server error"}
      */
-    public function index()
+    public function index(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $countries = Country::all();
             return CountryResourceGeneral::collection($countries);
         } catch (\Exception $e) {
-            \Log::error('Erro ao listar países', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao listar países'], 500);
+            Log::error('Erro ao listar países', ['error' => $e->getMessage()]);
+            abort(500, 'Erro ao listar países');
         }
     }
 }
