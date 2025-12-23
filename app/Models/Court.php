@@ -189,28 +189,20 @@ class Court extends Model
         while ($currentSlotStart->copy()->addMinutes($interval)->lte($endTime)) {
             $currentSlotEnd = $currentSlotStart->copy()->addMinutes($interval);
             
+            $collisionEndTime = null;
+
             // Check against breaks
-            $isBreak = false;
             foreach ($breaks as $break) {
                 $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
                 $breakEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
                 
                 // If slot overlaps with break
                 if ($currentSlotStart->lt($breakEnd) && $currentSlotEnd->gt($breakStart)) {
-                    $isBreak = true;
-                    break;
+                    $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($breakEnd) : $breakEnd;
                 }
             }
 
-            if ($isBreak) {
-                $currentSlotStart->addMinutes($interval); // Move to next potential slot? Or just skip?
-                // Actually, if fixed slots, just skip. If floating, maybe move?
-                // Let's assume fixed slots based on start time for now.
-                continue;
-            }
-
             // Check against bookings
-            $isBooked = false;
             foreach ($bookings as $booking) {
                 $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
                 $bookingEnd = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
@@ -221,17 +213,26 @@ class Court extends Model
                 // Check overlap
                 // Slot overlaps if: SlotStart < BookingEndWithBuffer AND SlotEnd > BookingStart
                 if ($currentSlotStart->lt($bookingEndWithBuffer) && $currentSlotEnd->gt($bookingStart)) {
-                    $isBooked = true;
-                    break;
+                     $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($bookingEndWithBuffer) : $bookingEndWithBuffer;
                 }
             }
 
-            if (!$isBooked) {
-                $slots->push([
-                    'start' => $currentSlotStart->format('H:i'),
-                    'end' => $currentSlotEnd->format('H:i'),
-                ]);
+            if ($collisionEndTime) {
+                // If collision, move start time to the end of the collision
+                // Ensure we actually advance to avoid infinite loops (though collision end should be > current start)
+                if ($collisionEndTime->lte($currentSlotStart)) {
+                     $currentSlotStart->addMinutes($interval); // Fallback to avoid infinite loop
+                } else {
+                    $currentSlotStart = $collisionEndTime;
+                }
+                continue;
             }
+
+            // No collision, add slot
+            $slots->push([
+                'start' => $currentSlotStart->format('H:i'),
+                'end' => $currentSlotEnd->format('H:i'),
+            ]);
 
             $currentSlotStart->addMinutes($interval);
         }
@@ -245,9 +246,10 @@ class Court extends Model
      * @param string $date Date in Y-m-d format
      * @param string $startTime Start time in H:i format
      * @param string $endTime End time in H:i format
+     * @param string|int|null $excludeUserId Optional User ID to exclude buffer checks for sequential bookings
      * @return string|null Returns null if available, or error message string if not available
      */
-    public function checkAvailability($date, $startTime, $endTime)
+    public function checkAvailability($date, $startTime, $endTime, $excludeUserId = null)
     {
         $date = \Carbon\Carbon::parse($date);
         $dayOfWeek = $date->format('l');
@@ -307,7 +309,20 @@ class Court extends Model
         foreach ($bookings as $booking) {
             $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
             $bookingEnd = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
+            
+            // Calculate buffer end
             $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
+
+            // Special case: If it's the same user and sequential booking (starts exactly when previous ends)
+            // We ignore the buffer for the overlap check
+            if ($excludeUserId && $booking->user_id == $excludeUserId) {
+                // If the requested start time is EXACTLY the booking end time, 
+                // we treat the booking end as the effective end (ignoring buffer)
+                // This allows [13:00-14:00] then [14:00-15:00] for same user
+                if ($reqStart->eq($bookingEnd)) {
+                    $bookingEndWithBuffer = $bookingEnd;
+                }
+            }
 
             if ($reqStart->lt($bookingEndWithBuffer) && $reqEnd->gt($bookingStart)) {
                 return 'Este horário já está reservado (' 

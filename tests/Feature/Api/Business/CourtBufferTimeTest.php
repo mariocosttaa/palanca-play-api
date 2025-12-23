@@ -166,11 +166,32 @@ test('buffer time is enforced between sequential bookings', function () {
     ]);
     
     // Try to book sequential slot 11:00-12:00
-    // Even though it's the same client, buffer should still apply
-    $result = $court->checkAvailability(now()->format('Y-m-d'), '11:00', '12:00');
-    expect($result)->not->toBeNull(); // Should fail due to buffer
+    // Same client: buffer should be ignored for sequential slot
+    $result = $court->checkAvailability(now()->format('Y-m-d'), '11:00', '12:00', $client->id);
+    expect($result)->toBeNull(); // Should be available for same client
+
+    // Same client: Try to book with a gap that is INSIDE the buffer (e.g. 5 min gap)
+    // Booking 10:00-11:00. Buffer 10 mins.
+    // Try 11:05-12:05.
+    // 11:05 is NOT equal to 11:00, so buffer logic applies.
+    // 11:05 < 11:10 (buffer end) -> Overlap -> Blocked.
+    $resultGapInside = $court->checkAvailability(now()->format('Y-m-d'), '11:05', '12:05', $client->id);
+    expect($resultGapInside)->not->toBeNull();
+    expect($resultGapInside)->toContain('reservado');
+
+    // Same client: Try to book with a gap OUTSIDE the buffer
+    // Try 11:15-12:15.
+    // 11:15 > 11:10. No overlap -> Allowed.
+    $resultGapOutside = $court->checkAvailability(now()->format('Y-m-d'), '11:15', '12:15', $client->id);
+    expect($resultGapOutside)->toBeNull();
     
-    // After buffer (11:10-12:10) should work
+    // Different client: buffer should still apply for sequential
+    $otherClient = User::factory()->create();
+    $resultOther = $court->checkAvailability(now()->format('Y-m-d'), '11:00', '12:00', $otherClient->id);
+    expect($resultOther)->not->toBeNull(); // Should fail due to buffer
+    expect($resultOther)->toContain('reservado');
+
+    // After buffer (11:10-12:10) should work for anyone
     $result = $court->checkAvailability(now()->format('Y-m-d'), '11:10', '12:10');
     expect($result)->toBeNull(); // Should be available
 });
@@ -312,11 +333,11 @@ test('slot generation excludes slots overlapping with buffered bookings', functi
     // 13:00-14:00: 13:00 < 12:30 ✗ → NOT overlapping, AVAILABLE
     // 14:00-15:00: 14:00 < 12:30 ✗ → NOT overlapping, AVAILABLE
     
-    // So we should get: 10:00-11:00, 13:00-14:00, 14:00-15:00 = 3 slots
+    // So we should get: 10:00-11:00, 12:30-13:30, 13:30-14:30
     expect($slots)->toHaveCount(3);
     expect($slots->get(0)['start'])->toBe('10:00');
-    expect($slots->get(1)['start'])->toBe('13:00');
-    expect($slots->get(2)['start'])->toBe('14:00');
+    expect($slots->get(1)['start'])->toBe('12:30');
+    expect($slots->get(2)['start'])->toBe('13:30');
 });
 
 test('court ignores tenant buffer time setting', function () {

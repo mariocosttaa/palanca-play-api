@@ -107,7 +107,7 @@ class BookingController extends Controller
             }
 
             // Check availability and get specific error if not available
-            $availabilityError = $court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time']);
+            $availabilityError = $court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time'], $clientId);
             if ($availabilityError) {
                 abort(400, $availabilityError);
             }
