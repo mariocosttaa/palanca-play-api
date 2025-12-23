@@ -68,7 +68,9 @@ class BookingController extends Controller
             });
         }
 
-        $bookings = $query->latest()->paginate(20);
+        $bookings = $query->orderBy('start_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->paginate(20);
 
         return BookingResource::collection($bookings);
     }
