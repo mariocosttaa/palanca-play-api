@@ -207,18 +207,12 @@ class BookingController extends Controller
     /**
      * Update an existing booking
      * 
-     * Updates the details of an existing booking. If start_date, start_time, or end_time are being modified,
-     * the endpoint validates that the new time slot is available. The current booking is excluded from
-     * availability checks, allowing the booking to keep its current time or be rescheduled.
+     * Updates the details of an existing booking. Allows updating the court, start_date, start_time, 
+     * end_time, price, and payment status. The endpoint validates that the new time slot is available 
+     * on the specified court. The current booking is excluded from availability checks, allowing the 
+     * booking to keep its current time or be rescheduled to a different court.
      * 
      * @return \App\Http\Resources\Business\V1\Specific\BookingResource
-     * @response 200 \App\Http\Resources\Business\V1\Specific\BookingResource
-     * @response 400 {"message": "Este horário já está reservado (12:00 - 13:00)."}
-     * @response 400 {"message": "Horário solicitado está fora do horário de funcionamento da quadra (09:00 - 21:00)."}
-     * @response 400 {"message": "Quadra não possui horário de funcionamento configurado para esta data."}
-     * @response 400 {"message": "Quadra marcada como indisponível nesta data."}
-     * @response 400 {"message": "Horário conflita com uma pausa configurada (12:00 - 13:00)."}
-     * @response 404 {"message": "Agendamento não encontrado"}
      */
     public function update(UpdateBookingRequest $request, string $tenantId, string $bookingId): BookingResource
     {
@@ -248,17 +242,22 @@ class BookingController extends Controller
                 }
             }
 
-            // Check availability if dates/times are changing
-            if (isset($data['start_date']) || isset($data['start_time']) || isset($data['end_time'])) {
+            // Check availability if dates/times/court are changing
+            if (isset($data['court_id']) || isset($data['start_date']) || isset($data['start_time']) || isset($data['end_time'])) {
                 // Get current values if not provided in update
                 $startDate = $data['start_date'] ?? $booking->start_date->format('Y-m-d');
                 $startTime = $data['start_time'] ?? $booking->start_time->format('H:i');
                 $endTime = $data['end_time'] ?? $booking->end_time->format('H:i');
                 
-                // Get court (might be different if court_id is updatable, but usually it's not in this request based on validation)
-                // Assuming court_id is not changing for now as it wasn't in the validation rules shown previously, 
-                // but if it were, we'd need to handle that. The current request rules don't show court_id.
-                $court = $booking->court;
+                // Get court - use new court if provided, otherwise use current court
+                if (isset($data['court_id'])) {
+                    $court = Court::find($data['court_id']);
+                    if (!$court || $court->tenant_id !== $booking->tenant_id) {
+                        abort(400, 'Quadra inválida.');
+                    }
+                } else {
+                    $court = $booking->court;
+                }
 
                 $availabilityError = $court->checkAvailability(
                     $startDate, 
