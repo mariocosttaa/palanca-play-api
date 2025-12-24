@@ -41,4 +41,24 @@ class UpdateBookingRequest extends FormRequest
             'is_cancelled' => 'sometimes|boolean',
         ];
     }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $booking = \App\Models\Booking::find($this->booking_id);
+
+            if (!$booking) {
+                $validator->errors()->add('booking_id', 'Agendamento não encontrado.');
+                return;
+            }
+
+            // Prevent changing payment fields if already paid (reserved for automatic payments)
+            if ($booking->is_paid && ($this->has('is_paid') || $this->has('paid_at_venue'))) {
+                $validator->errors()->add('is_paid', 'Não é possível alterar o status de pagamento de um agendamento já pago.');
+            }
+        });
+    }
 }

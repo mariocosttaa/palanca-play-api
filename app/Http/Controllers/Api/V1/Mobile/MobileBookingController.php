@@ -200,7 +200,7 @@ class MobileBookingController extends Controller
             $booking = Booking::where('user_id', $user->id)
                 ->findOrFail($bookingId);
 
-            // Check if booking can be cancelled (e.g., not in the past, not already cancelled)
+            // Check if booking can be cancelled
             if ($booking->is_cancelled) {
                 return response()->json(['message' => 'Este agendamento já foi cancelado'], 400);
             }

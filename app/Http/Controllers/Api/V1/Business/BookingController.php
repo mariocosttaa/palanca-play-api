@@ -124,16 +124,21 @@ class BookingController extends Controller
                 'end_date'      => $data['start_date'], // Single day booking for now
                 'start_time'    => $data['start_time'],
                 'end_time'      => $data['end_time'],
-                'price'         => $data['price'] ?? 0, // Should calculate based on court price if not provided
+                'price'         => $data['price'] ?? 0,
                 'paid_at_venue' => $data['paid_at_venue'] ?? false,
                 'is_paid'       => $data['paid_at_venue'] ?? false,
-                'is_pending'    => false, // Created by business, so confirmed by default? Or pending?
+                'is_pending'    => false,
                 'is_cancelled'  => false,
             ];
 
-            // If paid at venue, it is paid
+            // If paid at venue, mark as paid
             if ($bookingData['paid_at_venue']) {
                 $bookingData['is_paid'] = true;
+            }
+            
+            // If marked as paid manually (not via app), ensure paid_at_venue is true
+            if (isset($data['is_paid']) && $data['is_paid'] && !$bookingData['paid_at_venue']) {
+                $bookingData['paid_at_venue'] = true;
             }
 
             $booking = Booking::create($bookingData);
