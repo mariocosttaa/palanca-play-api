@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Business\V1\Specific\CourtSlotsResource;
 use App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral;
 use App\Models\Court;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Http\JsonResponse;
 
 /**
  * @tags [API-BUSINESS] Court Availability
@@ -196,10 +197,13 @@ class CourtAvailabilityController extends Controller
      * Returns a list of dates (Y-m-d format) that have available slots for the specified month.
      * If month and year are not provided, defaults to the current month and year.
      * 
+     * When updating a booking, pass the booking_id to exclude that booking from availability checks,
+     * allowing the booking's current date to appear as available.
+     * 
      * @queryParam month integer optional Month (1-12). Defaults to current month. Example: 12
      * @queryParam year integer optional Year (YYYY). Defaults to current year. Example: 2025
+     * @queryParam booking_id string optional Booking ID to exclude from availability checks (for updates). Example: mGbnVK9ryOK1y4Y6XlQgJ
      * 
-     * @return array{data: string[]}
      */
     public function getDates(Request $request, $tenantId, $courtId): JsonResponse
     {
@@ -207,6 +211,7 @@ class CourtAvailabilityController extends Controller
             $validated = $request->validate([
                 'month' => 'nullable|integer|min:1|max:12',
                 'year' => 'nullable|integer|min:2000|max:2100',
+                'booking_id' => 'nullable|string',
             ]);
 
             // Default to current month and year if not provided
@@ -243,7 +248,12 @@ class CourtAvailabilityController extends Controller
                 return response()->json(['message' => 'Court not found.'], 404);
             }
 
-            $dates = $court->getAvailableDates($startDate, $endDate);
+            $excludeBookingId = null;
+            if (isset($validated['booking_id'])) {
+                $excludeBookingId = EasyHashAction::decode($validated['booking_id'], 'booking-id');
+            }
+
+            $dates = $court->getAvailableDates($startDate, $endDate, $excludeBookingId);
 
             return response()->json(['data' => $dates]);
 
@@ -261,35 +271,50 @@ class CourtAvailabilityController extends Controller
      * Returns a list of available time slots for a court on a given date.
      * Each slot includes a start and end time in H:i format.
      * 
-     * @urlParam date string required Date in Y-m-d format. Example: 2025-12-22
+     * When updating a booking, pass the booking_id to exclude that booking from availability checks,
+     * allowing the booking's current time slot to appear as available.
      * 
-     * @return array{data: array<int, array{start: string, end: string}>}
+     * @urlParam date string required Date in Y-m-d format. Example: 2025-12-22
+     * @queryParam booking_id string optional Booking ID to exclude from availability checks (for updates). Example: mGbnVK9ryOK1y4Y6XlQgJ
      */
-    public function getSlots(Request $request, $tenantId, $courtId, $date): JsonResponse
+    public function getSlots(Request $request, $tenantId, $courtId, $date): CourtSlotsResource
     {
         try {
-            $validator = Validator::make(['date' => $date], [
+            // Validate date from URL parameter
+            $dateValidator = Validator::make(['date' => $date], [
                 'date' => 'required|date',
             ]);
 
-            if ($validator->fails()) {
-                return response()->json(['message' => 'Invalid date format.', 'errors' => $validator->errors()->first()], 422);
+            if ($dateValidator->fails()) {
+                abort(422, 'Invalid date format.');
             }
 
+            // Validate query parameters
+            $validated = $request->validate([
+                'booking_id' => 'nullable|string',
+            ]);
+
+            // Decode and find court
             $courtId = EasyHashAction::decode($courtId, 'court-id');
             $court = Court::forTenant($request->tenant->id)->find($courtId);
 
             if (!$court) {
-                return response()->json(['message' => 'Court not found.'], 404);
+                abort(404, 'Court not found.');
             }
 
-            $slots = $court->getAvailableSlots($date);
+            // Decode booking ID if provided
+            $excludeBookingId = isset($validated['booking_id'])
+                ? EasyHashAction::decode($validated['booking_id'], 'booking-id')
+                : null;
 
-            return response()->json(['data' => $slots]);
+            // Get available slots
+            $slots = $court->getAvailableSlots($date, $excludeBookingId);
+
+            return new CourtSlotsResource($slots);
 
         } catch (\Exception $e) {
             Log::error('Failed to retrieve available slots.', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to retrieve available slots.'], 500);
+            abort(500, 'Failed to retrieve available slots.');
         }
     }
 }

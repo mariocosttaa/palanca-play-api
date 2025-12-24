@@ -202,9 +202,20 @@ class BookingController extends Controller
     /**
      * Update an existing booking
      * 
-     * Updates the details of an existing booking.
+     * Updates the details of an existing booking. If start_date, start_time, or end_time are being modified,
+     * the endpoint validates that the new time slot is available. The current booking is excluded from
+     * availability checks, allowing the booking to keep its current time or be rescheduled.
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
+     * @response 200 \App\Http\Resources\Business\V1\Specific\BookingResource
+     * @response 400 {"message": "Este horário já está reservado (12:00 - 13:00)."}
+     * @response 400 {"message": "Horário solicitado está fora do horário de funcionamento da quadra (09:00 - 21:00)."}
+     * @response 400 {"message": "Quadra não possui horário de funcionamento configurado para esta data."}
+     * @response 400 {"message": "Quadra marcada como indisponível nesta data."}
+     * @response 400 {"message": "Horário conflita com uma pausa configurada (12:00 - 13:00)."}
+     * @response 404 {"message": "Agendamento não encontrado"}
      */
-    public function update(UpdateBookingRequest $request, $tenantId, $bookingId): BookingResource
+    public function update(UpdateBookingRequest $request, string $tenantId, string $bookingId): BookingResource
     {
         try {
             // Use the decoded ID from the request (prepared in UpdateBookingRequest)
@@ -214,6 +225,8 @@ class BookingController extends Controller
             if (! $decodedBookingId) {
                 $decodedBookingId = EasyHashAction::decode($bookingId, 'booking-id');
             }
+
+
 
             $booking = Booking::forTenant($request->tenant->id)->find($decodedBookingId);
 
@@ -230,11 +243,40 @@ class BookingController extends Controller
                 }
             }
 
+            // Check availability if dates/times are changing
+            if (isset($data['start_date']) || isset($data['start_time']) || isset($data['end_time'])) {
+                // Get current values if not provided in update
+                $startDate = $data['start_date'] ?? $booking->start_date->format('Y-m-d');
+                $startTime = $data['start_time'] ?? $booking->start_time->format('H:i');
+                $endTime = $data['end_time'] ?? $booking->end_time->format('H:i');
+                
+                // Get court (might be different if court_id is updatable, but usually it's not in this request based on validation)
+                // Assuming court_id is not changing for now as it wasn't in the validation rules shown previously, 
+                // but if it were, we'd need to handle that. The current request rules don't show court_id.
+                $court = $booking->court;
+
+                $availabilityError = $court->checkAvailability(
+                    $startDate, 
+                    $startTime, 
+                    $endTime, 
+                    $booking->user_id, // Exclude user buffer check if applicable
+                    $booking->id       // Exclude this booking from collision check
+                );
+
+                if ($availabilityError) {
+                    abort(400, $availabilityError);
+                }
+            }
+
             $booking->update($data);
 
             return new BookingResource($booking);
 
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            // Let HTTP exceptions (abort calls) bubble up with their specific messages
+            throw $e;
         } catch (\Exception $e) {
+            // Only catch unexpected exceptions
             Log::error('Erro ao atualizar agendamento', ['error' => $e->getMessage()]);
             abort(400, 'Erro ao atualizar agendamento');
         }

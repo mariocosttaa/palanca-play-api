@@ -119,13 +119,13 @@ class Court extends Model
         return collect();
     }
     // Availability Logic
-    public function getAvailableDates($startDate, $endDate)
+    public function getAvailableDates($startDate, $endDate, $excludeBookingId = null)
     {
         $dates = [];
         $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
 
         foreach ($period as $date) {
-            if ($this->getAvailableSlots($date->format('Y-m-d'))->isNotEmpty()) {
+            if ($this->getAvailableSlots($date->format('Y-m-d'), $excludeBookingId)->isNotEmpty()) {
                 $dates[] = $date->format('Y-m-d');
             }
         }
@@ -133,7 +133,7 @@ class Court extends Model
         return $dates;
     }
 
-    public function getAvailableSlots($date)
+    public function getAvailableSlots($date, $excludeBookingId = null)
     {
         $date = \Carbon\Carbon::parse($date);
         $dayOfWeek = $date->format('l');
@@ -171,12 +171,17 @@ class Court extends Model
         $breaks = $availability->breaks ?? [];
 
         // 2. Get Existing Bookings
-        $bookings = $this->bookings()
+        $bookingsQuery = $this->bookings()
             ->whereDate('start_date', $date->format('Y-m-d'))
             ->where(function ($query) {
                 $query->where('is_cancelled', false);
-            })
-            ->get();
+            });
+
+        if ($excludeBookingId) {
+            $bookingsQuery->where('id', '!=', $excludeBookingId);
+        }
+
+        $bookings = $bookingsQuery->get();
 
         // 3. Generate Slots
         // Use court type's interval and buffer time settings
@@ -247,9 +252,10 @@ class Court extends Model
      * @param string $startTime Start time in H:i format
      * @param string $endTime End time in H:i format
      * @param string|int|null $excludeUserId Optional User ID to exclude buffer checks for sequential bookings
+     * @param string|int|null $excludeBookingId Optional Booking ID to exclude from availability checks (for updates)
      * @return string|null Returns null if available, or error message string if not available
      */
-    public function checkAvailability($date, $startTime, $endTime, $excludeUserId = null)
+    public function checkAvailability($date, $startTime, $endTime, $excludeUserId = null, $excludeBookingId = null)
     {
         $date = \Carbon\Carbon::parse($date);
         $dayOfWeek = $date->format('l');
@@ -298,10 +304,15 @@ class Court extends Model
         }
 
         // 5. Check if time conflicts with existing bookings
-        $bookings = $this->bookings()
+        $bookingsQuery = $this->bookings()
             ->whereDate('start_date', $date->format('Y-m-d'))
-            ->where('is_cancelled', false)
-            ->get();
+            ->where('is_cancelled', false);
+
+        if ($excludeBookingId) {
+            $bookingsQuery->where('id', '!=', $excludeBookingId);
+        }
+
+        $bookings = $bookingsQuery->get();
 
         // Use court type's buffer time setting
         $buffer = $this->courtType->buffer_time_minutes ?? 0;
