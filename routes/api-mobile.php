@@ -64,15 +64,20 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-        // Notifications (NO verification required)
-        Route::prefix('notifications')->group(function () {
-            Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'recent']);
-            Route::get('/', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'index']);
-            Route::patch('/{notification_id}/read', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'markAsRead']);
+        // User Profile routes (NO email verification required for basic profile settings)
+        Route::prefix('profile')->group(function () {
+            Route::patch('/language', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateLanguage']);
+            Route::put('/', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateProfile']);
         });
 
         // Routes requiring Email Verification - ONLY booking operations
         Route::middleware('verified.api')->group(function () {
+            // Notifications (requires email verification)
+            Route::prefix('notifications')->group(function () {
+                Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'recent']);
+                Route::get('/', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'index']);
+                Route::patch('/{notification_id}/read', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'markAsRead']);
+            });
             // Bookings (user-specific, not tenant-scoped in URL)
             Route::prefix('bookings')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'index']);

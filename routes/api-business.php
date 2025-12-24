@@ -49,17 +49,17 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-        // Business User Profile routes (no tenant required, NO email verification required)
-        Route::prefix('profile')->group(function () {
-            Route::patch('/language', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateLanguage']);
-            Route::put('/', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateProfile']);
-        });
-
         // Notifications (user-specific, not tenant-scoped, NO email verification required)
         Route::prefix('notifications')->group(function () {
             Route::get('/recent', [NotificationController::class, 'recent']);
             Route::get('/', [NotificationController::class, 'index']);
             Route::patch('/{notification_id}/read', [NotificationController::class, 'markAsRead']);
+        });
+
+        // Business User Profile routes (NO email verification required for basic profile settings)
+        Route::prefix('profile')->group(function () {
+            Route::patch('/language', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateLanguage']);
+            Route::put('/', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateProfile']);
         });
 
         // Routes requiring Email Verification - ONLY business operations
