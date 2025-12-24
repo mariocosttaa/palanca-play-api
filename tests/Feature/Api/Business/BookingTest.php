@@ -13,8 +13,9 @@ use Laravel\Sanctum\Sanctum;
 uses(RefreshDatabase::class);
 
 test('business user can create booking with new client no email', function () {
-    // Create currency
+    // Create currency and country
     $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    \App\Models\Country::factory()->create(['calling_code' => '+351']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
@@ -38,15 +39,23 @@ test('business user can create booking with new client no email', function () {
 
     Sanctum::actingAs($user, [], 'business');
 
+    // Step 1: Create the client first using the client endpoint
+    $clientResponse = $this->postJson(route('clients.store', ['tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id')]), [
+        'name' => 'New Client',
+        'calling_code' => '+351',
+        'phone' => '123456789',
+    ]);
+    
+    $clientResponse->assertStatus(201);
+    $clientId = $clientResponse->json('data.id');
+
+    // Step 2: Create the booking with the created client
     $response = $this->postJson(route('bookings.store', ['tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id')]), [
         'court_id' => $courtHashId,
         'start_date' => now()->addDay()->format('Y-m-d'),
         'start_time' => '10:00',
         'end_time' => '11:00',
-        'client' => [
-            'name' => 'New Client',
-            'phone' => '123456789',
-        ],
+        'client_id' => $clientId,
         'paid_at_venue' => true,
     ]);
 

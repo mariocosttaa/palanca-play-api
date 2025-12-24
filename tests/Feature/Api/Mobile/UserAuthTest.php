@@ -220,6 +220,44 @@ test('verified user can access protected routes', function () {
     $response->assertStatus(200);
 });
 
+test('unverified user can update profile', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create(['email_verified_at' => null, 'name' => 'Original Name']);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Profile updates don't require email verification
+    $response = $this->putJson('/api/v1/profile', [
+        'name' => 'Updated Name',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('data.user.name', 'Updated Name');
+    
+    $user->refresh();
+    expect($user->name)->toBe('Updated Name');
+});
+
+test('unverified user can update language preference', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create(['email_verified_at' => null, 'locale' => 'en']);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Language updates don't require email verification
+    $response = $this->patchJson('/api/v1/profile/language', [
+        'locale' => 'pt',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('data.locale', 'pt');
+    
+    $user->refresh();
+    expect($user->locale->value)->toBe('pt');
+});
+
 test('user can login with google', function () {
     /** @var TestCase $this */
     $abstractUser = Mockery::mock('Laravel\Socialite\Two\User');

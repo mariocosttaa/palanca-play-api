@@ -144,6 +144,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
     $courtType = CourtType::factory()->create([
         'tenant_id' => $tenant->id,
         'price_per_interval' => 5000,
+        'interval_time_minutes' => 60,
     ]);
     $court = Court::factory()->create([
         'tenant_id' => $tenant->id,
@@ -154,7 +155,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
     \App\Models\CourtAvailability::create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
-        'day_of_week_recurring' => strtolower(now()->addDays(1)->format('l')),
+        'specific_date' => now()->addDays(1)->format('Y-m-d'),
         'start_time' => '08:00:00',
         'end_time' => '22:00:00',
         'is_available' => true,
@@ -187,6 +188,7 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
     $courtType = CourtType::factory()->create([
         'tenant_id' => $tenant->id,
         'price_per_interval' => 5000,
+        'interval_time_minutes' => 60,
     ]);
     $court = Court::factory()->create([
         'tenant_id' => $tenant->id,
@@ -197,7 +199,7 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
     \App\Models\CourtAvailability::create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
-        'day_of_week_recurring' => strtolower(now()->addDays(1)->format('l')),
+        'specific_date' => now()->addDays(1)->format('Y-m-d'),
         'start_time' => '08:00:00',
         'end_time' => '22:00:00',
         'is_available' => true,

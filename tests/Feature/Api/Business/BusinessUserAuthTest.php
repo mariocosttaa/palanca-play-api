@@ -278,13 +278,13 @@ test('authenticated business user can logout', function () {
 
 
 
-test('unverified business user cannot access protected routes', function () {
+test('unverified business user cannot access tenant routes', function () {
     /** @var TestCase $this */
     $user = BusinessUser::factory()->create(['email_verified_at' => null]);
     $token = $user->createToken('test')->plainTextToken;
 
-    // Try to access profile (protected by verified.api)
-    $response = $this->putJson('/api/business/v1/profile', [], [
+    // Try to access tenant list (protected by verified.api)
+    $response = $this->getJson('/api/business/v1/tenants', [
         'Authorization' => "Bearer {$token}",
     ]);
 
@@ -292,20 +292,56 @@ test('unverified business user cannot access protected routes', function () {
         ->assertJsonFragment(['message' => 'Your email address is not verified.']);
 });
 
-test('verified business user can access protected routes', function () {
+test('verified business user can access tenant routes', function () {
     /** @var TestCase $this */
     $user = BusinessUser::factory()->create(['email_verified_at' => now()]);
     $token = $user->createToken('test')->plainTextToken;
 
-    // Try to access profile
+    // Try to access tenant list
+    $response = $this->getJson('/api/business/v1/tenants', [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    // Should be 200 OK
+    $response->assertStatus(200);
+});
+
+test('unverified business user can update profile', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['email_verified_at' => null, 'name' => 'Original Name']);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Profile updates don't require email verification
     $response = $this->putJson('/api/business/v1/profile', [
         'name' => 'Updated Name',
     ], [
         'Authorization' => "Bearer {$token}",
     ]);
 
-    // Should be 200 OK
-    $response->assertStatus(200);
+    $response->assertStatus(200)
+        ->assertJsonPath('data.user.name', 'Updated Name');
+    
+    $user->refresh();
+    expect($user->name)->toBe('Updated Name');
+});
+
+test('unverified business user can update language preference', function () {
+    /** @var TestCase $this */
+    $user = BusinessUser::factory()->create(['email_verified_at' => null, 'locale' => 'en']);
+    $token = $user->createToken('test')->plainTextToken;
+
+    // Language updates don't require email verification
+    $response = $this->patchJson('/api/business/v1/profile/language', [
+        'locale' => 'pt',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('data.locale', 'pt');
+    
+    $user->refresh();
+    expect($user->locale->value)->toBe('pt');
 });
 
 test('business user can login with google', function () {
