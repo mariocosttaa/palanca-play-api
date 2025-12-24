@@ -58,11 +58,6 @@ test('reproduce slot generation with buffer', function () {
     
     $slots = $court->getAvailableSlots(now()->format('Y-m-d'));
     
-    echo "\nGenerated Slots:\n";
-    foreach ($slots as $slot) {
-        echo $slot['start'] . " - " . $slot['end'] . "\n";
-    }
-    
     // New expectation (Dynamic slots)
     // 09:00-10:00 Booked. Buffer 10m -> 10:10.
     // Next slot should start at 10:10.
