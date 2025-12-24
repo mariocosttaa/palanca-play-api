@@ -18,14 +18,14 @@ class BusinessUserProfileController extends Controller
      * 
      * Updates the preferred language for the authenticated business user.
      * 
-     * @return array{data: array{language: string, message: string}}
+     * @return array{data: array{locale: string, message: string}}
      * @response 422 {"message": "Dados inválidos", "errors": []}
      */
     public function updateLanguage(Request $request): JsonResponse
     {
         try {
             $validator = Validator::make($request->all(), [
-                'language' => 'required|in:en,pt,es,fr',
+                'locale' => 'required|in:en,pt,es,fr',
             ]);
 
             if ($validator->fails()) {
@@ -34,11 +34,11 @@ class BusinessUserProfileController extends Controller
 
             $businessUser = $request->user('business');
             $businessUser->update([
-                'language' => $request->language,
+                'locale' => $request->locale,
             ]);
 
             return response()->json(['data' => [
-                'language' => $businessUser->language,
+                'locale' => $businessUser->locale,
                 'message' => 'Idioma atualizado com sucesso',
             ]]);
 
@@ -64,7 +64,7 @@ class BusinessUserProfileController extends Controller
                 'surname' => 'sometimes|string|max:255',
                 'phone' => 'sometimes|string|max:20',
                 'timezone' => 'sometimes|string|max:50',
-                'language' => 'sometimes|in:en,pt,es,fr',
+                'locale' => 'sometimes|in:en,pt,es,fr',
             ]);
 
             if ($validator->fails()) {
@@ -72,7 +72,7 @@ class BusinessUserProfileController extends Controller
             }
 
             $businessUser = $request->user('business');
-            $businessUser->update($request->only(['name', 'surname', 'phone', 'timezone', 'language']));
+            $businessUser->update($request->only(['name', 'surname', 'phone', 'timezone', 'locale']));
 
             return response()->json(['data' => [
                 'user' => $businessUser,
