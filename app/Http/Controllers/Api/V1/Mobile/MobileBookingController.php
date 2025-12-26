@@ -11,7 +11,14 @@ use App\Models\Court;
 use App\Services\NotificationService;
 use App\Services\EmailService;
 use Illuminate\Http\Request;
+use App\Models\Manager\CurrencyModel;
+use App\Models\UserTenant;
+use App\Actions\General\QrCodeAction;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
+use App\Enums\PaymentMethodEnum;
 
 /**
  * @tags [API-MOBILE] Bookings
@@ -42,14 +49,14 @@ class MobileBookingController extends Controller
                 switch ($request->status) {
                     case 'upcoming':
                         $query->where('start_date', '>=', now()->format('Y-m-d'))
-                            ->where('is_cancelled', false);
+                            ->where('status', '!=', BookingStatusEnum::CANCELLED);
                         break;
                     case 'past':
                         $query->where('start_date', '<', now()->format('Y-m-d'))
-                            ->where('is_cancelled', false);
+                            ->where('status', '!=', BookingStatusEnum::CANCELLED);
                         break;
                     case 'cancelled':
-                        $query->where('is_cancelled', true);
+                        $query->where('status', BookingStatusEnum::CANCELLED);
                         break;
                 }
             }
@@ -97,22 +104,21 @@ class MobileBookingController extends Controller
                 'tenant_id' => $court->tenant_id,
                 'court_id' => $court->id,
                 'user_id' => $user->id,
-                'currency_id' => \App\Models\Manager\CurrencyModel::where('code', $court->tenant->currency)->first()->id ?? 1,
+                'currency_id' => CurrencyModel::where('code', $court->tenant->currency)->first()->id ?? 1,
                 'start_date' => $data['start_date'],
                 'end_date' => $data['start_date'], // Single day booking
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'price' => $totalPrice,
-                'paid_at_venue' => false,
-                'is_paid' => false,
-                'is_pending' => $isPending, // Based on tenant configuration
-                'is_cancelled' => false,
+                'payment_method' => PaymentMethodEnum::FROM_APP, // Mobile bookings default to from_app or similar, but user said 'from_app' in Enum.
+                'payment_status' => PaymentStatusEnum::PENDING,
+                'status' => $isPending ? BookingStatusEnum::PENDING : BookingStatusEnum::CONFIRMED,
             ];
 
             $booking = Booking::create($bookingData);
 
         // Link user to tenant if not already linked
-        \App\Models\UserTenant::firstOrCreate([
+        UserTenant::firstOrCreate([
             'user_id' => $user->id,
             'tenant_id' => $court->tenant_id,
         ]);
@@ -120,7 +126,7 @@ class MobileBookingController extends Controller
             // Generate QR code with hashed booking ID
             try {
                 $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
-                $qrCodeInfo = \App\Actions\General\QrCodeAction::create(
+                $qrCodeInfo = QrCodeAction::create(
                     $court->tenant_id,
                     $booking->id,
                     $bookingIdHashed
@@ -130,7 +136,7 @@ class MobileBookingController extends Controller
                 $booking->update(['qr_code' => $qrCodeInfo->url]);
             } catch (\Exception $qrException) {
                 // Log QR generation error but don't fail the booking
-                \Log::error('Failed to generate QR code for booking', [
+                Log::error('Failed to generate QR code for booking', [
                     'booking_id' => $booking->id,
                     'error' => $qrException->getMessage()
                 ]);
@@ -140,7 +146,7 @@ class MobileBookingController extends Controller
             try {
                 $this->notificationService->createBookingNotification($booking, 'created');
             } catch (\Exception $notifException) {
-                \Log::error('Failed to create notification for booking', [
+                Log::error('Failed to create notification for booking', [
                     'booking_id' => $booking->id,
                     'error' => $notifException->getMessage()
                 ]);
@@ -150,7 +156,7 @@ class MobileBookingController extends Controller
             try {
                 $this->emailService->sendBookingEmail($user, $booking, 'created');
             } catch (\Exception $emailException) {
-                \Log::error('Failed to send booking email', [
+                Log::error('Failed to send booking email', [
                     'booking_id' => $booking->id,
                     'error' => $emailException->getMessage()
                 ]);
@@ -162,7 +168,7 @@ class MobileBookingController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Erro ao criar agendamento', ['error' => $e->getMessage()]);
+            Log::error('Erro ao criar agendamento', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao criar agendamento'], 500);
         }
     }
@@ -183,7 +189,7 @@ class MobileBookingController extends Controller
             return BookingResource::make($booking);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar agendamento', ['error' => $e->getMessage()]);
+            Log::error('Erro ao buscar agendamento', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar agendamento'], 500);
         }
     }
@@ -201,7 +207,7 @@ class MobileBookingController extends Controller
                 ->findOrFail($bookingId);
 
             // Check if booking can be cancelled
-            if ($booking->is_cancelled) {
+            if ($booking->status === BookingStatusEnum::CANCELLED) {
                 return response()->json(['message' => 'Este agendamento já foi cancelado'], 400);
             }
 
@@ -210,14 +216,14 @@ class MobileBookingController extends Controller
             }
 
             // Mark as cancelled instead of deleting
-            $booking->update(['is_cancelled' => true]);
+            $booking->update(['status' => BookingStatusEnum::CANCELLED]);
 
             // Delete QR code if exists
             if ($booking->qr_code) {
                 try {
-                    \App\Actions\General\QrCodeAction::delete($booking->tenant_id, $booking->qr_code);
+                    QrCodeAction::delete($booking->tenant_id, $booking->qr_code);
                 } catch (\Exception $qrException) {
-                    \Log::error('Failed to delete QR code for cancelled booking', [
+                    Log::error('Failed to delete QR code for cancelled booking', [
                         'booking_id' => $booking->id,
                         'error' => $qrException->getMessage()
                     ]);
@@ -228,7 +234,7 @@ class MobileBookingController extends Controller
             try {
                 $this->notificationService->createBookingNotification($booking, 'cancelled');
             } catch (\Exception $notifException) {
-                \Log::error('Failed to create notification for cancelled booking', [
+                Log::error('Failed to create notification for cancelled booking', [
                     'booking_id' => $booking->id,
                     'error' => $notifException->getMessage()
                 ]);
@@ -238,7 +244,7 @@ class MobileBookingController extends Controller
             try {
                 $this->emailService->sendBookingEmail($user, $booking, 'cancelled');
             } catch (\Exception $emailException) {
-                \Log::error('Failed to send cancellation email', [
+                Log::error('Failed to send cancellation email', [
                     'booking_id' => $booking->id,
                     'error' => $emailException->getMessage()
                 ]);
@@ -247,7 +253,7 @@ class MobileBookingController extends Controller
             return response()->json(['message' => 'Agendamento cancelado com sucesso']);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao cancelar agendamento', ['error' => $e->getMessage()]);
+            Log::error('Erro ao cancelar agendamento', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao cancelar agendamento'], 500);
         }
     }
@@ -265,21 +271,20 @@ class MobileBookingController extends Controller
             
             $upcomingBookings = Booking::where('user_id', $user->id)
                 ->where('start_date', '>=', now()->format('Y-m-d'))
-                ->where('is_cancelled', false)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->count();
             
             $pastBookings = Booking::where('user_id', $user->id)
                 ->where('start_date', '<', now()->format('Y-m-d'))
-                ->where('is_cancelled', false)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->count();
             
             $cancelledBookings = Booking::where('user_id', $user->id)
-                ->where('is_cancelled', true)
+                ->where('status', BookingStatusEnum::CANCELLED)
                 ->count();
             
             $pendingBookings = Booking::where('user_id', $user->id)
-                ->where('is_pending', true)
-                ->where('is_cancelled', false)
+                ->where('status', BookingStatusEnum::PENDING)
                 ->count();
 
             return response()->json([
@@ -293,7 +298,7 @@ class MobileBookingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar estatísticas', ['error' => $e->getMessage()]);
+            Log::error('Erro ao buscar estatísticas', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar estatísticas'], 500);
         }
     }
@@ -316,7 +321,7 @@ class MobileBookingController extends Controller
             return BookingResource::collection($bookings);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar agendamentos recentes', ['error' => $e->getMessage()]);
+            Log::error('Erro ao buscar agendamentos recentes', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar agendamentos recentes'], 500);
         }
     }
@@ -331,7 +336,7 @@ class MobileBookingController extends Controller
             
             $nextBooking = Booking::where('user_id', $user->id)
                 ->where('start_date', '>=', now()->format('Y-m-d'))
-                ->where('is_cancelled', false)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->with(['court.courtType', 'court.primaryImage', 'court.tenant', 'currency'])
                 ->orderBy('start_date')
                 ->orderBy('start_time')
@@ -340,7 +345,7 @@ class MobileBookingController extends Controller
             return $nextBooking ? BookingResource::make($nextBooking) : response()->json(['data' => null]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar próximo agendamento', ['error' => $e->getMessage()]);
+            Log::error('Erro ao buscar próximo agendamento', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar próximo agendamento'], 500);
         }
     }
