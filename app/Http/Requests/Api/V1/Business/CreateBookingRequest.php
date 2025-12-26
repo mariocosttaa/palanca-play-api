@@ -3,7 +3,11 @@
 namespace App\Http\Requests\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Enums\PaymentStatusEnum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CreateBookingRequest extends FormRequest
 {
@@ -44,7 +48,13 @@ class CreateBookingRequest extends FormRequest
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'price' => 'nullable|integer|min:0',
-            'paid_at_venue' => 'boolean',
+            'status' => ['nullable', Rule::enum(BookingStatusEnum::class)],
+            'payment_status' => ['nullable', Rule::enum(PaymentStatusEnum::class)],
+            'payment_method' => [
+                'nullable',
+                Rule::enum(PaymentMethodEnum::class),
+                Rule::requiredIf(fn () => $this->payment_status === PaymentStatusEnum::PAID->value)
+            ],
         ];
     }
 

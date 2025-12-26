@@ -17,6 +17,9 @@ use App\Models\UserTenant;
 use App\Actions\General\QrCodeAction;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
+use App\Enums\PaymentMethodEnum;
 
 /**
  * @tags [API-BUSINESS] Bookings
@@ -125,21 +128,10 @@ class BookingController extends Controller
                 'start_time'    => $data['start_time'],
                 'end_time'      => $data['end_time'],
                 'price'         => $data['price'] ?? 0,
-                'paid_at_venue' => $data['paid_at_venue'] ?? false,
-                'is_paid'       => $data['paid_at_venue'] ?? false,
-                'is_pending'    => false,
-                'is_cancelled'  => false,
+                'status'        => $data['status'] ?? BookingStatusEnum::CONFIRMED,
+                'payment_status'=> $data['payment_status'] ?? PaymentStatusEnum::PENDING,
+                'payment_method'=> $data['payment_method'] ?? null,
             ];
-
-            // If paid at venue, mark as paid
-            if ($bookingData['paid_at_venue']) {
-                $bookingData['is_paid'] = true;
-            }
-            
-            // If marked as paid manually (not via app), ensure paid_at_venue is true
-            if (isset($data['is_paid']) && $data['is_paid'] && !$bookingData['paid_at_venue']) {
-                $bookingData['paid_at_venue'] = true;
-            }
 
             $booking = Booking::create($bookingData);
 
@@ -169,6 +161,8 @@ class BookingController extends Controller
             }
 
             $this->commitSafe();
+
+            $booking->load('court');
 
             return new BookingResource($booking);
 
@@ -235,19 +229,12 @@ class BookingController extends Controller
 
             $data = $request->validated();
 
-            // Handle paid_at_venue logic
-            if (isset($data['paid_at_venue'])) {
-                if ($data['paid_at_venue']) {
-                    $data['is_paid'] = true;
-                }
-            }
-
             // Check availability if dates/times/court are changing
             if (isset($data['court_id']) || isset($data['start_date']) || isset($data['start_time']) || isset($data['end_time'])) {
                 // Get current values if not provided in update
-                $startDate = $data['start_date'] ?? $booking->start_date->format('Y-m-d');
-                $startTime = $data['start_time'] ?? $booking->start_time->format('H:i');
-                $endTime = $data['end_time'] ?? $booking->end_time->format('H:i');
+                $startDate = $data['start_date'] ?? \Carbon\Carbon::parse($booking->start_date)->format('Y-m-d');
+                $startTime = $data['start_time'] ?? \Carbon\Carbon::parse($booking->start_time)->format('H:i');
+                $endTime = $data['end_time'] ?? \Carbon\Carbon::parse($booking->end_time)->format('H:i');
                 
                 // Get court - use new court if provided, otherwise use current court
                 if (isset($data['court_id'])) {
@@ -273,6 +260,8 @@ class BookingController extends Controller
             }
 
             $booking->update($data);
+
+            $booking->load('court');
 
             return new BookingResource($booking);
 
