@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+use App\Enums\BookingStatusEnum;
 
 test('reproduce slot generation with buffer', function () {
     $tenant = Tenant::factory()->create([
@@ -46,7 +47,7 @@ test('reproduce slot generation with buffer', function () {
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '09:00:00',
         'end_time' => '10:00:00',
-        'is_cancelled' => false,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // Buffer ends at 10:10.

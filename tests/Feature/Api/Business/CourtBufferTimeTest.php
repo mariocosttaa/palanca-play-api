@@ -10,6 +10,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
 
 uses(RefreshDatabase::class);
 
@@ -102,8 +104,9 @@ test('court uses court type buffer time between bookings', function () {
         'start_time' => '10:00:00',
         'end_time' => '11:00:00',
         'price' => 1000,
-        'is_paid' => true,
-        'is_cancelled' => false,
+        'price' => 1000,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     // Check availability at 11:00-12:00 (immediately after booking)
@@ -161,8 +164,9 @@ test('buffer time is enforced between sequential bookings', function () {
         'start_time' => '10:00:00',
         'end_time' => '11:00:00',
         'price' => 1000,
-        'is_paid' => true,
-        'is_cancelled' => false,
+        'price' => 1000,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     // Try to book sequential slot 11:00-12:00
@@ -256,8 +260,8 @@ test('different court types have independent buffer times', function () {
             'start_time' => '10:00:00',
             'end_time' => '11:00:00',
             'price' => 1000,
-            'is_paid' => true,
-            'is_cancelled' => false,
+            'payment_status' => PaymentStatusEnum::PAID,
+            'status' => BookingStatusEnum::CONFIRMED,
         ]);
     }
     
@@ -317,8 +321,9 @@ test('slot generation excludes slots overlapping with buffered bookings', functi
         'start_time' => '11:00:00',
         'end_time' => '12:00:00',
         'price' => 1000,
-        'is_paid' => true,
-        'is_cancelled' => false,
+        'price' => 1000,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     $slots = $court->getAvailableSlots(now()->format('Y-m-d'));
@@ -385,8 +390,9 @@ test('court ignores tenant buffer time setting', function () {
         'start_time' => '10:00:00',
         'end_time' => '11:00:00',
         'price' => 1000,
-        'is_paid' => true,
-        'is_cancelled' => false,
+        'price' => 1000,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     // If tenant buffer (30m) was used, 11:00-12:00 would be blocked
