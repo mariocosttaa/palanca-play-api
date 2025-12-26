@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Enums\BookingStatusEnum;
 
 uses(RefreshDatabase::class);
 
@@ -56,6 +57,7 @@ test('get slots includes current booking slot when booking_id is provided', func
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '10:00',
         'end_time' => '11:00',
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $bookingHash = EasyHashAction::encode($booking->id, 'booking-id');
@@ -132,6 +134,7 @@ test('get dates includes fully booked date when booking_id is provided', functio
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '10:00',
         'end_time' => '11:00',
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $bookingHash = EasyHashAction::encode($booking->id, 'booking-id');
@@ -202,6 +205,7 @@ test('update booking allows keeping same time', function () {
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '10:00',
         'end_time' => '11:00',
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $bookingHash = EasyHashAction::encode($booking->id, 'booking-id');
@@ -258,6 +262,7 @@ test('update booking fails if moving to occupied slot', function () {
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '10:00',
         'end_time' => '11:00',
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // Booking 2: 12:00 - 13:00 (Occupied slot)
@@ -269,6 +274,7 @@ test('update booking fails if moving to occupied slot', function () {
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '12:00',
         'end_time' => '13:00',
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $booking1Hash = EasyHashAction::encode($booking1->id, 'booking-id');
@@ -325,6 +331,7 @@ test('update booking succeeds if moving to available slot', function () {
         'end_date' => now()->format('Y-m-d'),
         'start_time' => '10:00',
         'end_time' => '11:00',
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $bookingHash = EasyHashAction::encode($booking->id, 'booking-id');

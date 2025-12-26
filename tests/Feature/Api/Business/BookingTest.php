@@ -9,13 +9,18 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use App\Models\Manager\CurrencyModel;
+use App\Models\Country;
+use App\Models\CourtAvailability;
+use App\Enums\PaymentMethodEnum;
+use App\Enums\PaymentStatusEnum;
 
 uses(RefreshDatabase::class);
 
 test('business user can create booking with new client no email', function () {
     // Create currency and country
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
-    \App\Models\Country::factory()->create(['calling_code' => '+351']);
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    Country::factory()->create(['calling_code' => '+351']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
@@ -26,7 +31,7 @@ test('business user can create booking with new client no email', function () {
     $court = Court::factory()->create(['tenant_id' => $tenant->id]);
     
     // Add availability
-    \App\Models\CourtAvailability::factory()->create([
+    CourtAvailability::factory()->create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
         'specific_date' => now()->addDay()->format('Y-m-d'),
@@ -56,7 +61,8 @@ test('business user can create booking with new client no email', function () {
         'start_time' => '10:00',
         'end_time' => '11:00',
         'client_id' => $clientId,
-        'paid_at_venue' => true,
+        'payment_method' => PaymentMethodEnum::CASH->value,
+        'payment_status' => PaymentStatusEnum::PAID->value,
     ]);
 
     $response->assertStatus(201);
@@ -70,13 +76,13 @@ test('business user can create booking with new client no email', function () {
     // Verify booking created
     $this->assertDatabaseHas('bookings', [
         'tenant_id' => $tenant->id,
-        'paid_at_venue' => true,
-        'is_paid' => true,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
     ]);
 });
 
 test('business user can create booking with existing client', function () {
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
@@ -86,7 +92,7 @@ test('business user can create booking with existing client', function () {
     $court = Court::factory()->create(['tenant_id' => $tenant->id]);
     
     // Add availability
-    \App\Models\CourtAvailability::factory()->create([
+    CourtAvailability::factory()->create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
         'specific_date' => now()->addDay()->format('Y-m-d'),
@@ -114,7 +120,7 @@ test('business user can create booking with existing client', function () {
 });
 
 test('business user can update booking paid at venue', function () {
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
@@ -128,8 +134,8 @@ test('business user can update booking paid at venue', function () {
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
         'user_id' => $client->id,
-        'paid_at_venue' => false,
-        'is_paid' => false,
+        'payment_method' => null,
+        'payment_status' => PaymentStatusEnum::PENDING,
     ]);
 
     Sanctum::actingAs($user, [], 'business');
@@ -138,19 +144,20 @@ test('business user can update booking paid at venue', function () {
         'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
         'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
     ]), [
-        'paid_at_venue' => true,
+        'payment_method' => \App\Enums\PaymentMethodEnum::CASH->value,
+        'payment_status' => \App\Enums\PaymentStatusEnum::PAID->value,
     ]);
 
     $response->assertStatus(200);
     $this->assertDatabaseHas('bookings', [
         'id' => $booking->id,
-        'paid_at_venue' => true,
-        'is_paid' => true,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
     ]);
 });
 
 test('business user can confirm booking presence', function () {
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
@@ -198,7 +205,7 @@ test('business user can confirm booking presence', function () {
 });
 
 test('can search bookings by client name', function () {
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
@@ -236,7 +243,7 @@ test('can search bookings by client name', function () {
 });
 
 test('can search bookings by court name', function () {
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'eur']);
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
