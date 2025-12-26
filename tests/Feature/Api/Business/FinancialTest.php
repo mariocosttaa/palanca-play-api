@@ -11,6 +11,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
 
 beforeEach(function () {
     // Create currency
@@ -55,7 +57,8 @@ test('can get current month financial report', function () {
         'currency_id' => $this->currency->id,
         'start_date' => now()->startOfMonth()->addDays(5),
         'price' => 5000, // €50.00
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $response = $this->getJson(route('financials.current', ['tenant_id' => $this->tenantHashId]));
@@ -183,9 +186,8 @@ test('monthly stats calculates all statistics correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(1),
         'price' => 5000, // €50.00
-        'is_paid' => true,
-        'is_pending' => false,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // 2. Pending booking
@@ -196,9 +198,8 @@ test('monthly stats calculates all statistics correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(2),
         'price' => 3000, // €30.00
-        'is_paid' => false,
-        'is_pending' => true,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::PENDING,
     ]);
 
     // 3. Cancelled booking
@@ -209,9 +210,8 @@ test('monthly stats calculates all statistics correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(3),
         'price' => 4000, // €40.00
-        'is_paid' => false,
-        'is_pending' => false,
-        'is_cancelled' => true,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::CANCELLED,
     ]);
 
     // 4. Unpaid booking (not pending, not cancelled, not paid)
@@ -222,9 +222,8 @@ test('monthly stats calculates all statistics correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(4),
         'price' => 2000, // €20.00
-        'is_paid' => false,
-        'is_pending' => false,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // 5. No-show booking (present = false)
@@ -235,7 +234,8 @@ test('monthly stats calculates all statistics correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(5),
         'price' => 6000, // €60.00
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
         'present' => false,
     ]);
 
@@ -305,7 +305,8 @@ test('yearly stats aggregates all months correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => "$year-01-15",
         'price' => 5000,
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     Booking::factory()->create([
@@ -315,7 +316,8 @@ test('yearly stats aggregates all months correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => "$year-01-20",
         'price' => 3000,
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // March - 1 paid, 1 cancelled
@@ -326,7 +328,8 @@ test('yearly stats aggregates all months correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => "$year-03-10",
         'price' => 4000,
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     Booking::factory()->create([
@@ -336,7 +339,8 @@ test('yearly stats aggregates all months correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => "$year-03-15",
         'price' => 2000,
-        'is_cancelled' => true,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::CANCELLED,
     ]);
 
     $response = $this->getJson(route('financials.yearly-stats', [
@@ -411,7 +415,8 @@ test('financial endpoints enforce tenant isolation', function () {
         'currency_id' => $this->currency->id,
         'start_date' => now()->startOfMonth()->addDays(5),
         'price' => 5000,
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
     
     // Create booking for our tenant
@@ -422,7 +427,8 @@ test('financial endpoints enforce tenant isolation', function () {
         'currency_id' => $this->currency->id,
         'start_date' => now()->startOfMonth()->addDays(5),
         'price' => 3000,
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // Request current month for our tenant
@@ -444,7 +450,8 @@ test('financial resource formats client name correctly', function () {
         'currency_id' => $this->currency->id,
         'start_date' => now()->startOfMonth()->addDays(5),
         'price' => 5000,
-        'is_paid' => true,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     $response = $this->getJson(route('financials.current', ['tenant_id' => $this->tenantHashId]));
@@ -468,9 +475,8 @@ test('financial resource handles different booking statuses', function () {
         'user_id' => $this->client1->id,
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(1),
-        'is_paid' => true,
-        'is_pending' => false,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // Pending
@@ -480,9 +486,8 @@ test('financial resource handles different booking statuses', function () {
         'user_id' => $this->client1->id,
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(2),
-        'is_paid' => false,
-        'is_pending' => true,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::PENDING,
     ]);
 
     // Cancelled
@@ -492,9 +497,8 @@ test('financial resource handles different booking statuses', function () {
         'user_id' => $this->client1->id,
         'currency_id' => $this->currency->id,
         'start_date' => $currentMonth->copy()->addDays(3),
-        'is_paid' => false,
-        'is_pending' => false,
-        'is_cancelled' => true,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::CANCELLED,
     ]);
 
     $response = $this->getJson(route('financials.current', ['tenant_id' => $this->tenantHashId]));

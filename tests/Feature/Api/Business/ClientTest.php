@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use App\Enums\BookingStatusEnum;
 
 uses(RefreshDatabase::class);
 
@@ -140,10 +141,10 @@ test('can get client stats', function () {
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
     // Create bookings
-    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_pending' => true]);
-    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_cancelled' => true, 'is_pending' => false]);
-    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_pending' => false, 'is_cancelled' => false, 'present' => false]);
-    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'is_pending' => false, 'is_cancelled' => false, 'present' => true]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'status' => BookingStatusEnum::PENDING]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'status' => BookingStatusEnum::CANCELLED]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'status' => BookingStatusEnum::CONFIRMED, 'present' => false]);
+    Booking::factory()->create(['user_id' => $client->id, 'tenant_id' => $tenant->id, 'status' => BookingStatusEnum::CONFIRMED, 'present' => true]);
 
     Sanctum::actingAs($user, [], 'business');
 

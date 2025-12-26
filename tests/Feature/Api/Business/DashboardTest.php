@@ -6,8 +6,11 @@ use App\Models\Court;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Actions\General\EasyHashAction;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
 
 test('can get dashboard statistics', function () {
     // Setup
@@ -29,8 +32,8 @@ test('can get dashboard statistics', function () {
         'start_time' => '10:00',
         'end_time' => '11:00',
         'price' => 1000, // $10.00
-        'is_paid' => true,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // 2. Unpaid booking tomorrow (Open Booking, Client, Court Usage)
@@ -42,8 +45,8 @@ test('can get dashboard statistics', function () {
         'start_time' => '12:00',
         'end_time' => '13:00',
         'price' => 1500,
-        'is_paid' => false,
-        'is_cancelled' => false,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
 
     // 3. Cancelled booking yesterday (No Revenue, No Open Booking, Client, No Court Usage)
@@ -55,8 +58,8 @@ test('can get dashboard statistics', function () {
         'start_time' => '14:00',
         'end_time' => '15:00',
         'price' => 2000,
-        'is_paid' => true, // Refunded? Logic says cancelled doesn't count for revenue usually, but let's assume cancelled excludes it from revenue in controller logic
-        'is_cancelled' => true,
+        'payment_status' => PaymentStatusEnum::PAID, // Refunded? Logic says cancelled doesn't count for revenue usually, but let's assume cancelled excludes it from revenue in controller logic
+        'status' => BookingStatusEnum::CANCELLED,
     ]);
 
     // Act
