@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use App\Enums\BookingStatusEnum;
 
 use App\Http\Requests\Api\V1\Business\CreateClientRequest;
 use App\Http\Requests\Api\V1\Business\UpdateClientRequest;
@@ -191,8 +192,7 @@ class ClientController extends Controller
                 'not_present' => $client->bookings()
                     ->forTenant($tenant->id)
                     ->where('present', false)
-                    ->where('is_cancelled', false)
-                    ->where('is_pending', false)
+                    ->where('status', BookingStatusEnum::CONFIRMED)
                     ->count(),
             ];
 

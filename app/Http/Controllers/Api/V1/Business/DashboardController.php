@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
 
 /**
  * @tags [API-BUSINESS] Dashboard
@@ -41,14 +43,14 @@ class DashboardController extends Controller
             // Total Revenue (Current Month) - Only paid bookings
             $totalRevenue = Booking::forTenant($tenant->id)
                 ->whereBetween('start_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
-                ->where('is_paid', true)
-                ->where('is_cancelled', false)
+                ->where('payment_status', PaymentStatusEnum::PAID)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->sum('price');
 
             // Total Open Bookings (Upcoming from today onwards)
             $totalOpenBookings = Booking::forTenant($tenant->id)
                 ->where('start_date', '>=', $now->format('Y-m-d'))
-                ->where('is_cancelled', false)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->count();
 
             // Total Clients (Users who have at least one booking with this tenant)
@@ -64,7 +66,7 @@ class DashboardController extends Controller
             // Let's do PHP for compatibility and safety, fetching only necessary fields.
             $monthBookings = Booking::forTenant($tenant->id)
                 ->whereBetween('start_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
-                ->where('is_cancelled', false)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->get(['start_time', 'end_time']);
 
             $totalHours = 0;
@@ -134,8 +136,8 @@ class DashboardController extends Controller
             // Daily Revenue (Current Month)
             $dailyRevenueBookings = Booking::forTenant($tenant->id)
                 ->whereBetween('start_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
-                ->where('is_paid', true)
-                ->where('is_cancelled', false)
+                ->where('payment_status', PaymentStatusEnum::PAID)
+                ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->get();
 
             // Fill missing days with 0

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
 
 /**
  * @tags [API-BUSINESS] Financials
@@ -224,17 +226,17 @@ class FinancialController extends Controller
         $unpaidAmount = 0;
 
         foreach ($bookings as $booking) {
-            if ($booking->is_cancelled) {
+            if ($booking->status === BookingStatusEnum::CANCELLED) {
                 $cancelledCount++;
                 $cancelledAmount += $booking->price;
-            } elseif ($booking->is_paid) {
+            } elseif ($booking->payment_status === PaymentStatusEnum::PAID) {
                 $paidCount++;
                 $paidAmount += $booking->price;
-            } elseif ($booking->is_pending) {
+            } elseif ($booking->status === BookingStatusEnum::PENDING) {
                 $pendingCount++;
                 $pendingAmount += $booking->price;
             } else {
-                // Not cancelled, not paid, not pending = unpaid
+                // Not cancelled, not paid, not pending = unpaid (Confirmed but not paid)
                 $unpaidCount++;
                 $unpaidAmount += $booking->price;
             }
