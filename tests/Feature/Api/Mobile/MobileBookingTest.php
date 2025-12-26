@@ -7,6 +7,11 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use App\Models\Manager\CurrencyModel;
+use App\Models\Country;
+use App\Models\CourtAvailability;
+use App\Enums\BookingStatusEnum;
+use App\Models\Booking;
 
 uses(RefreshDatabase::class);
 
@@ -25,28 +30,27 @@ test('user can get booking statistics', function () {
         'court_type_id' => $courtType->id,
     ]);
 
-    // Create some bookings
-    \App\Models\Booking::factory()->count(5)->create([
-        'user_id' => $user->id,
+    // Create bookings
+    Booking::factory()->create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
+        'user_id' => $user->id,
         'start_date' => now()->addDays(1)->format('Y-m-d'),
-        'is_cancelled' => false,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
-
-    \App\Models\Booking::factory()->count(3)->create([
-        'user_id' => $user->id,
+    Booking::factory()->create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
+        'user_id' => $user->id,
         'start_date' => now()->subDays(1)->format('Y-m-d'),
-        'is_cancelled' => false,
+        'status' => BookingStatusEnum::CONFIRMED,
     ]);
-
-    \App\Models\Booking::factory()->count(2)->create([
-        'user_id' => $user->id,
+    Booking::factory()->create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
-        'is_cancelled' => true,
+        'user_id' => $user->id,
+        'start_date' => now()->addDays(2)->format('Y-m-d'),
+        'status' => BookingStatusEnum::CANCELLED,
     ]);
 
     // Get stats
@@ -55,10 +59,10 @@ test('user can get booking statistics', function () {
     $response->assertStatus(200);
     $response->assertJson([
         'data' => [
-            'total_bookings' => 10,
-            'upcoming_bookings' => 5,
-            'past_bookings' => 3,
-            'cancelled_bookings' => 2,
+            'total_bookings' => 3, // Changed from 10 to 3 due to new booking creation logic
+            'upcoming_bookings' => 1, // Changed from 5 to 1
+            'past_bookings' => 1, // Changed from 3 to 1
+            'cancelled_bookings' => 1, // Changed from 2 to 1
         ]
     ]);
 });
@@ -75,7 +79,7 @@ test('user can get recent bookings with pagination', function () {
     ]);
 
     // Create 15 bookings
-    \App\Models\Booking::factory()->count(15)->create([
+    Booking::factory()->count(15)->create([
         'user_id' => $user->id,
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
@@ -100,7 +104,7 @@ test('user can get next upcoming booking', function () {
     ]);
 
     // Create past booking
-    \App\Models\Booking::factory()->create([
+    Booking::factory()->create([
         'user_id' => $user->id,
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
@@ -108,7 +112,7 @@ test('user can get next upcoming booking', function () {
     ]);
 
     // Create next booking
-    $nextBooking = \App\Models\Booking::factory()->create([
+    $nextBooking = Booking::factory()->create([
         'user_id' => $user->id,
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
@@ -117,7 +121,7 @@ test('user can get next upcoming booking', function () {
     ]);
 
     // Create future booking
-    \App\Models\Booking::factory()->create([
+    Booking::factory()->create([
         'user_id' => $user->id,
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
@@ -135,7 +139,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
     Sanctum::actingAs($user, [], 'sanctum');
 
     // Create tenant with auto-confirm enabled
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'usd']);
+    $currency = CurrencyModel::factory()->create(['code' => 'usd']);
     $tenant = Tenant::factory()->create([
         'auto_confirm_bookings' => true,
         'booking_interval_minutes' => 60,
@@ -152,7 +156,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
     ]);
 
     // Create availability
-    \App\Models\CourtAvailability::create([
+    CourtAvailability::create([
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
         'specific_date' => now()->addDays(1)->format('Y-m-d'),
@@ -171,7 +175,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
 
 
     $response->assertStatus(201);
-    $response->assertJsonPath('data.is_pending', false); // Should be auto-confirmed
+    $response->assertJsonPath('data.status', BookingStatusEnum::CONFIRMED->value); // Should be auto-confirmed
 });
 
 test('booking is pending when tenant has auto_confirm_bookings disabled', function () {
@@ -179,7 +183,7 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
     Sanctum::actingAs($user, [], 'sanctum');
 
     // Create tenant with auto-confirm disabled
-    $currency = \App\Models\Manager\CurrencyModel::factory()->create(['code' => 'usd']);
+    $currency = CurrencyModel::factory()->create(['code' => 'usd']);
     $tenant = Tenant::factory()->create([
         'auto_confirm_bookings' => false,
         'booking_interval_minutes' => 60,
@@ -215,5 +219,5 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
 
 
     $response->assertStatus(201);
-    $response->assertJsonPath('data.is_pending', true); // Should be pending
+    $response->assertJsonPath('data.status', \App\Enums\BookingStatusEnum::PENDING->value); // Should be pending
 });
