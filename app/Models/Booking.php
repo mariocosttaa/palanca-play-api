@@ -5,6 +5,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Models\Manager\CurrencyModel;
 
 class Booking extends Model
 {
@@ -21,10 +25,9 @@ class Booking extends Model
         'start_time',
         'end_time',
         'price',
-        'is_pending',   
-        'is_cancelled',
-        'is_paid',
-        'paid_at_venue',
+        'status',
+        'payment_status',
+        'payment_method',
         'present',
         'qr_code',
         'qr_code_verified',
@@ -37,10 +40,9 @@ class Booking extends Model
         'start_time' => 'datetime',
         'end_time' => 'datetime',
         'price' => 'integer', // Stored in cents
-        'is_pending' => 'boolean',
-        'is_cancelled' => 'boolean',
-        'is_paid' => 'boolean',
-        'paid_at_venue' => 'boolean',
+        'status' => BookingStatusEnum::class,
+        'payment_status' => PaymentStatusEnum::class,
+        'payment_method' => PaymentMethodEnum::class,
         'present' => 'boolean',
         'qr_code_verified' => 'boolean',
     ];
@@ -63,7 +65,7 @@ class Booking extends Model
 
     public function currency()
     {
-        return $this->belongsTo(\App\Models\Manager\CurrencyModel::class);
+        return $this->belongsTo(CurrencyModel::class);
     }
 
     // Scopes
@@ -84,22 +86,22 @@ class Booking extends Model
 
     public function scopePending($query)
     {
-        return $query->where('is_pending', true);
+        return $query->where('status', BookingStatusEnum::PENDING);
     }
 
     public function scopeConfirmed($query)
     {
-        return $query->where('is_pending', false)->where('is_cancelled', false);
+        return $query->where('status', BookingStatusEnum::CONFIRMED);
     }
 
     public function scopeCancelled($query)
     {
-        return $query->where('is_cancelled', true);
+        return $query->where('status', BookingStatusEnum::CANCELLED);
     }
 
     public function scopePaid($query)
     {
-        return $query->where('is_paid', true);
+        return $query->where('payment_status', PaymentStatusEnum::PAID);
     }
 
     public function scopeOnDate($query, $date)
