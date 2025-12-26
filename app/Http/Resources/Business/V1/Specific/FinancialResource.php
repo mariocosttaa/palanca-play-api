@@ -5,6 +5,8 @@ namespace App\Http\Resources\Business\V1\Specific;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 use App\Http\Resources\Business\V1\Specific\UserResourceSpecific;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
 
 class FinancialResource extends JsonResource
 {
@@ -23,11 +25,7 @@ class FinancialResource extends JsonResource
             'amount_formatted' => $this->formatMoney(),
             'status' => $this->getStatus(),
             'status_label' => $this->getStatusLabel(),
-            'is_paid' => $this->is_paid,
-            'is_pending' => $this->is_pending,
-            'is_cancelled' => $this->is_cancelled,
             'present' => $this->present,
-            'paid_at_venue' => $this->paid_at_venue,
         ];
     }
 
@@ -36,15 +34,15 @@ class FinancialResource extends JsonResource
      */
     private function getStatus(): string
     {
-        if ($this->is_cancelled) {
+        if ($this->status === BookingStatusEnum::CANCELLED) {
             return 'cancelled';
         }
         
-        if ($this->is_paid) {
+        if ($this->payment_status === PaymentStatusEnum::PAID) {
             return 'paid';
         }
         
-        if ($this->is_pending) {
+        if ($this->status === BookingStatusEnum::PENDING) {
             return 'pending';
         }
         
