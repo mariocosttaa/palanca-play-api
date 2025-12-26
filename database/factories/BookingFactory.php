@@ -7,6 +7,10 @@ use App\Models\Court;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentStatusEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Models\Manager\CurrencyModel;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Booking>
@@ -36,49 +40,53 @@ class BookingFactory extends Factory
             'tenant_id' => Tenant::factory(),
             'court_id' => Court::factory(),
             'user_id' => User::factory(),
-            'currency_id' => \App\Models\Manager\CurrencyModel::factory(),
+            'currency_id' => CurrencyModel::factory(),
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
             'start_time' => $startTime,
             'end_time' => $endTime,
-            'price' => fake()->numberBetween(1000, 10000), // in cents
-            'is_pending' => true,
-            'is_cancelled' => false,
-            'is_paid' => false,
+            'price' => $this->faker->numberBetween(1000, 5000), // in cents
+            'status' => BookingStatusEnum::PENDING,
+            'payment_status' => PaymentStatusEnum::PENDING,
+            'payment_method' => null,
         ];
     }
 
     /**
      * Indicate that the booking is confirmed.
      */
-    public function confirmed(): static
+    public function confirmed()
     {
-        return $this->state(fn (array $attributes) => [
-            'is_pending' => false,
-            'is_cancelled' => false,
-        ]);
+        return $this->state(function (array $attributes) {
+            return [
+                'status' => BookingStatusEnum::CONFIRMED,
+            ];
+        });
     }
 
     /**
      * Indicate that the booking is cancelled.
      */
-    public function cancelled(): static
+    public function cancelled()
     {
-        return $this->state(fn (array $attributes) => [
-            'is_cancelled' => true,
-            'is_pending' => false,
-        ]);
+        return $this->state(function (array $attributes) {
+            return [
+                'status' => BookingStatusEnum::CANCELLED,
+            ];
+        });
     }
 
     /**
      * Indicate that the booking is paid.
      */
-    public function paid(): static
+    public function paid()
     {
-        return $this->state(fn (array $attributes) => [
-            'is_paid' => true,
-            'is_pending' => false,
-        ]);
+        return $this->state(function (array $attributes) {
+            return [
+                'payment_status' => PaymentStatusEnum::PAID,
+                'payment_method' => PaymentMethodEnum::CASH,
+            ];
+        });
     }
 
     /**

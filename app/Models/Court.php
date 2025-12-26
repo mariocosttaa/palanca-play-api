@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Enums\BookingStatusEnum;
 
 class Court extends Model
 {
@@ -174,7 +175,7 @@ class Court extends Model
         $bookingsQuery = $this->bookings()
             ->whereDate('start_date', $date->format('Y-m-d'))
             ->where(function ($query) {
-                $query->where('is_cancelled', false);
+                $query->where('status', '!=', BookingStatusEnum::CANCELLED);
             });
 
         if ($excludeBookingId) {
@@ -306,7 +307,7 @@ class Court extends Model
         // 5. Check if time conflicts with existing bookings
         $bookingsQuery = $this->bookings()
             ->whereDate('start_date', $date->format('Y-m-d'))
-            ->where('is_cancelled', false);
+            ->where('status', '!=', BookingStatusEnum::CANCELLED);
 
         if ($excludeBookingId) {
             $bookingsQuery->where('id', '!=', $excludeBookingId);
