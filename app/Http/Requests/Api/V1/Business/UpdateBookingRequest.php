@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Requests\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
@@ -56,17 +55,17 @@ class UpdateBookingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'court_id' => ['sometimes', 'integer', Rule::exists(Court::class, 'id')],
-            'start_date' => 'sometimes|date|after_or_equal:today',
-            'start_time' => 'sometimes|date_format:H:i',
-            'end_time' => 'sometimes|date_format:H:i|after:start_time',
-            'price' => 'sometimes|integer|min:0',
-            'status' => ['sometimes', Rule::enum(BookingStatusEnum::class)],
+            'court_id'       => ['sometimes', 'integer', Rule::exists(Court::class, 'id')],
+            'start_date'     => 'sometimes|date|after_or_equal:today',
+            'start_time'     => 'sometimes|date_format:H:i',
+            'end_time'       => 'sometimes|date_format:H:i|after:start_time',
+            'price'          => 'sometimes|integer|min:0',
+            'status'         => ['sometimes', Rule::enum(BookingStatusEnum::class)],
             'payment_status' => ['sometimes', Rule::enum(PaymentStatusEnum::class)],
             'payment_method' => [
                 'sometimes',
                 Rule::enum(PaymentMethodEnum::class),
-                Rule::requiredIf(fn () => $this->payment_status === PaymentStatusEnum::PAID->value)
+                Rule::requiredIf(fn() => $this->payment_status === PaymentStatusEnum::PAID->value),
             ],
         ];
     }
@@ -79,26 +78,22 @@ class UpdateBookingRequest extends FormRequest
         $validator->after(function ($validator) {
             $booking = Booking::find($this->booking_id);
 
-            if (!$booking) {
+            if (! $booking) {
                 $validator->errors()->add('booking_id', 'Agendamento não encontrado.');
                 return;
             }
 
-            // Prevent changing payment fields if already paid (reserved for automatic payments)
-            if ($booking->payment_status === PaymentStatusEnum::PAID && ($this->has('payment_status') || $this->has('payment_method'))) {
-                $validator->errors()->add('payment_status', 'Não é possível alterar o status de pagamento de um agendamento já pago.');
-            }
-
             // Prevent changing payment status if payment method is from_app
-            if ($booking->payment_method === PaymentMethodEnum::FROM_APP && ($this->has('payment_status') || $this->has('payment_method'))) {
+            // Only bookings paid through the app cannot have their payment status changed
+            if ($booking->payment_method !== null && $booking->payment_method === PaymentMethodEnum::FROM_APP && ($this->has('payment_status') || $this->has('payment_method'))) {
                 $validator->errors()->add('payment_status', 'Não é possível alterar o status de pagamento de um agendamento pago pelo aplicativo.');
             }
 
             // Validate court belongs to tenant if court is being changed
             if ($this->has('court_id')) {
                 $court = Court::find($this->court_id);
-                
-                if (!$court) {
+
+                if (! $court) {
                     $validator->errors()->add('court_id', 'Quadra não encontrada.');
                     return;
                 }

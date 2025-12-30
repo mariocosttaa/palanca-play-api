@@ -279,3 +279,321 @@ test('can search bookings by court name', function () {
     $this->assertGreaterThanOrEqual(1, count($data));
 });
 
+test('can delete booking with card payment method', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CARD,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertJson(['message' => 'Agendamento removido com sucesso']);
+    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+});
+
+test('can delete booking with cash payment method', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertJson(['message' => 'Agendamento removido com sucesso']);
+    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+});
+
+test('can delete booking with null payment method', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => null,
+        'payment_status' => PaymentStatusEnum::PENDING,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertJson(['message' => 'Agendamento removido com sucesso']);
+    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+});
+
+test('cannot delete booking paid from app', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::FROM_APP,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'Não é possível excluir um agendamento que foi pago pelo aplicativo. Você pode cancelar o agendamento alterando o status para cancelado.'
+    ]);
+    $this->assertDatabaseHas('bookings', ['id' => $booking->id]);
+});
+
+test('cannot delete booking if client is marked as present', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => true,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'Não é possível excluir um agendamento onde o cliente já esteve presente. Por favor, entre em contato com o suporte para assistência.'
+    ]);
+    $this->assertDatabaseHas('bookings', ['id' => $booking->id]);
+});
+
+test('can update payment status from paid to pending for booking paid with card', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CARD,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.update', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]), [
+        'payment_status' => PaymentStatusEnum::PENDING->value,
+    ]);
+
+    $response->assertStatus(200);
+    $this->assertDatabaseHas('bookings', [
+        'id' => $booking->id,
+        'payment_method' => PaymentMethodEnum::CARD,
+        'payment_status' => PaymentStatusEnum::PENDING,
+    ]);
+});
+
+test('can update payment status from paid to pending for booking paid with cash', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.update', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]), [
+        'payment_status' => PaymentStatusEnum::PENDING->value,
+    ]);
+
+    $response->assertStatus(200);
+    $this->assertDatabaseHas('bookings', [
+        'id' => $booking->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PENDING,
+    ]);
+});
+
+test('cannot update payment status for booking paid from app', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::FROM_APP,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.update', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]), [
+        'payment_status' => PaymentStatusEnum::PENDING->value,
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['payment_status']);
+    $response->assertJson([
+        'errors' => [
+            'payment_status' => [
+                'Não é possível alterar o status de pagamento de um agendamento pago pelo aplicativo.'
+            ]
+        ]
+    ]);
+    $this->assertDatabaseHas('bookings', [
+        'id' => $booking->id,
+        'payment_method' => PaymentMethodEnum::FROM_APP,
+        'payment_status' => PaymentStatusEnum::PAID,
+    ]);
+});
+
+test('cannot update booking if client is marked as present', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => true,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.update', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]), [
+        'price' => 2000,
+    ]);
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'Não é possível modificar um agendamento onde o cliente já esteve presente. Por favor, entre em contato com o suporte para assistência.'
+    ]);
+});
+
