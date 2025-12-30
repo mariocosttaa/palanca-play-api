@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\General\EasyHashAction;
+use App\Actions\General\QrCodeAction;
 use App\Models\Booking;
 use App\Models\BusinessUser;
 use App\Models\Court;
@@ -8,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use App\Models\Manager\CurrencyModel;
 use App\Models\Country;
@@ -280,6 +282,8 @@ test('can search bookings by court name', function () {
 });
 
 test('can delete booking with card payment method', function () {
+    Storage::fake('public');
+    
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
@@ -299,6 +303,15 @@ test('can delete booking with card payment method', function () {
         'present' => false,
     ]);
 
+    // Generate QR code for the booking
+    $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
+    $qrCodeInfo = QrCodeAction::create($tenant->id, $booking->id, $bookingIdHashed);
+    $booking->update(['qr_code' => $qrCodeInfo->url]);
+
+    // Verify QR code file exists
+    $qrCodePath = "tenants/{$tenant->id}/qr-codes/booking_{$booking->id}_qr.svg";
+    Storage::disk('public')->assertExists($qrCodePath);
+
     Sanctum::actingAs($user, [], 'business');
 
     $response = $this->deleteJson(route('bookings.destroy', [
@@ -309,9 +322,14 @@ test('can delete booking with card payment method', function () {
     $response->assertStatus(200);
     $response->assertJson(['message' => 'Agendamento removido com sucesso']);
     $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+    
+    // Verify QR code file is deleted
+    Storage::disk('public')->assertMissing($qrCodePath);
 });
 
 test('can delete booking with cash payment method', function () {
+    Storage::fake('public');
+    
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
@@ -331,6 +349,15 @@ test('can delete booking with cash payment method', function () {
         'present' => false,
     ]);
 
+    // Generate QR code for the booking
+    $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
+    $qrCodeInfo = QrCodeAction::create($tenant->id, $booking->id, $bookingIdHashed);
+    $booking->update(['qr_code' => $qrCodeInfo->url]);
+
+    // Verify QR code file exists
+    $qrCodePath = "tenants/{$tenant->id}/qr-codes/booking_{$booking->id}_qr.svg";
+    Storage::disk('public')->assertExists($qrCodePath);
+
     Sanctum::actingAs($user, [], 'business');
 
     $response = $this->deleteJson(route('bookings.destroy', [
@@ -341,9 +368,14 @@ test('can delete booking with cash payment method', function () {
     $response->assertStatus(200);
     $response->assertJson(['message' => 'Agendamento removido com sucesso']);
     $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+    
+    // Verify QR code file is deleted
+    Storage::disk('public')->assertMissing($qrCodePath);
 });
 
 test('can delete booking with null payment method', function () {
+    Storage::fake('public');
+    
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user = BusinessUser::factory()->create();
@@ -363,6 +395,15 @@ test('can delete booking with null payment method', function () {
         'present' => false,
     ]);
 
+    // Generate QR code for the booking
+    $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
+    $qrCodeInfo = QrCodeAction::create($tenant->id, $booking->id, $bookingIdHashed);
+    $booking->update(['qr_code' => $qrCodeInfo->url]);
+
+    // Verify QR code file exists
+    $qrCodePath = "tenants/{$tenant->id}/qr-codes/booking_{$booking->id}_qr.svg";
+    Storage::disk('public')->assertExists($qrCodePath);
+
     Sanctum::actingAs($user, [], 'business');
 
     $response = $this->deleteJson(route('bookings.destroy', [
@@ -373,6 +414,9 @@ test('can delete booking with null payment method', function () {
     $response->assertStatus(200);
     $response->assertJson(['message' => 'Agendamento removido com sucesso']);
     $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+    
+    // Verify QR code file is deleted
+    Storage::disk('public')->assertMissing($qrCodePath);
 });
 
 test('cannot delete booking paid from app', function () {
@@ -441,6 +485,91 @@ test('cannot delete booking if client is marked as present', function () {
         'message' => 'Não é possível excluir um agendamento onde o cliente já esteve presente. Por favor, entre em contato com o suporte para assistência.'
     ]);
     $this->assertDatabaseHas('bookings', ['id' => $booking->id]);
+});
+
+test('deleting booking also deletes associated QR code file', function () {
+    Storage::fake('public');
+    
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+    ]);
+
+    // Generate QR code for the booking
+    $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
+    $qrCodeInfo = QrCodeAction::create($tenant->id, $booking->id, $bookingIdHashed);
+    $booking->update(['qr_code' => $qrCodeInfo->url]);
+
+    // Verify QR code file exists before deletion
+    $qrCodePath = "tenants/{$tenant->id}/qr-codes/booking_{$booking->id}_qr.svg";
+    Storage::disk('public')->assertExists($qrCodePath);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    // Delete the booking
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(200);
+    
+    // Verify booking is deleted
+    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+    
+    // Verify QR code file is also deleted
+    Storage::disk('public')->assertMissing($qrCodePath);
+});
+
+test('deleting booking without QR code does not cause errors', function () {
+    Storage::fake('public');
+    
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+    
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+    
+    // Create booking without QR code
+    $booking = Booking::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'user_id' => $client->id,
+        'payment_method' => PaymentMethodEnum::CASH,
+        'payment_status' => PaymentStatusEnum::PAID,
+        'present' => false,
+        'qr_code' => null,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    // Delete the booking - should not throw error even without QR code
+    $response = $this->deleteJson(route('bookings.destroy', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id')
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertJson(['message' => 'Agendamento removido com sucesso']);
+    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
 });
 
 test('can update payment status from paid to pending for booking paid with card', function () {

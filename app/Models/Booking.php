@@ -1,14 +1,14 @@
 <?php
-
 namespace App\Models;
 
-
+use App\Actions\General\TenantFileAction;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Enums\PaymentStatusEnum;
+use App\Models\Manager\CurrencyModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Enums\BookingStatusEnum;
-use App\Enums\PaymentStatusEnum;
-use App\Enums\PaymentMethodEnum;
-use App\Models\Manager\CurrencyModel;
+use Illuminate\Support\Facades\Log;
 
 class Booking extends Model
 {
@@ -34,16 +34,16 @@ class Booking extends Model
     ];
 
     protected $casts = [
-        'currency_id' => 'integer',
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
-        'price' => 'integer', // Stored in cents
-        'status' => BookingStatusEnum::class,
-        'payment_status' => PaymentStatusEnum::class,
-        'payment_method' => PaymentMethodEnum::class,
-        'present' => 'boolean',
+        'currency_id'      => 'integer',
+        'start_date'       => 'date',
+        'end_date'         => 'date',
+        'start_time'       => 'datetime',
+        'end_time'         => 'datetime',
+        'price'            => 'integer', // Stored in cents
+        'status'           => BookingStatusEnum::class,
+        'payment_status'   => PaymentStatusEnum::class,
+        'payment_method'   => PaymentMethodEnum::class,
+        'present'          => 'boolean',
         'qr_code_verified' => 'boolean',
     ];
 
@@ -113,5 +113,36 @@ class Booking extends Model
     {
         return $query->whereBetween('start_date', [$startDate, $endDate]);
     }
-}
 
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Delete QR code when booking is deleted
+        static::deleting(function ($booking) {
+            try {
+                if ($booking->qr_code) {
+                    // Use TenantFileAction::delete following the documentation pattern
+                    // Signature: delete($tenantId, $filePath, $fileUrl, $isPublic)
+                    TenantFileAction::delete(
+                        $booking->tenant_id,
+                        null,              // filePath (null when using URL)
+                        $booking->qr_code, // fileUrl (the URL stored in DB)
+                        isPublic: true
+                    );
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to delete QR code for booking', [
+                    'booking_id' => $booking->id,
+                    'tenant_id'  => $booking->tenant_id,
+                    'qr_code'    => $booking->qr_code,
+                    'error'      => $e->getMessage(),
+                ]);
+                // Don't throw exception - allow booking deletion to proceed even if QR deletion fails
+            }
+        });
+    }
+}

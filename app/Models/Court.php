@@ -1,11 +1,12 @@
 <?php
-
 namespace App\Models;
 
+use App\Actions\General\TenantFileAction;
+use App\Enums\BookingStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Enums\BookingStatusEnum;
+use Illuminate\Support\Facades\Log;
 
 class Court extends Model
 {
@@ -90,19 +91,19 @@ class Court extends Model
 
     /**
      * Get effective availabilities for this court.
-     * 
+     *
      * Logic:
      * 1. If court has custom availabilities, return those
      * 2. Otherwise, return court type availabilities
      * 3. If neither exists, return empty collection
-     * 
+     *
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getEffectiveAvailabilities()
     {
         // Check if court has custom availabilities
         $courtAvailabilities = $this->availabilities()->get();
-        
+
         if ($courtAvailabilities->isNotEmpty()) {
             return $courtAvailabilities;
         }
@@ -110,7 +111,7 @@ class Court extends Model
         // Otherwise, check court type availabilities
         if ($this->courtType) {
             $courtTypeAvailabilities = $this->courtType->availabilities()->get();
-            
+
             if ($courtTypeAvailabilities->isNotEmpty()) {
                 return $courtTypeAvailabilities;
             }
@@ -122,7 +123,7 @@ class Court extends Model
     // Availability Logic
     public function getAvailableDates($startDate, $endDate, $excludeBookingId = null)
     {
-        $dates = [];
+        $dates  = [];
         $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
 
         foreach ($period as $date) {
@@ -136,7 +137,7 @@ class Court extends Model
 
     public function getAvailableSlots($date, $excludeBookingId = null)
     {
-        $date = \Carbon\Carbon::parse($date);
+        $date      = \Carbon\Carbon::parse($date);
         $dayOfWeek = $date->format('l');
 
         // 1. Get Operating Hours
@@ -146,7 +147,7 @@ class Court extends Model
             ->first();
 
         // If no specific date, check recurring day
-        if (!$availability) {
+        if (! $availability) {
             $availability = $this->availabilities()
                 ->where('day_of_week_recurring', $dayOfWeek)
                 ->first();
@@ -156,20 +157,20 @@ class Court extends Model
         // Assuming if no availability record found, it's closed? Or use default?
         // Let's assume closed if no record found for now, or maybe check Tenant default?
         // The user said "check first at the ... create_courts_availabilities_table.php"
-        
-        if (!$availability) {
+
+        if (! $availability) {
             \Illuminate\Support\Facades\Log::info('No availability found for date: ' . $date->format('Y-m-d'));
             return collect();
         }
 
-        if (!$availability->is_available) {
+        if (! $availability->is_available) {
             \Illuminate\Support\Facades\Log::info('Availability found but is_available is false');
             return collect();
         }
 
         $startTime = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time);
-        $endTime = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
-        $breaks = $availability->breaks ?? [];
+        $endTime   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
+        $breaks    = $availability->breaks ?? [];
 
         // 2. Get Existing Bookings
         $bookingsQuery = $this->bookings()
@@ -187,21 +188,21 @@ class Court extends Model
         // 3. Generate Slots
         // Use court type's interval and buffer time settings
         $interval = $this->courtType->interval_time_minutes ?? $this->tenant->booking_interval_minutes ?? 60;
-        $buffer = $this->courtType->buffer_time_minutes ?? 0;
-        $slots = collect();
+        $buffer   = $this->courtType->buffer_time_minutes ?? 0;
+        $slots    = collect();
 
         $currentSlotStart = $startTime->copy();
 
         while ($currentSlotStart->copy()->addMinutes($interval)->lte($endTime)) {
             $currentSlotEnd = $currentSlotStart->copy()->addMinutes($interval);
-            
+
             $collisionEndTime = null;
 
             // Check against breaks
             foreach ($breaks as $break) {
                 $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
-                $breakEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
-                
+                $breakEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
+
                 // If slot overlaps with break
                 if ($currentSlotStart->lt($breakEnd) && $currentSlotEnd->gt($breakStart)) {
                     $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($breakEnd) : $breakEnd;
@@ -211,15 +212,15 @@ class Court extends Model
             // Check against bookings
             foreach ($bookings as $booking) {
                 $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
-                $bookingEnd = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
-                
+                $bookingEnd   = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
+
                 // Apply buffer to booking end
                 $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
 
                 // Check overlap
                 // Slot overlaps if: SlotStart < BookingEndWithBuffer AND SlotEnd > BookingStart
                 if ($currentSlotStart->lt($bookingEndWithBuffer) && $currentSlotEnd->gt($bookingStart)) {
-                     $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($bookingEndWithBuffer) : $bookingEndWithBuffer;
+                    $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($bookingEndWithBuffer) : $bookingEndWithBuffer;
                 }
             }
 
@@ -227,7 +228,7 @@ class Court extends Model
                 // If collision, move start time to the end of the collision
                 // Ensure we actually advance to avoid infinite loops (though collision end should be > current start)
                 if ($collisionEndTime->lte($currentSlotStart)) {
-                     $currentSlotStart->addMinutes($interval); // Fallback to avoid infinite loop
+                    $currentSlotStart->addMinutes($interval); // Fallback to avoid infinite loop
                 } else {
                     $currentSlotStart = $collisionEndTime;
                 }
@@ -237,7 +238,7 @@ class Court extends Model
             // No collision, add slot
             $slots->push([
                 'start' => $currentSlotStart->format('H:i'),
-                'end' => $currentSlotEnd->format('H:i'),
+                'end'   => $currentSlotEnd->format('H:i'),
             ]);
 
             $currentSlotStart->addMinutes($interval);
@@ -248,7 +249,7 @@ class Court extends Model
 
     /**
      * Check if a time slot is available for booking
-     * 
+     *
      * @param string $date Date in Y-m-d format
      * @param string $startTime Start time in H:i format
      * @param string $endTime End time in H:i format
@@ -258,48 +259,48 @@ class Court extends Model
      */
     public function checkAvailability($date, $startTime, $endTime, $excludeUserId = null, $excludeBookingId = null)
     {
-        $date = \Carbon\Carbon::parse($date);
+        $date      = \Carbon\Carbon::parse($date);
         $dayOfWeek = $date->format('l');
-        $reqStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
-        $reqEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
+        $reqStart  = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
+        $reqEnd    = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
 
         // 1. Check if there's any availability configuration
         $availability = $this->availabilities()
             ->whereDate('specific_date', $date->format('Y-m-d'))
             ->first();
 
-        if (!$availability) {
+        if (! $availability) {
             $availability = $this->availabilities()
                 ->where('day_of_week_recurring', $dayOfWeek)
                 ->first();
         }
 
-        if (!$availability) {
+        if (! $availability) {
             return 'Quadra não possui horário de funcionamento configurado para esta data.';
         }
 
         // 2. Check if court is marked as unavailable
-        if (!$availability->is_available) {
+        if (! $availability->is_available) {
             return 'Quadra marcada como indisponível nesta data.';
         }
 
         // 3. Check if requested time is within operating hours
         $operatingStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time);
-        $operatingEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
+        $operatingEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
 
         if ($reqStart->lt($operatingStart) || $reqEnd->gt($operatingEnd)) {
-            return 'Horário solicitado está fora do horário de funcionamento da quadra (' 
-                . $availability->start_time . ' - ' . $availability->end_time . ').';
+            return 'Horário solicitado está fora do horário de funcionamento da quadra ('
+            . $availability->start_time . ' - ' . $availability->end_time . ').';
         }
 
         // 4. Check if time conflicts with a break
         $breaks = $availability->breaks ?? [];
         foreach ($breaks as $break) {
             $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
-            $breakEnd = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
-            
+            $breakEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
+
             if ($reqStart->lt($breakEnd) && $reqEnd->gt($breakStart)) {
-                return 'Horário conflita com uma pausa configurada (' 
+                return 'Horário conflita com uma pausa configurada ('
                     . $break['start'] . ' - ' . $break['end'] . ').';
             }
         }
@@ -320,15 +321,15 @@ class Court extends Model
 
         foreach ($bookings as $booking) {
             $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
-            $bookingEnd = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
-            
+            $bookingEnd   = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
+
             // Calculate buffer end
             $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
 
             // Special case: If it's the same user and sequential booking (starts exactly when previous ends)
             // We ignore the buffer for the overlap check
             if ($excludeUserId && $booking->user_id == $excludeUserId) {
-                // If the requested start time is EXACTLY the booking end time, 
+                // If the requested start time is EXACTLY the booking end time,
                 // we treat the booking end as the effective end (ignoring buffer)
                 // This allows [13:00-14:00] then [14:00-15:00] for same user
                 if ($reqStart->eq($bookingEnd)) {
@@ -337,8 +338,8 @@ class Court extends Model
             }
 
             if ($reqStart->lt($bookingEndWithBuffer) && $reqEnd->gt($bookingStart)) {
-                return 'Este horário já está reservado (' 
-                    . $booking->start_time->format('H:i') . ' - ' . $booking->end_time->format('H:i') . ').';
+                return 'Este horário já está reservado ('
+                . $booking->start_time->format('H:i') . ' - ' . $booking->end_time->format('H:i') . ').';
             }
         }
 
@@ -346,5 +347,54 @@ class Court extends Model
         return null;
     }
 
-}
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
 
+        // Delete all associated image files when court is deleted (soft delete or force delete)
+        static::deleting(function ($court) {
+            try {
+                // Get all images before deletion
+                $images = $court->images()->get();
+
+                foreach ($images as $image) {
+                    try {
+                        // Delete the image file using TenantFileAction following the documentation pattern
+                        // Signature: delete($tenantId, $filePath, $fileUrl, $isPublic)
+                        if ($image->path) {
+                            TenantFileAction::delete(
+                                $court->tenant_id,
+                                null,         // filePath (null when using URL)
+                                $image->path, // fileUrl (the URL stored in DB)
+                                isPublic: true
+                            );
+                        }
+
+                        // Delete the image record (needed for soft deletes since cascade only works on hard deletes)
+                        $image->delete();
+                    } catch (\Exception $e) {
+                        Log::error('Failed to delete court image file', [
+                            'court_id'   => $court->id,
+                            'image_id'   => $image->id,
+                            'image_path' => $image->path,
+                            'tenant_id'  => $court->tenant_id,
+                            'error'      => $e->getMessage(),
+                        ]);
+                        // Continue deleting other images even if one fails
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to delete court images', [
+                    'court_id'  => $court->id,
+                    'tenant_id' => $court->tenant_id,
+                    'error'     => $e->getMessage(),
+                ]);
+                // Don't throw exception - allow court deletion to proceed even if image deletion fails
+            }
+        });
+    }
+
+}

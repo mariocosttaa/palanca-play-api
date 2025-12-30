@@ -113,7 +113,7 @@ test('user can get a court details', function () {
     CourtImage::factory()->count(3)->create([
         'court_id' => $court->id,
     ]);
-    
+
     // Create a primary image
     CourtImage::factory()->primary()->create([
         'court_id' => $court->id,
@@ -194,7 +194,7 @@ test('user can create a court with images and availability', function () {
     $courtTypeHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
     $requestData = $courtData->toArray();
     $requestData['court_type_id'] = $courtTypeHashId;
-    
+
     // Add images
     $requestData['images'] = [
         UploadedFile::fake()->image('court1.jpg'),
@@ -247,7 +247,7 @@ test('user can create a court with images and availability', function () {
     $court = Court::where('tenant_id', $tenant->id)->where('name', $courtData->name)->first();
     expect($court->images)->toHaveCount(2);
     expect($court->images->first()->is_primary)->toBeTrue();
-    
+
     // Assert availability was created
     $this->assertDatabaseHas('courts_availabilities', [
         'tenant_id' => $tenant->id,
@@ -390,7 +390,7 @@ test('user cannot update a court with images', function () {
     $courtTypeHashId = EasyHashAction::encode($courtType->id, 'court-type-id');
     $requestData = $courtData->toArray();
     $requestData['court_type_id'] = $courtTypeHashId;
-    
+
     // Attempt to add images
     $requestData['images'] = [
         UploadedFile::fake()->image('court_update.jpg'),
@@ -410,7 +410,7 @@ test('user cannot update a court with images', function () {
     $data['tenant_id'] = $tenant->id;
     $data['court_type_id'] = $courtType->id;
     $this->assertDatabaseHas('courts', $data);
-    
+
     // Assert NO images were added
     expect($court->images()->count())->toBe(0);
 });
@@ -464,6 +464,8 @@ test('user cannot delete a court if it has bookings associated', function () {
 });
 
 test('user can delete a court if no bookings associated', function () {
+    Storage::fake('public');
+
     /** @var TestCase $this */
     // Create a tenant and business user and attach the business user to the tenant
     $tenant = Tenant::factory()->create();
@@ -506,6 +508,123 @@ test('user can delete a court if no bookings associated', function () {
     $response->assertStatus(200);
 
     // Assert the court has been soft deleted
+    $this->assertSoftDeleted('courts', [
+        'id' => $court->id,
+    ]);
+});
+
+test('deleting court also deletes associated image files', function () {
+    Storage::fake('public');
+
+    $tenant = Tenant::factory()->create();
+    $businessUser = BusinessUser::factory()->create();
+    $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
+
+    // Create a court type and court for this tenant
+    $courtType = CourtType::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
+
+    $court = Court::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_type_id' => $courtType->id,
+    ]);
+
+    // Create images for the court
+    $image1 = UploadedFile::fake()->image('court_image1.jpg');
+    $image1->storeAs("tenants/{$tenant->id}/courts", $image1->hashName(), 'public');
+    $path1 = "courts/" . $image1->hashName();
+
+    $image2 = UploadedFile::fake()->image('court_image2.jpg');
+    $image2->storeAs("tenants/{$tenant->id}/courts", $image2->hashName(), 'public');
+    $path2 = "courts/" . $image2->hashName();
+
+    $courtImage1 = CourtImage::create([
+        'court_id' => $court->id,
+        'path' => $path1,
+        'is_primary' => true,
+    ]);
+
+    $courtImage2 = CourtImage::create([
+        'court_id' => $court->id,
+        'path' => $path2,
+        'is_primary' => false,
+    ]);
+
+    // Verify images exist before deletion
+    Storage::disk('public')->assertExists("tenants/{$tenant->id}/{$path1}");
+    Storage::disk('public')->assertExists("tenants/{$tenant->id}/{$path2}");
+
+    Sanctum::actingAs($businessUser, [], 'business');
+
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
+
+    // Delete the court
+    $response = $this->deleteJson(
+        route('courts.destroy', ['tenant_id' => $tenantHashId, 'court_id' => $courtHashId])
+    );
+
+    $response->assertStatus(200);
+
+    // Assert the court has been soft deleted
+    $this->assertSoftDeleted('courts', [
+        'id' => $court->id,
+    ]);
+
+    // Assert court images are deleted (cascade delete)
+    $this->assertDatabaseMissing('courts_images', ['id' => $courtImage1->id]);
+    $this->assertDatabaseMissing('courts_images', ['id' => $courtImage2->id]);
+
+    // Verify image files are also deleted
+    Storage::disk('public')->assertMissing("tenants/{$tenant->id}/{$path1}");
+    Storage::disk('public')->assertMissing("tenants/{$tenant->id}/{$path2}");
+});
+
+test('deleting court without images does not cause errors', function () {
+    Storage::fake('public');
+
+    $tenant = Tenant::factory()->create();
+    $businessUser = BusinessUser::factory()->create();
+    $businessUser->tenants()->attach($tenant);
+
+    // Create a valid invoice for the tenant
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_end' => now()->addDay(),
+        'max_courts' => 10,
+    ]);
+
+    // Create a court type and court for this tenant
+    $courtType = CourtType::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
+
+    $court = Court::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_type_id' => $courtType->id,
+    ]);
+
+    Sanctum::actingAs($businessUser, [], 'business');
+
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+    $courtHashId = EasyHashAction::encode($court->id, 'court-id');
+
+    // Delete the court - should not throw error even without images
+    $response = $this->deleteJson(
+        route('courts.destroy', ['tenant_id' => $tenantHashId, 'court_id' => $courtHashId])
+    );
+
+    $response->assertStatus(200);
     $this->assertSoftDeleted('courts', [
         'id' => $court->id,
     ]);
