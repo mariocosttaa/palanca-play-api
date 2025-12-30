@@ -159,7 +159,7 @@ test('business user can update booking paid at venue', function () {
     ]);
 });
 
-test('business user can confirm booking presence', function () {
+test('business user can confirm booking presence for past booking', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -170,11 +170,19 @@ test('business user can confirm booking presence', function () {
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create();
 
+    // Create a booking that has already passed (yesterday)
+    $pastDate = now()->subDay();
+    $pastTime = $pastDate->copy()->setTime(10, 0, 0);
+
     $booking = Booking::factory()->create([
-        'tenant_id' => $tenant->id,
-        'court_id'  => $court->id,
-        'user_id'   => $client->id,
-        'present'   => null,
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => $pastDate->format('Y-m-d'),
+        'end_date'   => $pastDate->format('Y-m-d'),
+        'start_time' => $pastTime->format('H:i:s'),
+        'end_time'   => $pastTime->copy()->addHour()->format('H:i:s'),
+        'present'    => null,
     ]);
 
     Sanctum::actingAs($user, [], 'business');
@@ -204,6 +212,126 @@ test('business user can confirm booking presence', function () {
     $this->assertDatabaseHas('bookings', [
         'id'      => $booking->id,
         'present' => false,
+    ]);
+});
+
+test('business user can confirm booking presence for same day booking with 1 hour before', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+
+    // Create a booking for today, 2 hours from now (more than 1 hour before)
+    $futureTime = now()->addHours(2);
+    $booking    = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->format('Y-m-d'),
+        'end_date'   => now()->format('Y-m-d'),
+        'start_time' => $futureTime->format('H:i:s'),
+        'end_time'   => $futureTime->copy()->addHour()->format('H:i:s'),
+        'present'    => null,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.confirm-presence', [
+        'tenant_id'  => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id'),
+    ]), [
+        'present' => true,
+    ]);
+
+    $response->assertStatus(200);
+    $this->assertDatabaseHas('bookings', [
+        'id'      => $booking->id,
+        'present' => true,
+    ]);
+});
+
+test('business user cannot confirm booking presence for future booking not on same day', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+
+    // Create a booking for tomorrow
+    $futureDate = now()->addDay();
+    $futureTime = $futureDate->copy()->setTime(10, 0, 0);
+
+    $booking = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => $futureDate->format('Y-m-d'),
+        'end_date'   => $futureDate->format('Y-m-d'),
+        'start_time' => $futureTime->format('H:i:s'),
+        'end_time'   => $futureTime->copy()->addHour()->format('H:i:s'),
+        'present'    => null,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.confirm-presence', [
+        'tenant_id'  => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id'),
+    ]), [
+        'present' => true,
+    ]);
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'Não é possível marcar presença para agendamentos futuros. Apenas é permitido marcar presença no dia do agendamento (com pelo menos 1 hora de antecedência) ou após o horário do agendamento.',
+    ]);
+});
+
+test('business user cannot confirm booking presence for same day booking less than 1 hour before', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+
+    // Create a booking for today, 30 minutes from now (less than 1 hour before)
+    $futureTime = now()->addMinutes(30);
+    $booking    = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->format('Y-m-d'),
+        'end_date'   => now()->format('Y-m-d'),
+        'start_time' => $futureTime->format('H:i:s'),
+        'end_time'   => $futureTime->copy()->addHour()->format('H:i:s'),
+        'present'    => null,
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->putJson(route('bookings.confirm-presence', [
+        'tenant_id'  => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'booking_id' => EasyHashAction::encode($booking->id, 'booking-id'),
+    ]), [
+        'present' => true,
+    ]);
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'Só é possível marcar presença com pelo menos 1 hora de antecedência do horário do agendamento.',
     ]);
 });
 
@@ -1245,14 +1373,20 @@ test('can get bookings filtered by presence status - pending', function () {
     $data = $response->json('data');
 
     expect($data)->not->toBeEmpty();
+    expect(count($data))->toBe(1);
 
     // Should only return bookings with present = null
     foreach ($data as $booking) {
         expect($booking['present'])->toBeNull();
     }
+
+    // Verify the correct booking is returned
+    $returnedIds          = collect($data)->pluck('id')->toArray();
+    $pendingBookingHashId = EasyHashAction::encode($pendingBooking->id, 'booking-id');
+    expect($returnedIds)->toContain($pendingBookingHashId);
 });
 
-test('can get bookings filtered by presence status - confirmed', function () {
+test('can get bookings filtered by presence status - present', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -1303,21 +1437,27 @@ test('can get bookings filtered by presence status - confirmed', function () {
 
     $response = $this->getJson(route('bookings.presence', [
         'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
-        'presence_status' => 'confirmed',
+        'presence_status' => 'present',
     ]));
 
     $response->assertStatus(200);
     $data = $response->json('data');
 
     expect($data)->not->toBeEmpty();
+    expect(count($data))->toBe(1);
 
     // Should only return bookings with present = true
     foreach ($data as $booking) {
         expect($booking['present'])->toBe(true);
     }
+
+    // Verify the correct booking is returned
+    $returnedIds            = collect($data)->pluck('id')->toArray();
+    $confirmedBookingHashId = EasyHashAction::encode($confirmedBooking->id, 'booking-id');
+    expect($returnedIds)->toContain($confirmedBookingHashId);
 });
 
-test('can get bookings filtered by presence status - rejected', function () {
+test('can get bookings filtered by presence status - not-present', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -1328,8 +1468,8 @@ test('can get bookings filtered by presence status - rejected', function () {
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create();
 
-    // Create booking with present = false (should be included when filtering by rejected)
-    $rejectedBooking = Booking::factory()->create([
+    // Create booking with present = false (should be included when filtering by not-present)
+    $notPresentBooking = Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
@@ -1337,10 +1477,10 @@ test('can get bookings filtered by presence status - rejected', function () {
         'start_time' => '10:00',
         'end_date'   => now()->subDays(3)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => false, // Rejected/canceled
+        'present'    => false, // Not present
     ]);
 
-    // Create booking with present = null (should NOT be included when filtering by rejected)
+    // Create booking with present = null (should NOT be included when filtering by not-present)
     Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
@@ -1352,7 +1492,7 @@ test('can get bookings filtered by presence status - rejected', function () {
         'present'    => null, // Pending
     ]);
 
-    // Create booking with present = true (should NOT be included when filtering by rejected)
+    // Create booking with present = true (should NOT be included when filtering by not-present)
     Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
@@ -1361,66 +1501,31 @@ test('can get bookings filtered by presence status - rejected', function () {
         'start_time' => '10:00',
         'end_date'   => now()->subDays(1)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => true, // Confirmed
+        'present'    => true, // Present
     ]);
 
     Sanctum::actingAs($user, [], 'business');
 
     $response = $this->getJson(route('bookings.presence', [
         'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
-        'presence_status' => 'rejected',
+        'presence_status' => 'not-present',
     ]));
 
     $response->assertStatus(200);
     $data = $response->json('data');
 
     expect($data)->not->toBeEmpty();
+    expect(count($data))->toBe(1);
 
     // Should only return bookings with present = false
     foreach ($data as $booking) {
         expect($booking['present'])->toBe(false);
     }
-});
 
-test('can get bookings filtered by presence status - canceled', function () {
-    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
-    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
-    $user     = BusinessUser::factory()->create();
-    $user->tenants()->attach($tenant);
-
-    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
-
-    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
-    $client = User::factory()->create();
-
-    // Create booking with present = false (should be included when filtering by canceled)
-    $canceledBooking = Booking::factory()->create([
-        'tenant_id'  => $tenant->id,
-        'court_id'   => $court->id,
-        'user_id'    => $client->id,
-        'start_date' => now()->subDays(3)->format('Y-m-d'),
-        'start_time' => '10:00',
-        'end_date'   => now()->subDays(3)->format('Y-m-d'),
-        'end_time'   => '11:00',
-        'present'    => false, // Rejected/canceled
-    ]);
-
-    Sanctum::actingAs($user, [], 'business');
-
-    $response = $this->getJson(route('bookings.presence', [
-        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
-        'presence_status' => 'canceled',
-    ]));
-
-    $response->assertStatus(200);
-    $data = $response->json('data');
-
-    expect($data)->not->toBeEmpty();
-
-    // Should only return bookings with present = false
-    foreach ($data as $booking) {
-        expect($booking['present'])->toBe(false);
-    }
+    // Verify the correct booking is returned
+    $returnedIds             = collect($data)->pluck('id')->toArray();
+    $notPresentBookingHashId = EasyHashAction::encode($notPresentBooking->id, 'booking-id');
+    expect($returnedIds)->toContain($notPresentBookingHashId);
 });
 
 test('presence endpoint supports all filters', function () {
@@ -1462,4 +1567,181 @@ test('presence endpoint supports all filters', function () {
     $data = $response->json('data');
 
     expect($data)->not->toBeEmpty();
+    expect(count($data))->toBe(1);
+
+    // Verify all filters are applied correctly
+    $booking = $data[0];
+    expect($booking['present'])->toBeNull(); // presence_status = pending
+    expect($booking['status'])->toBe('confirmed');
+    expect($booking['payment_status'])->toBe('paid');
+});
+
+test('presence endpoint requires presence_status parameter', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        // No presence_status filter - should fail
+    ]));
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'O parâmetro presence_status é obrigatório. Valores aceites: all, pending, present, not-present',
+    ]);
+});
+
+test('presence endpoint validates presence_status parameter value', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'invalid_value',
+    ]));
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'message' => 'O valor do parâmetro presence_status é inválido. Valores aceites: all, pending, present, not-present',
+    ]);
+});
+
+test('presence endpoint returns all bookings when presence_status is all', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+
+    // Create bookings with different presence statuses
+    $pendingBooking = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(3)->format('Y-m-d'),
+        'present'    => null, // Pending
+    ]);
+
+    $presentBooking = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(2)->format('Y-m-d'),
+        'present'    => true, // Present
+    ]);
+
+    $notPresentBooking = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(1)->format('Y-m-d'),
+        'present'    => false, // Not present
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'all',
+    ]));
+
+    $response->assertStatus(200);
+    $data = $response->json('data');
+
+    expect($data)->not->toBeEmpty();
+    expect(count($data))->toBe(3); // Should return all three bookings
+
+    // Verify all presence statuses are included
+    $returnedIds = collect($data)->pluck('id')->toArray();
+    expect($returnedIds)->toContain(EasyHashAction::encode($pendingBooking->id, 'booking-id'));
+    expect($returnedIds)->toContain(EasyHashAction::encode($presentBooking->id, 'booking-id'));
+    expect($returnedIds)->toContain(EasyHashAction::encode($notPresentBooking->id, 'booking-id'));
+
+    // Verify presence values are correct
+    $presenceValues = collect($data)->pluck('present')->toArray();
+    expect($presenceValues)->toContain(null);
+    expect($presenceValues)->toContain(true);
+    expect($presenceValues)->toContain(false);
+});
+
+test('presence endpoint correctly filters by both status and presence_status', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+
+    // Create booking with status=confirmed and present=true (should be included)
+    $confirmedBooking = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(1)->format('Y-m-d'),
+        'status'     => BookingStatusEnum::CONFIRMED,
+        'present'    => true, // Confirmed presence
+    ]);
+
+    // Create booking with status=confirmed but present=null (should NOT be included)
+    Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(2)->format('Y-m-d'),
+        'status'     => BookingStatusEnum::CONFIRMED,
+        'present'    => null, // Pending presence - should be excluded
+    ]);
+
+    // Create booking with status=confirmed but present=false (should NOT be included)
+    Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(3)->format('Y-m-d'),
+        'status'     => BookingStatusEnum::CONFIRMED,
+        'present'    => false, // Rejected presence - should be excluded
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'present',
+        'status'          => 'confirmed',
+    ]));
+
+    $response->assertStatus(200);
+    $data = $response->json('data');
+
+    expect($data)->not->toBeEmpty();
+    expect(count($data))->toBe(1);
+
+    // Verify only the booking with both status=confirmed AND present=true is returned
+    $booking = $data[0];
+    expect($booking['status'])->toBe('confirmed');
+    expect($booking['present'])->toBe(true);
+
+    // Verify the correct booking ID
+    $returnedIds            = collect($data)->pluck('id')->toArray();
+    $confirmedBookingHashId = EasyHashAction::encode($confirmedBooking->id, 'booking-id');
+    expect($returnedIds)->toContain($confirmedBookingHashId);
 });

@@ -312,36 +312,55 @@ class BookingController extends Controller
      * Get bookings filtered by presence status
      *
      * Returns bookings filtered by presence status:
-     * - pending: present is null (not yet marked)
-     * - confirmed: present is true
-     * - rejected/canceled: present is false
+     * - all: returns all bookings regardless of presence status
+     * - pending: present is null (not yet marked/confirmed)
+     * - present: present is true (client was present)
+     * - not-present: present is false/0 (client was not present)
      *
-     * @queryParam presence_status string Filter by presence status (pending, confirmed, rejected, canceled). Example: "pending"
+     * Presence field mapping:
+     * - null = pending (not yet marked)
+     * - true = present (was present)
+     * - false/0 = not-present (not present)
+     *
+     * Get bookings filtered by presence status
+     *
+     * @queryParam presence_status string required Filter by presence status (all, pending, present, not-present). Example: "pending"
      * @queryParam search string Search by client name or court name. Example: "John"
      * @queryParam court_id string Filter by court (hashed ID). Example: "Xy7z..."
      * @queryParam status string Filter by booking status (confirmed, pending, cancelled). Example: "confirmed"
      * @queryParam payment_status string Filter by payment status (paid, pending). Example: "paid"
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function presence(Request $request, string $tenantId): \Illuminate\Http\JsonResponse
+    public function presence(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $tenant = $request->tenant;
             $query  = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
 
-            // Presence status filter
-            if ($request->has('presence_status')) {
-                $presenceStatus = strtolower($request->presence_status);
-                if (in_array($presenceStatus, ['pending', 'confirmed', 'rejected', 'canceled'])) {
-                    if ($presenceStatus === 'pending') {
-                        $query->whereNull('present');
-                    } elseif ($presenceStatus === 'confirmed') {
-                        $query->where('present', true);
-                    } elseif (in_array($presenceStatus, ['rejected', 'canceled'])) {
-                        $query->where('present', false);
-                    }
-                }
+            // Presence status filter - REQUIRED for this endpoint
+            // null = pending (not yet marked)
+            // true = present (was present)
+            // false/0 = not-present (not present)
+            if (! $request->has('presence_status')) {
+                abort(400, 'O parâmetro presence_status é obrigatório. Valores aceites: all, pending, present, not-present');
+            }
+
+            $presenceStatus = strtolower($request->presence_status);
+            if (! in_array($presenceStatus, ['all', 'pending', 'present', 'not-present'])) {
+                abort(400, 'O valor do parâmetro presence_status é inválido. Valores aceites: all, pending, present, not-present');
+            }
+
+            if ($presenceStatus === 'all') {
+                // Return all bookings regardless of presence status (no filter applied)
+                // Do nothing - query remains unfiltered by presence
+            } elseif ($presenceStatus === 'pending') {
+                // present is null = pending (not yet marked)
+                $query->whereNull('present');
+            } elseif ($presenceStatus === 'present') {
+                // present is true = present (was present)
+                $query->where('present', true);
+            } elseif ($presenceStatus === 'not-present') {
+                // present is false/0 = not-present (not present)
+                $query->where('present', false);
             }
 
             // Court filter
@@ -395,9 +414,7 @@ class BookingController extends Controller
                 ->orderBy('start_time', 'desc')
                 ->paginate(20);
 
-            return response()->json([
-                'data' => BookingResource::collection($bookings)->resolve(),
-            ]);
+            return BookingResource::collection($bookings);
         } catch (HttpException $e) {
             // Re-throw HTTP exceptions with their specific status codes and messages
             Log::warning('Erro ao listar agendamentos por presença', [
@@ -422,6 +439,11 @@ class BookingController extends Controller
      * Confirm presence for a booking
      *
      * Updates the presence status of a booking (e.g., user checked in).
+     *
+     * Restrictions:
+     * - Can only mark presence if it's the day of the booking AND at least 1 hour before the booking time
+     * - OR if the booking datetime has already passed (allows retroactive marking)
+     * - Cannot mark presence for future bookings that are not on the same day
      */
     public function confirmPresence(Request $request, string $tenantId, $bookingId): BookingResource
     {
@@ -436,6 +458,9 @@ class BookingController extends Controller
             $request->validate([
                 'present' => 'required|boolean',
             ]);
+
+            // Validate presence timing restrictions
+            $this->validatePresenceTiming($booking);
 
             $booking->update([
                 'present' => $request->present,
@@ -464,5 +489,58 @@ class BookingController extends Controller
             ]);
             abort(500, 'Erro inesperado ao confirmar presença. Por favor, tente novamente.');
         }
+    }
+
+    /**
+     * Validate that presence can be marked based on booking timing
+     *
+     * Rules:
+     * - Can mark if it's the same day as booking AND at least 1 hour before booking time
+     * - Can mark if booking datetime has already passed (retroactive)
+     * - Cannot mark if booking is in the future and not on the same day
+     *
+     * @param Booking $booking
+     * @return void
+     * @throws HttpException
+     */
+    protected function validatePresenceTiming(Booking $booking): void
+    {
+        $now = \Carbon\Carbon::now();
+
+                                           // Combine start_date and start_time to get the full booking datetime
+                                           // Following the same pattern used in Court model
+                                           // start_date is cast as 'date' (Carbon date instance)
+                                           // start_time is cast as 'datetime' (Carbon datetime instance, but time column uses today's date)
+                                           // We need to combine the date from start_date with the time from start_time
+        $startDate = $booking->start_date; // Already a Carbon instance
+        $startTime = $booking->start_time; // Already a Carbon instance (but date part is today)
+
+        // Combine the date from start_date with the time from start_time
+        $bookingDateTime = \Carbon\Carbon::parse(
+            $startDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s')
+        );
+
+        // Check if booking has already passed
+        if ($now->greaterThanOrEqualTo($bookingDateTime)) {
+            // Booking has passed - allow marking presence (retroactive)
+            return;
+        }
+
+        // Booking is in the future - check if it's the same day
+        $isSameDay = $now->format('Y-m-d') === $startDate->format('Y-m-d');
+
+        if (! $isSameDay) {
+            // Not the same day - cannot mark presence for future bookings
+            abort(400, 'Não é possível marcar presença para agendamentos futuros. Apenas é permitido marcar presença no dia do agendamento (com pelo menos 1 hora de antecedência) ou após o horário do agendamento.');
+        }
+
+        // Same day - check if it's at least 1 hour before booking time
+        $oneHourBefore = $bookingDateTime->copy()->subHour();
+        if ($now->greaterThan($oneHourBefore)) {
+            // Less than 1 hour before - cannot mark presence yet
+            abort(400, 'Só é possível marcar presença com pelo menos 1 hora de antecedência do horário do agendamento.');
+        }
+
+        // Valid: same day and at least 1 hour before booking time (now <= oneHourBefore)
     }
 }
