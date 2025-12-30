@@ -34,6 +34,8 @@ class BookingController extends Controller
      * @queryParam start_date string Start date for range filter. Example: "2024-12-01"
      * @queryParam end_date string End date for range filter. Example: "2024-12-31"
      * @queryParam court_id string Filter by court (hashed ID). Example: "Xy7z..."
+     * @queryParam status string Filter by booking status (confirmed, pending, cancelled). Example: "confirmed"
+     * @queryParam payment_status string Filter by payment status (paid, pending). Example: "paid"
      *
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
@@ -42,17 +44,45 @@ class BookingController extends Controller
         $tenant = $request->tenant;
         $query  = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
 
+        // Date filters
         if ($request->has('date')) {
-            $query->onDate($request->date);
+            $date = \Carbon\Carbon::parse($request->date)->format('Y-m-d');
+            $query->onDate($date);
         }
 
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->betweenDates($request->start_date, $request->end_date);
         }
 
+        // Court filter
         if ($request->has('court_id')) {
             $courtId = EasyHashAction::decode($request->court_id, 'court-id');
             $query->forCourt($courtId);
+        }
+
+        // Status filter
+        if ($request->has('status')) {
+            $status = strtolower($request->status);
+            if (in_array($status, ['confirmed', 'pending', 'cancelled'])) {
+                $statusEnum = match ($status) {
+                    'confirmed' => BookingStatusEnum::CONFIRMED,
+                    'pending'   => BookingStatusEnum::PENDING,
+                    'cancelled' => BookingStatusEnum::CANCELLED,
+                };
+                $query->where('status', $statusEnum);
+            }
+        }
+
+        // Payment status filter
+        if ($request->has('payment_status')) {
+            $paymentStatus = strtolower($request->payment_status);
+            if (in_array($paymentStatus, ['paid', 'pending'])) {
+                $paymentStatusEnum = match ($paymentStatus) {
+                    'paid'    => PaymentStatusEnum::PAID,
+                    'pending' => PaymentStatusEnum::PENDING,
+                };
+                $query->where('payment_status', $paymentStatusEnum);
+            }
         }
 
         // Search functionality
@@ -328,6 +358,114 @@ class BookingController extends Controller
             Log::error('Erro ao remover agendamento', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao remover agendamento'], 400);
         }
+    }
+
+    /**
+     * Get bookings that are past or started but not marked as present
+     *
+     * Returns bookings where:
+     * - The booking has started (start_date < today OR (start_date = today AND start_time < now))
+     * - OR the booking has ended (end_date < today OR (end_date = today AND end_time < now))
+     * - AND present is null or false (not marked as present)
+     *
+     * This is useful for identifying bookings that need presence confirmation.
+     *
+     * @queryParam search string Search by client name or court name. Example: "John"
+     * @queryParam court_id string Filter by court (hashed ID). Example: "Xy7z..."
+     * @queryParam status string Filter by booking status (confirmed, pending, cancelled). Example: "confirmed"
+     * @queryParam payment_status string Filter by payment status (paid, pending). Example: "paid"
+     *
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    public function pendingPresence(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+    {
+        $tenant      = $request->tenant;
+        $now         = now();
+        $today       = $now->format('Y-m-d');
+        $currentTime = $now->format('H:i:s');
+
+        $query = Booking::forTenant($tenant->id)
+            ->with(['user', 'court', 'currency'])
+            ->where(function ($q) use ($today, $currentTime, $now) {
+                // Bookings that have started (checking start_date and start_time)
+                $q->where(function ($startQ) use ($today, $currentTime) {
+                    // Past start dates
+                    $startQ->where('start_date', '<', $today)
+                    // OR today but start_time has passed
+                        ->orWhere(function ($subQ) use ($today, $currentTime) {
+                            $subQ->where('start_date', '=', $today)
+                                ->whereRaw('TIME(start_time) < TIME(?)', [$currentTime]);
+                        });
+                })
+                // OR bookings that have ended (checking end_date and end_time)
+                    ->orWhere(function ($endQ) use ($today, $currentTime) {
+                        // Past end dates
+                        $endQ->where('end_date', '<', $today)
+                        // OR today but end_time has passed
+                            ->orWhere(function ($subQ) use ($today, $currentTime) {
+                                $subQ->where('end_date', '=', $today)
+                                    ->whereRaw('TIME(end_time) < TIME(?)', [$currentTime]);
+                            });
+                    });
+            })
+        // Not marked as present (null or false)
+            ->where(function ($q) {
+                $q->whereNull('present')
+                    ->orWhere('present', false);
+            });
+
+        // Court filter
+        if ($request->has('court_id')) {
+            $courtId = EasyHashAction::decode($request->court_id, 'court-id');
+            $query->forCourt($courtId);
+        }
+
+        // Status filter
+        if ($request->has('status')) {
+            $status = strtolower($request->status);
+            if (in_array($status, ['confirmed', 'pending', 'cancelled'])) {
+                $statusEnum = match ($status) {
+                    'confirmed' => BookingStatusEnum::CONFIRMED,
+                    'pending'   => BookingStatusEnum::PENDING,
+                    'cancelled' => BookingStatusEnum::CANCELLED,
+                };
+                $query->where('status', $statusEnum);
+            }
+        }
+
+        // Payment status filter
+        if ($request->has('payment_status')) {
+            $paymentStatus = strtolower($request->payment_status);
+            if (in_array($paymentStatus, ['paid', 'pending'])) {
+                $paymentStatusEnum = match ($paymentStatus) {
+                    'paid'    => PaymentStatusEnum::PAID,
+                    'pending' => PaymentStatusEnum::PENDING,
+                };
+                $query->where('payment_status', $paymentStatusEnum);
+            }
+        }
+
+        // Search functionality
+        if ($request->has('search') && ! empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                // Search by client name
+                $q->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('surname', 'LIKE', "%{$search}%");
+                })
+                // Search by court name
+                    ->orWhereHas('court', function ($courtQuery) use ($search) {
+                        $courtQuery->where('name', 'LIKE', "%{$search}%");
+                    });
+            });
+        }
+
+        $bookings = $query->orderBy('start_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->paginate(20);
+
+        return BookingResource::collection($bookings);
     }
 
     /**

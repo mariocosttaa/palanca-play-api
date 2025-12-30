@@ -152,6 +152,7 @@ Route::prefix('v1')->group(function () {
                     // Booking routes
                     Route::prefix('bookings')->group(function () {
                         Route::get('/', [BookingController::class, 'index'])->name('bookings.index');
+                        Route::get('/pending-presence', [BookingController::class, 'pendingPresence'])->name('bookings.pending-presence');
                         Route::post('/', [BookingController::class, 'store'])->name('bookings.store');
                         Route::get('/history', [App\Http\Controllers\Api\V1\Business\BookingHistoryController::class, 'index'])->name('bookings.history');
                         Route::get('/stats', [App\Http\Controllers\Api\V1\Business\BookingStatsController::class, 'index'])->name('bookings.stats');
