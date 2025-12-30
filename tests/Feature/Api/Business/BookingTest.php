@@ -1187,7 +1187,7 @@ test('pagination works with filters', function () {
     expect(count($response->json('data')))->toBe(20); // First page should have 20 items
 });
 
-test('can get pending presence bookings (past or started but not marked as present)', function () {
+test('can get bookings filtered by presence status - pending', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -1198,8 +1198,8 @@ test('can get pending presence bookings (past or started but not marked as prese
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create();
 
-    // Create past booking not marked as present (should be included)
-    Booking::factory()->create([
+    // Create booking with present = null (should be included when filtering by pending)
+    $pendingBooking = Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
@@ -1207,10 +1207,10 @@ test('can get pending presence bookings (past or started but not marked as prese
         'start_time' => '10:00',
         'end_date'   => now()->subDays(2)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => null, // Not marked as present
+        'present'    => null, // Pending - not yet marked
     ]);
 
-    // Create past booking marked as present (should NOT be included)
+    // Create booking with present = true (should NOT be included when filtering by pending)
     Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
@@ -1219,10 +1219,10 @@ test('can get pending presence bookings (past or started but not marked as prese
         'start_time' => '10:00',
         'end_date'   => now()->subDays(1)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => true, // Already marked as present
+        'present'    => true, // Confirmed
     ]);
 
-    // Create past booking marked as not present (should be included)
+    // Create booking with present = false (should NOT be included when filtering by pending)
     Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
@@ -1231,25 +1231,14 @@ test('can get pending presence bookings (past or started but not marked as prese
         'start_time' => '10:00',
         'end_date'   => now()->subDays(3)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => false, // Marked as not present
-    ]);
-
-    // Create future booking (should NOT be included)
-    Booking::factory()->create([
-        'tenant_id'  => $tenant->id,
-        'court_id'   => $court->id,
-        'user_id'    => $client->id,
-        'start_date' => now()->addDays(5)->format('Y-m-d'),
-        'start_time' => '10:00',
-        'end_date'   => now()->addDays(5)->format('Y-m-d'),
-        'end_time'   => '11:00',
-        'present'    => null,
+        'present'    => false, // Rejected/canceled
     ]);
 
     Sanctum::actingAs($user, [], 'business');
 
-    $response = $this->getJson(route('bookings.pending-presence', [
-        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'pending',
     ]));
 
     $response->assertStatus(200);
@@ -1257,16 +1246,13 @@ test('can get pending presence bookings (past or started but not marked as prese
 
     expect($data)->not->toBeEmpty();
 
-    // Should only return bookings that are past/started and not marked as present
+    // Should only return bookings with present = null
     foreach ($data as $booking) {
-        $bookingDate = \Carbon\Carbon::parse($booking['start_date']);
-        $isPast      = $bookingDate->isPast() || ($bookingDate->isToday() && \Carbon\Carbon::parse($booking['start_time'])->isPast());
-        expect($isPast)->toBeTrue();
-        expect($booking['present'])->not->toBe(true);
+        expect($booking['present'])->toBeNull();
     }
 });
 
-test('pending presence includes bookings that have ended (end_date and end_time check)', function () {
+test('can get bookings filtered by presence status - confirmed', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -1277,63 +1263,47 @@ test('pending presence includes bookings that have ended (end_date and end_time 
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create();
 
-    $now = now();
-
-    // Create booking that started yesterday (should be included via start_date < today check)
-    $booking1 = Booking::factory()->create([
+    // Create booking with present = true (should be included when filtering by confirmed)
+    $confirmedBooking = Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
-        'start_date' => $now->copy()->subDays(1)->format('Y-m-d'),
+        'start_date' => now()->subDays(1)->format('Y-m-d'),
         'start_time' => '10:00',
-        'end_date'   => $now->copy()->subDays(1)->format('Y-m-d'),
+        'end_date'   => now()->subDays(1)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => null,
+        'present'    => true, // Confirmed
     ]);
 
-    // Create booking that started today with past start_time (should be included via start_date = today AND start_time < now)
-    $pastStartTime = $now->copy()->subHours(1)->format('H:i');
-    $futureEndTime = $now->copy()->addHours(1)->format('H:i');
-    $booking2      = Booking::factory()->create([
-        'tenant_id'  => $tenant->id,
-        'court_id'   => $court->id,
-        'user_id'    => $client->id,
-        'start_date' => $now->format('Y-m-d'),
-        'start_time' => $pastStartTime, // Started 1 hour ago
-        'end_date'   => $now->format('Y-m-d'),
-        'end_time'   => $futureEndTime, // Will end in 1 hour
-        'present'    => null,
-    ]);
-
-    // Create booking that ended today with past end_time (should be included via end_date = today AND end_time < now)
-    $pastEndTime = $now->copy()->subHours(2)->format('H:i');
-    $booking3    = Booking::factory()->create([
-        'tenant_id'  => $tenant->id,
-        'court_id'   => $court->id,
-        'user_id'    => $client->id,
-        'start_date' => $now->copy()->subDays(1)->format('Y-m-d'),
-        'start_time' => '14:00',
-        'end_date'   => $now->format('Y-m-d'),
-        'end_time'   => $pastEndTime, // Ended 2 hours ago
-        'present'    => null,
-    ]);
-
-    // Create booking that hasn't started yet (should NOT be included)
+    // Create booking with present = null (should NOT be included when filtering by confirmed)
     Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
-        'start_date' => $now->format('Y-m-d'),
-        'start_time' => $now->copy()->addHours(2)->format('H:i'), // Starts in 2 hours
-        'end_date'   => $now->format('Y-m-d'),
-        'end_time'   => $now->copy()->addHours(3)->format('H:i'),
-        'present'    => null,
+        'start_date' => now()->subDays(2)->format('Y-m-d'),
+        'start_time' => '10:00',
+        'end_date'   => now()->subDays(2)->format('Y-m-d'),
+        'end_time'   => '11:00',
+        'present'    => null, // Pending
+    ]);
+
+    // Create booking with present = false (should NOT be included when filtering by confirmed)
+    Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(3)->format('Y-m-d'),
+        'start_time' => '10:00',
+        'end_date'   => now()->subDays(3)->format('Y-m-d'),
+        'end_time'   => '11:00',
+        'present'    => false, // Rejected/canceled
     ]);
 
     Sanctum::actingAs($user, [], 'business');
 
-    $response = $this->getJson(route('bookings.pending-presence', [
-        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'confirmed',
     ]));
 
     $response->assertStatus(200);
@@ -1341,55 +1311,13 @@ test('pending presence includes bookings that have ended (end_date and end_time 
 
     expect($data)->not->toBeEmpty();
 
-    // Should include at least the bookings that have started or ended
-    // Note: booking1 (started yesterday) and booking2 (started today) should be included
-    // booking3 (ended today) should also be included if end_time check works
-    expect(count($data))->toBeGreaterThanOrEqual(2);
-
-    // Collect booking IDs to verify which ones are included
-    $returnedIds = collect($data)->pluck('id')->toArray();
-
-    // Verify all returned bookings have started or ended
+    // Should only return bookings with present = true
     foreach ($data as $booking) {
-        expect($booking['present'])->not->toBe(true);
-
-        // Verify booking has started or ended
-        $startDate     = \Carbon\Carbon::parse($booking['start_date']);
-        $startTime     = \Carbon\Carbon::parse($booking['start_time']);
-        $startDateTime = $startDate->copy()->setTimeFromTimeString($startTime->format('H:i:s'));
-
-        $endDate     = \Carbon\Carbon::parse($booking['end_date']);
-        $endTime     = \Carbon\Carbon::parse($booking['end_time']);
-        $endDateTime = $endDate->copy()->setTimeFromTimeString($endTime->format('H:i:s'));
-
-        $hasStarted = $startDateTime->isPast();
-        $hasEnded   = $endDateTime->isPast();
-
-        expect($hasStarted || $hasEnded)->toBeTrue('Booking should have started or ended');
+        expect($booking['present'])->toBe(true);
     }
-
-    // Verify that bookings that have ended today are included (end_date/end_time check works)
-    // booking3 should be included because it ended today (end_date = today AND end_time < now)
-    // even though it started yesterday
-    $hasEndedTodayBooking = false;
-    foreach ($data as $booking) {
-        $endDate     = \Carbon\Carbon::parse($booking['end_date']);
-        $endTime     = \Carbon\Carbon::parse($booking['end_time']);
-        $endDateTime = $endDate->copy()->setTimeFromTimeString($endTime->format('H:i:s'));
-
-        // Check if booking ended today (end_date is today AND end_time is in the past)
-        if ($endDate->isToday() && $endDateTime->isPast()) {
-            $hasEndedTodayBooking = true;
-            break;
-        }
-    }
-
-    // booking3 should be included via the end_date/end_time check
-    // This verifies that the end_date/end_time check is working correctly
-    expect($hasEndedTodayBooking)->toBeTrue('Should include bookings that have ended today (end_date = today AND end_time < now)');
 });
 
-test('pending presence excludes bookings that have not started yet', function () {
+test('can get bookings filtered by presence status - rejected', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -1400,59 +1328,102 @@ test('pending presence excludes bookings that have not started yet', function ()
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create();
 
-    $now = now();
-
-    // Create booking that hasn't started yet (should NOT be included)
-    Booking::factory()->create([
+    // Create booking with present = false (should be included when filtering by rejected)
+    $rejectedBooking = Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
-        'start_date' => $now->format('Y-m-d'),
-        'start_time' => $now->copy()->addHours(2)->format('H:i'), // Starts in 2 hours
-        'end_date'   => $now->format('Y-m-d'),
-        'end_time'   => $now->copy()->addHours(3)->format('H:i'),
-        'present'    => null,
+        'start_date' => now()->subDays(3)->format('Y-m-d'),
+        'start_time' => '10:00',
+        'end_date'   => now()->subDays(3)->format('Y-m-d'),
+        'end_time'   => '11:00',
+        'present'    => false, // Rejected/canceled
     ]);
 
-    // Create booking for tomorrow (should NOT be included)
+    // Create booking with present = null (should NOT be included when filtering by rejected)
     Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
-        'start_date' => $now->copy()->addDay()->format('Y-m-d'),
+        'start_date' => now()->subDays(2)->format('Y-m-d'),
         'start_time' => '10:00',
-        'end_date'   => $now->copy()->addDay()->format('Y-m-d'),
+        'end_date'   => now()->subDays(2)->format('Y-m-d'),
         'end_time'   => '11:00',
-        'present'    => null,
+        'present'    => null, // Pending
+    ]);
+
+    // Create booking with present = true (should NOT be included when filtering by rejected)
+    Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(1)->format('Y-m-d'),
+        'start_time' => '10:00',
+        'end_date'   => now()->subDays(1)->format('Y-m-d'),
+        'end_time'   => '11:00',
+        'present'    => true, // Confirmed
     ]);
 
     Sanctum::actingAs($user, [], 'business');
 
-    $response = $this->getJson(route('bookings.pending-presence', [
-        'tenant_id' => EasyHashAction::encode($tenant->id, 'tenant-id'),
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'rejected',
     ]));
 
     $response->assertStatus(200);
     $data = $response->json('data');
 
-    // Should not include future bookings
+    expect($data)->not->toBeEmpty();
+
+    // Should only return bookings with present = false
     foreach ($data as $booking) {
-        $startDate     = \Carbon\Carbon::parse($booking['start_date']);
-        $startTime     = \Carbon\Carbon::parse($booking['start_time']);
-        $startDateTime = $startDate->copy()->setTimeFromTimeString($startTime->format('H:i:s'));
-
-        // Booking should have started or ended
-        $hasStarted  = $startDateTime->isPast();
-        $endDate     = \Carbon\Carbon::parse($booking['end_date']);
-        $endTime     = \Carbon\Carbon::parse($booking['end_time']);
-        $endDateTime = $endDate->copy()->setTimeFromTimeString($endTime->format('H:i:s'));
-        $hasEnded    = $endDateTime->isPast();
-
-        expect($hasStarted || $hasEnded)->toBeTrue();
+        expect($booking['present'])->toBe(false);
     }
 });
 
-test('pending presence endpoint supports filters', function () {
+test('can get bookings filtered by presence status - canceled', function () {
+    $currency = CurrencyModel::factory()->create(['code' => 'eur']);
+    $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
+    $user     = BusinessUser::factory()->create();
+    $user->tenants()->attach($tenant);
+
+    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+
+    $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
+    $client = User::factory()->create();
+
+    // Create booking with present = false (should be included when filtering by canceled)
+    $canceledBooking = Booking::factory()->create([
+        'tenant_id'  => $tenant->id,
+        'court_id'   => $court->id,
+        'user_id'    => $client->id,
+        'start_date' => now()->subDays(3)->format('Y-m-d'),
+        'start_time' => '10:00',
+        'end_date'   => now()->subDays(3)->format('Y-m-d'),
+        'end_time'   => '11:00',
+        'present'    => false, // Rejected/canceled
+    ]);
+
+    Sanctum::actingAs($user, [], 'business');
+
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'canceled',
+    ]));
+
+    $response->assertStatus(200);
+    $data = $response->json('data');
+
+    expect($data)->not->toBeEmpty();
+
+    // Should only return bookings with present = false
+    foreach ($data as $booking) {
+        expect($booking['present'])->toBe(false);
+    }
+});
+
+test('presence endpoint supports all filters', function () {
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
@@ -1463,7 +1434,7 @@ test('pending presence endpoint supports filters', function () {
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create(['name' => 'John']);
 
-    // Create past booking matching filters
+    // Create booking matching all filters
     Booking::factory()->create([
         'tenant_id'      => $tenant->id,
         'court_id'       => $court->id,
@@ -1471,19 +1442,20 @@ test('pending presence endpoint supports filters', function () {
         'start_date'     => now()->subDays(2)->format('Y-m-d'),
         'status'         => BookingStatusEnum::CONFIRMED,
         'payment_status' => PaymentStatusEnum::PAID,
-        'present'        => null,
+        'present'        => null, // Pending
     ]);
 
     Sanctum::actingAs($user, [], 'business');
 
     $courtHashId = EasyHashAction::encode($court->id, 'court-id');
 
-    $response = $this->getJson(route('bookings.pending-presence', [
-        'tenant_id'      => EasyHashAction::encode($tenant->id, 'tenant-id'),
-        'status'         => 'confirmed',
-        'payment_status' => 'paid',
-        'court_id'       => $courtHashId,
-        'search'         => 'John',
+    $response = $this->getJson(route('bookings.presence', [
+        'tenant_id'       => EasyHashAction::encode($tenant->id, 'tenant-id'),
+        'presence_status' => 'pending',
+        'status'          => 'confirmed',
+        'payment_status'  => 'paid',
+        'court_id'        => $courtHashId,
+        'search'          => 'John',
     ]));
 
     $response->assertStatus(200);
