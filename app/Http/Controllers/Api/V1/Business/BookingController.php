@@ -2,30 +2,32 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Actions\General\EasyHashAction;
-use App\Actions\General\QrCodeAction;
 use App\Enums\BookingStatusEnum;
-use App\Enums\PaymentMethodEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Business\CreateBookingRequest;
 use App\Http\Requests\Api\V1\Business\UpdateBookingRequest;
 use App\Http\Resources\Business\V1\Specific\BookingResource;
 use App\Models\Booking;
-use App\Models\Court;
-use App\Models\Manager\CurrencyModel;
-use App\Models\User;
-use App\Models\UserTenant;
+use App\Services\Booking\CreateBookingService;
+use App\Services\Booking\DeleteBookingService;
+use App\Services\Booking\UpdateBookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * @tags [API-BUSINESS] Bookings
  */
 class BookingController extends Controller
 {
+    public function __construct(
+        protected CreateBookingService $createBookingService,
+        protected UpdateBookingService $updateBookingService,
+        protected DeleteBookingService $deleteBookingService,
+    ) {
+    }
     /**
      * Get a list of bookings with optional filters
      *
@@ -41,71 +43,90 @@ class BookingController extends Controller
      */
     public function index(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
-        $tenant = $request->tenant;
-        $query  = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
+        try {
+            $tenant = $request->tenant;
+            $query  = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
 
-        // Date filters
-        if ($request->has('date')) {
-            $date = \Carbon\Carbon::parse($request->date)->format('Y-m-d');
-            $query->onDate($date);
-        }
-
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->betweenDates($request->start_date, $request->end_date);
-        }
-
-        // Court filter
-        if ($request->has('court_id')) {
-            $courtId = EasyHashAction::decode($request->court_id, 'court-id');
-            $query->forCourt($courtId);
-        }
-
-        // Status filter
-        if ($request->has('status')) {
-            $status = strtolower($request->status);
-            if (in_array($status, ['confirmed', 'pending', 'cancelled'])) {
-                $statusEnum = match ($status) {
-                    'confirmed' => BookingStatusEnum::CONFIRMED,
-                    'pending'   => BookingStatusEnum::PENDING,
-                    'cancelled' => BookingStatusEnum::CANCELLED,
-                };
-                $query->where('status', $statusEnum);
+            // Date filters
+            if ($request->has('date')) {
+                $date = \Carbon\Carbon::parse($request->date)->format('Y-m-d');
+                $query->onDate($date);
             }
-        }
 
-        // Payment status filter
-        if ($request->has('payment_status')) {
-            $paymentStatus = strtolower($request->payment_status);
-            if (in_array($paymentStatus, ['paid', 'pending'])) {
-                $paymentStatusEnum = match ($paymentStatus) {
-                    'paid'    => PaymentStatusEnum::PAID,
-                    'pending' => PaymentStatusEnum::PENDING,
-                };
-                $query->where('payment_status', $paymentStatusEnum);
+            if ($request->has('start_date') && $request->has('end_date')) {
+                $query->betweenDates($request->start_date, $request->end_date);
             }
+
+            // Court filter
+            if ($request->has('court_id')) {
+                $courtId = EasyHashAction::decode($request->court_id, 'court-id');
+                $query->forCourt($courtId);
+            }
+
+            // Status filter
+            if ($request->has('status')) {
+                $status = strtolower($request->status);
+                if (in_array($status, ['confirmed', 'pending', 'cancelled'])) {
+                    $statusEnum = match ($status) {
+                        'confirmed' => BookingStatusEnum::CONFIRMED,
+                        'pending'   => BookingStatusEnum::PENDING,
+                        'cancelled' => BookingStatusEnum::CANCELLED,
+                    };
+                    $query->where('status', $statusEnum);
+                }
+            }
+
+            // Payment status filter
+            if ($request->has('payment_status')) {
+                $paymentStatus = strtolower($request->payment_status);
+                if (in_array($paymentStatus, ['paid', 'pending'])) {
+                    $paymentStatusEnum = match ($paymentStatus) {
+                        'paid'    => PaymentStatusEnum::PAID,
+                        'pending' => PaymentStatusEnum::PENDING,
+                    };
+                    $query->where('payment_status', $paymentStatusEnum);
+                }
+            }
+
+            // Search functionality
+            if ($request->has('search') && ! empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    // Search by client name
+                    $q->whereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'LIKE', "%{$search}%")
+                            ->orWhere('surname', 'LIKE', "%{$search}%");
+                    })
+                    // Search by court name
+                        ->orWhereHas('court', function ($courtQuery) use ($search) {
+                            $courtQuery->where('name', 'LIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            $bookings = $query->orderBy('start_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->paginate(20);
+
+            return BookingResource::collection($bookings);
+        } catch (HttpException $e) {
+            // Re-throw HTTP exceptions with their specific status codes and messages
+            Log::warning('Erro ao listar agendamentos', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            // Log unexpected errors
+            Log::error('Erro inesperado ao listar agendamentos', [
+                'error'     => $e->getMessage(),
+                'trace'     => $e->getTraceAsString(),
+                'tenant_id' => $request->tenant->id ?? null,
+                'filters'   => $request->all(),
+            ]);
+            abort(500, 'Erro inesperado ao listar agendamentos. Por favor, tente novamente.');
         }
-
-        // Search functionality
-        if ($request->has('search') && ! empty($request->search)) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                // Search by client name
-                $q->whereHas('user', function ($userQuery) use ($search) {
-                    $userQuery->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('surname', 'LIKE', "%{$search}%");
-                })
-                // Search by court name
-                    ->orWhereHas('court', function ($courtQuery) use ($search) {
-                        $courtQuery->where('name', 'LIKE', "%{$search}%");
-                    });
-            });
-        }
-
-        $bookings = $query->orderBy('start_date', 'desc')
-            ->orderBy('start_time', 'desc')
-            ->paginate(20);
-
-        return BookingResource::collection($bookings);
     }
 
     /**
@@ -127,85 +148,27 @@ class BookingController extends Controller
     public function store(CreateBookingRequest $request): BookingResource
     {
         try {
-            $this->beginTransactionSafe();
-
             $tenant = $request->tenant;
             $data   = $request->validated();
 
-            // Handle Client
-            $clientId = $data['client_id'];
-
-            // Get Court
-            $court = Court::find($data['court_id']);
-            if (! $court || $court->tenant_id !== $tenant->id) {
-                abort(400, 'Quadra inválida.');
-            }
-
-            // Check availability and get specific error if not available
-            $availabilityError = $court->checkAvailability($data['start_date'], $data['start_time'], $data['end_time'], $clientId);
-            if ($availabilityError) {
-                abort(400, $availabilityError);
-            }
-
-            // Prepare Booking Data
-            $bookingData = [
-                'tenant_id'      => $tenant->id,
-                'court_id'       => $court->id,
-                'user_id'        => $clientId,
-                'currency_id'    => CurrencyModel::where('code', $tenant->currency)->first()?->id ?? 1,
-                'start_date'     => $data['start_date'],
-                'end_date'       => $data['start_date'], // Single day booking for now
-                'start_time'     => $data['start_time'],
-                'end_time'       => $data['end_time'],
-                'price'          => $data['price'] ?? 0,
-                'status'         => $data['status'] ?? BookingStatusEnum::CONFIRMED,
-                'payment_status' => $data['payment_status'] ?? PaymentStatusEnum::PENDING,
-                'payment_method' => $data['payment_method'] ?? null,
-            ];
-
-            $booking = Booking::create($bookingData);
-
-            // Link user to tenant if not already linked
-            UserTenant::firstOrCreate([
-                'user_id'   => $clientId,
-                'tenant_id' => $tenant->id,
-            ]);
-
-            // Generate QR code with hashed booking ID
-            try {
-                $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
-                $qrCodeInfo      = QrCodeAction::create(
-                    $tenant->id,
-                    $booking->id,
-                    $bookingIdHashed
-                );
-
-                // Update booking with QR code path
-                $booking->update(['qr_code' => $qrCodeInfo->url]);
-            } catch (\Exception $qrException) {
-                // Log QR generation error but don't fail the booking
-                Log::error('Failed to generate QR code for booking', [
-                    'booking_id' => $booking->id,
-                    'error'      => $qrException->getMessage(),
-                ]);
-            }
-
-            $this->commitSafe();
-
-            $booking->load('court');
+            $booking = $this->createBookingService->create($tenant, $data);
 
             return new BookingResource($booking);
-
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-            // Let HTTP exceptions (abort calls) bubble up with their specific messages
-            $this->rollBackSafe();
+        } catch (HttpException $e) {
+            // Re-throw HTTP exceptions with their specific status codes and messages
+            Log::warning('Erro ao criar agendamento', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
             throw $e;
         } catch (\Exception $e) {
-            // Only catch unexpected exceptions
-            $this->rollBackSafe();
+            // Log unexpected errors
             Log::error('Erro inesperado ao criar agendamento', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'     => $e->getMessage(),
+                'trace'     => $e->getTraceAsString(),
+                'tenant_id' => $request->tenant->id ?? null,
+                'data'      => $request->validated(),
             ]);
             abort(500, 'Erro inesperado ao criar agendamento. Por favor, tente novamente.');
         }
@@ -218,14 +181,34 @@ class BookingController extends Controller
      */
     public function show(Request $request, string $tenantId, $bookingId): BookingResource
     {
-        $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
-        $booking   = Booking::forTenant($request->tenant->id)->with(['user', 'court'])->find($bookingId);
+        try {
+            $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
+            $booking   = Booking::forTenant($request->tenant->id)->with(['user', 'court'])->find($bookingId);
 
-        if (! $booking) {
-            abort(404, 'Agendamento não encontrado');
+            if (! $booking) {
+                abort(404, 'Agendamento não encontrado');
+            }
+
+            return new BookingResource($booking);
+        } catch (HttpException $e) {
+            // Re-throw HTTP exceptions with their specific status codes and messages
+            Log::warning('Erro ao buscar agendamento', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'booking_id'  => $bookingId ?? null,
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            // Log unexpected errors
+            Log::error('Erro inesperado ao buscar agendamento', [
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+                'booking_id' => $bookingId ?? null,
+                'tenant_id'  => $request->tenant->id ?? null,
+            ]);
+            abort(500, 'Erro inesperado ao buscar agendamento. Por favor, tente novamente.');
         }
-
-        return new BookingResource($booking);
     }
 
     /**
@@ -254,62 +237,31 @@ class BookingController extends Controller
                 $decodedBookingId = EasyHashAction::decode($bookingId, 'booking-id');
             }
 
-            $booking = Booking::forTenant($request->tenant->id)->find($decodedBookingId);
+            $tenant = $request->tenant;
+            $data   = $request->validated();
 
-            if (! $booking) {
-                abort(404, 'Agendamento não encontrado');
-            }
-
-            // Prevent any update if booking is marked as present
-            if ($booking->present === true) {
-                abort(400, 'Não é possível modificar um agendamento onde o cliente já esteve presente. Por favor, entre em contato com o suporte para assistência.');
-            }
-
-            $data = $request->validated();
-
-            // Check availability if dates/times/court are changing
-            if (isset($data['court_id']) || isset($data['start_date']) || isset($data['start_time']) || isset($data['end_time'])) {
-                // Get current values if not provided in update
-                $startDate = $data['start_date'] ?? \Carbon\Carbon::parse($booking->start_date)->format('Y-m-d');
-                $startTime = $data['start_time'] ?? \Carbon\Carbon::parse($booking->start_time)->format('H:i');
-                $endTime   = $data['end_time'] ?? \Carbon\Carbon::parse($booking->end_time)->format('H:i');
-
-                // Get court - use new court if provided, otherwise use current court
-                if (isset($data['court_id'])) {
-                    $court = Court::find($data['court_id']);
-                    if (! $court || $court->tenant_id !== $booking->tenant_id) {
-                        abort(400, 'Quadra inválida.');
-                    }
-                } else {
-                    $court = $booking->court;
-                }
-
-                $availabilityError = $court->checkAvailability(
-                    $startDate,
-                    $startTime,
-                    $endTime,
-                    $booking->user_id, // Exclude user buffer check if applicable
-                    $booking->id       // Exclude this booking from collision check
-                );
-
-                if ($availabilityError) {
-                    abort(400, $availabilityError);
-                }
-            }
-
-            $booking->update($data);
-
-            $booking->load('court');
+            $booking = $this->updateBookingService->update($tenant, $decodedBookingId, $data);
 
             return new BookingResource($booking);
-
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-            // Let HTTP exceptions (abort calls) bubble up with their specific messages
+        } catch (HttpException $e) {
+            // Re-throw HTTP exceptions with their specific status codes and messages
+            Log::warning('Erro ao atualizar agendamento', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'booking_id'  => $decodedBookingId ?? $bookingId ?? null,
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
             throw $e;
         } catch (\Exception $e) {
-            // Only catch unexpected exceptions
-            Log::error('Erro ao atualizar agendamento', ['error' => $e->getMessage()]);
-            abort(400, 'Erro ao atualizar agendamento');
+            // Log unexpected errors
+            Log::error('Erro inesperado ao atualizar agendamento', [
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+                'booking_id' => $decodedBookingId ?? $bookingId ?? null,
+                'tenant_id'  => $request->tenant->id ?? null,
+                'data'       => $request->validated(),
+            ]);
+            abort(500, 'Erro inesperado ao atualizar agendamento. Por favor, tente novamente.');
         }
     }
 
@@ -329,143 +281,141 @@ class BookingController extends Controller
     public function destroy(Request $request, string $tenantId, $bookingId): JsonResponse
     {
         try {
-            $bookingId = EasyHashAction::decode($bookingId, 'booking-id');
-            $booking   = Booking::forTenant($request->tenant->id)->find($bookingId);
+            $decodedBookingId = EasyHashAction::decode($bookingId, 'booking-id');
+            $tenant           = $request->tenant;
 
-            if (! $booking) {
-                return response()->json(['message' => 'Agendamento não encontrado'], 404);
-            }
-
-            // Prevent deletion if booking is marked as present
-            if ($booking->present === true) {
-                return response()->json([
-                    'message' => 'Não é possível excluir um agendamento onde o cliente já esteve presente. Por favor, entre em contato com o suporte para assistência.',
-                ], 400);
-            }
-
-            // Prevent deletion if booking was paid from app (can only cancel, not delete)
-            if ($booking->payment_method !== null && $booking->payment_method === PaymentMethodEnum::FROM_APP) {
-                return response()->json([
-                    'message' => 'Não é possível excluir um agendamento que foi pago pelo aplicativo. Você pode cancelar o agendamento alterando o status para cancelado.',
-                ], 400);
-            }
-
-            $booking->delete();
+            $this->deleteBookingService->delete($tenant, $decodedBookingId);
 
             return response()->json(['message' => 'Agendamento removido com sucesso']);
-
+        } catch (HttpException $e) {
+            // Log HTTP exceptions (validation errors, business logic errors)
+            Log::warning('Erro ao remover agendamento', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'booking_id'  => $decodedBookingId ?? $bookingId ?? null,
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         } catch (\Exception $e) {
-            Log::error('Erro ao remover agendamento', ['error' => $e->getMessage()]);
+            // Log unexpected errors
+            Log::error('Erro inesperado ao remover agendamento', [
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+                'booking_id' => $decodedBookingId ?? $bookingId ?? null,
+                'tenant_id'  => $request->tenant->id ?? null,
+            ]);
             return response()->json(['message' => 'Erro ao remover agendamento'], 400);
         }
     }
 
     /**
-     * Get bookings that are past or started but not marked as present
+     * Get bookings filtered by presence status
      *
-     * Returns bookings where:
-     * - The booking has started (start_date < today OR (start_date = today AND start_time < now))
-     * - OR the booking has ended (end_date < today OR (end_date = today AND end_time < now))
-     * - AND present is null or false (not marked as present)
+     * Returns bookings filtered by presence status:
+     * - pending: present is null (not yet marked)
+     * - confirmed: present is true
+     * - rejected/canceled: present is false
      *
-     * This is useful for identifying bookings that need presence confirmation.
-     *
+     * @queryParam presence_status string Filter by presence status (pending, confirmed, rejected, canceled). Example: "pending"
      * @queryParam search string Search by client name or court name. Example: "John"
      * @queryParam court_id string Filter by court (hashed ID). Example: "Xy7z..."
      * @queryParam status string Filter by booking status (confirmed, pending, cancelled). Example: "confirmed"
      * @queryParam payment_status string Filter by payment status (paid, pending). Example: "paid"
      *
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function pendingPresence(Request $request, string $tenantId): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+    public function presence(Request $request, string $tenantId): \Illuminate\Http\JsonResponse
     {
-        $tenant      = $request->tenant;
-        $now         = now();
-        $today       = $now->format('Y-m-d');
-        $currentTime = $now->format('H:i:s');
+        try {
+            $tenant = $request->tenant;
+            $query  = Booking::forTenant($tenant->id)->with(['user', 'court', 'currency']);
 
-        $query = Booking::forTenant($tenant->id)
-            ->with(['user', 'court', 'currency'])
-            ->where(function ($q) use ($today, $currentTime, $now) {
-                // Bookings that have started (checking start_date and start_time)
-                $q->where(function ($startQ) use ($today, $currentTime) {
-                    // Past start dates
-                    $startQ->where('start_date', '<', $today)
-                    // OR today but start_time has passed
-                        ->orWhere(function ($subQ) use ($today, $currentTime) {
-                            $subQ->where('start_date', '=', $today)
-                                ->whereRaw('TIME(start_time) < TIME(?)', [$currentTime]);
+            // Presence status filter
+            if ($request->has('presence_status')) {
+                $presenceStatus = strtolower($request->presence_status);
+                if (in_array($presenceStatus, ['pending', 'confirmed', 'rejected', 'canceled'])) {
+                    if ($presenceStatus === 'pending') {
+                        $query->whereNull('present');
+                    } elseif ($presenceStatus === 'confirmed') {
+                        $query->where('present', true);
+                    } elseif (in_array($presenceStatus, ['rejected', 'canceled'])) {
+                        $query->where('present', false);
+                    }
+                }
+            }
+
+            // Court filter
+            if ($request->has('court_id')) {
+                $courtId = EasyHashAction::decode($request->court_id, 'court-id');
+                $query->forCourt($courtId);
+            }
+
+            // Status filter
+            if ($request->has('status')) {
+                $status = strtolower($request->status);
+                if (in_array($status, ['confirmed', 'pending', 'cancelled'])) {
+                    $statusEnum = match ($status) {
+                        'confirmed' => BookingStatusEnum::CONFIRMED,
+                        'pending'   => BookingStatusEnum::PENDING,
+                        'cancelled' => BookingStatusEnum::CANCELLED,
+                    };
+                    $query->where('status', $statusEnum);
+                }
+            }
+
+            // Payment status filter
+            if ($request->has('payment_status')) {
+                $paymentStatus = strtolower($request->payment_status);
+                if (in_array($paymentStatus, ['paid', 'pending'])) {
+                    $paymentStatusEnum = match ($paymentStatus) {
+                        'paid'    => PaymentStatusEnum::PAID,
+                        'pending' => PaymentStatusEnum::PENDING,
+                    };
+                    $query->where('payment_status', $paymentStatusEnum);
+                }
+            }
+
+            // Search functionality
+            if ($request->has('search') && ! empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    // Search by client name
+                    $q->whereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'LIKE', "%{$search}%")
+                            ->orWhere('surname', 'LIKE', "%{$search}%");
+                    })
+                    // Search by court name
+                        ->orWhereHas('court', function ($courtQuery) use ($search) {
+                            $courtQuery->where('name', 'LIKE', "%{$search}%");
                         });
-                })
-                // OR bookings that have ended (checking end_date and end_time)
-                    ->orWhere(function ($endQ) use ($today, $currentTime) {
-                        // Past end dates
-                        $endQ->where('end_date', '<', $today)
-                        // OR today but end_time has passed
-                            ->orWhere(function ($subQ) use ($today, $currentTime) {
-                                $subQ->where('end_date', '=', $today)
-                                    ->whereRaw('TIME(end_time) < TIME(?)', [$currentTime]);
-                            });
-                    });
-            })
-        // Not marked as present (null or false)
-            ->where(function ($q) {
-                $q->whereNull('present')
-                    ->orWhere('present', false);
-            });
-
-        // Court filter
-        if ($request->has('court_id')) {
-            $courtId = EasyHashAction::decode($request->court_id, 'court-id');
-            $query->forCourt($courtId);
-        }
-
-        // Status filter
-        if ($request->has('status')) {
-            $status = strtolower($request->status);
-            if (in_array($status, ['confirmed', 'pending', 'cancelled'])) {
-                $statusEnum = match ($status) {
-                    'confirmed' => BookingStatusEnum::CONFIRMED,
-                    'pending'   => BookingStatusEnum::PENDING,
-                    'cancelled' => BookingStatusEnum::CANCELLED,
-                };
-                $query->where('status', $statusEnum);
+                });
             }
+
+            $bookings = $query->orderBy('start_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->paginate(20);
+
+            return response()->json([
+                'data' => BookingResource::collection($bookings)->resolve(),
+            ]);
+        } catch (HttpException $e) {
+            // Re-throw HTTP exceptions with their specific status codes and messages
+            Log::warning('Erro ao listar agendamentos por presença', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            // Log unexpected errors
+            Log::error('Erro inesperado ao listar agendamentos por presença', [
+                'error'     => $e->getMessage(),
+                'trace'     => $e->getTraceAsString(),
+                'tenant_id' => $request->tenant->id ?? null,
+                'filters'   => $request->all(),
+            ]);
+            abort(500, 'Erro inesperado ao listar agendamentos por presença. Por favor, tente novamente.');
         }
-
-        // Payment status filter
-        if ($request->has('payment_status')) {
-            $paymentStatus = strtolower($request->payment_status);
-            if (in_array($paymentStatus, ['paid', 'pending'])) {
-                $paymentStatusEnum = match ($paymentStatus) {
-                    'paid'    => PaymentStatusEnum::PAID,
-                    'pending' => PaymentStatusEnum::PENDING,
-                };
-                $query->where('payment_status', $paymentStatusEnum);
-            }
-        }
-
-        // Search functionality
-        if ($request->has('search') && ! empty($request->search)) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                // Search by client name
-                $q->whereHas('user', function ($userQuery) use ($search) {
-                    $userQuery->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('surname', 'LIKE', "%{$search}%");
-                })
-                // Search by court name
-                    ->orWhereHas('court', function ($courtQuery) use ($search) {
-                        $courtQuery->where('name', 'LIKE', "%{$search}%");
-                    });
-            });
-        }
-
-        $bookings = $query->orderBy('start_date', 'desc')
-            ->orderBy('start_time', 'desc')
-            ->paginate(20);
-
-        return BookingResource::collection($bookings);
     }
 
     /**
@@ -492,10 +442,27 @@ class BookingController extends Controller
             ]);
 
             return new BookingResource($booking);
-
+        } catch (HttpException $e) {
+            // Re-throw HTTP exceptions with their specific status codes and messages
+            Log::warning('Erro ao confirmar presença', [
+                'error'       => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'booking_id'  => $bookingId ?? null,
+                'tenant_id'   => $request->tenant->id ?? null,
+            ]);
+            throw $e;
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Re-throw validation exceptions
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('Erro ao confirmar presença', ['error' => $e->getMessage()]);
-            abort(400, 'Erro ao confirmar presença');
+            // Log unexpected errors
+            Log::error('Erro inesperado ao confirmar presença', [
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+                'booking_id' => $bookingId ?? null,
+                'tenant_id'  => $request->tenant->id ?? null,
+            ]);
+            abort(500, 'Erro inesperado ao confirmar presença. Por favor, tente novamente.');
         }
     }
 }
