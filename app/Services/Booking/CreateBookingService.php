@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Services\Booking;
 
 use App\Actions\General\EasyHashAction;
@@ -70,10 +69,10 @@ class CreateBookingService
         } catch (\Exception $e) {
             // Log unexpected errors
             Log::error('Erro inesperado ao criar agendamento', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'     => $e->getMessage(),
+                'trace'     => $e->getTraceAsString(),
                 'tenant_id' => $tenant->id,
-                'data' => $data,
+                'data'      => $data,
             ]);
 
             throw new HttpException(500, 'Erro inesperado ao criar agendamento. Por favor, tente novamente.');
@@ -92,7 +91,7 @@ class CreateBookingService
     {
         $court = Court::find($courtId);
 
-        if (!$court || $court->tenant_id !== $tenant->id) {
+        if (! $court || $court->tenant_id !== $tenant->id) {
             throw new HttpException(400, 'Quadra inválida.');
         }
 
@@ -108,7 +107,7 @@ class CreateBookingService
      */
     protected function validateClient(int $clientId): int
     {
-        if (!$clientId) {
+        if (! $clientId) {
             throw new HttpException(400, 'Cliente inválido ou não fornecido.');
         }
 
@@ -146,16 +145,16 @@ class CreateBookingService
     protected function prepareBookingData(Tenant $tenant, array $data, Court $court, int $clientId): array
     {
         return [
-            'tenant_id' => $tenant->id,
-            'court_id' => $court->id,
-            'user_id' => $clientId,
-            'currency_id' => CurrencyModel::where('code', $tenant->currency)->first()?->id ?? 1,
-            'start_date' => $data['start_date'],
-            'end_date' => $data['start_date'], // Single day booking for now
-            'start_time' => $data['start_time'],
-            'end_time' => $data['end_time'],
-            'price' => $data['price'] ?? 0,
-            'status' => $data['status'] ?? BookingStatusEnum::CONFIRMED,
+            'tenant_id'      => $tenant->id,
+            'court_id'       => $court->id,
+            'user_id'        => $clientId,
+            'currency_id'    => CurrencyModel::where('code', $tenant->currency)->first()?->id ?? 1,
+            'start_date'     => $data['start_date'],
+            'end_date'       => $data['start_date'], // Single day booking for now
+            'start_time'     => $data['start_time'],
+            'end_time'       => $data['end_time'],
+            'price'          => $data['price'] ?? 0,
+            'status'         => $data['status'] ?? BookingStatusEnum::CONFIRMED,
             'payment_status' => $data['payment_status'] ?? PaymentStatusEnum::PENDING,
             'payment_method' => $data['payment_method'] ?? null,
         ];
@@ -171,7 +170,7 @@ class CreateBookingService
     protected function linkUserToTenant(int $userId, int $tenantId): void
     {
         UserTenant::firstOrCreate([
-            'user_id' => $userId,
+            'user_id'   => $userId,
             'tenant_id' => $tenantId,
         ]);
     }
@@ -187,7 +186,7 @@ class CreateBookingService
     {
         try {
             $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
-            $qrCodeInfo = QrCodeAction::create(
+            $qrCodeInfo      = QrCodeAction::create(
                 $tenant->id,
                 $booking->id,
                 $bookingIdHashed
@@ -199,10 +198,9 @@ class CreateBookingService
             // Log QR generation error but don't fail the booking
             Log::error('Failed to generate QR code for booking', [
                 'booking_id' => $booking->id,
-                'tenant_id' => $tenant->id,
-                'error' => $qrException->getMessage(),
+                'tenant_id'  => $tenant->id,
+                'error'      => $qrException->getMessage(),
             ]);
         }
     }
 }
-
