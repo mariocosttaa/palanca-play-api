@@ -16,76 +16,166 @@ class MobileCourtTypeController extends Controller
     /**
      * List court types
      * 
-     * List all active court types for a tenant.
+     * List all active court types with optional filtering.
      * 
-     * @unauthenticated
-     * 
-     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * @queryParam search string optional Search in name and description. Example: Padel
+     * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
+     * @queryParam modality string optional Filter by court type modality (e.g., padel, tennis). Example: padel
+     * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
      * 
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral>
      */
-    public function index(Request $request, string $tenantIdHashId)
+    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
-            $tenantId = EasyHashAction::decode($tenantIdHashId, 'tenant-id');
-            
-            $courtTypes = CourtType::forTenant($tenantId)
+            $request->validate([
+                'search' => 'nullable|string',
+                'country_id' => 'nullable|string',
+                'modality' => 'nullable|string',
+                'tenant_id' => 'nullable|string',
+            ]);
+
+            $query = CourtType::query()
                 ->with(['courts' => function ($query) {
                     $query->active()->with('images');
-                }, 'availabilities'])
-                ->where('status', true)
-                ->get();
+                }, 'availabilities', 'tenant.country'])
+                ->where('status', true);
+
+            // Apply Filters
+            if ($request->search) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('name', 'like', '%' . $request->search . '%')
+                      ->orWhere('description', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            if ($request->country_id) {
+                $countryId = EasyHashAction::decode($request->country_id, 'country-id');
+                $query->whereHas('tenant', function ($q) use ($countryId) {
+                    $q->where('country_id', $countryId);
+                });
+            }
+
+            if ($request->modality) {
+                $query->where('type', $request->modality);
+            }
+
+            if ($request->tenant_id) {
+                $tenantId = EasyHashAction::decode($request->tenant_id, 'tenant-id');
+                $query->where('tenant_id', $tenantId);
+            }
+
+            $courtTypes = $query->paginate(20);
 
             return CourtTypeResourceGeneral::collection($courtTypes);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar tipos de quadras', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar tipos de quadras'], 500);
+            abort(500, 'Erro ao buscar tipos de quadras');
         }
     }
 
     /**
      * Get court type details
      * 
-     * @unauthenticated
-     * 
-     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
      * @urlParam court_type_id string required The HashID of the court type. Example: ct_abc123
-     * 
-     * @return \App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral
      */
-    public function show(Request $request, string $tenantIdHashId, string $courtTypeIdHashId)
+    public function show(Request $request, string $courtTypeIdHashId): CourtTypeResourceGeneral
     {
         try {
-            $tenantId = EasyHashAction::decode($tenantIdHashId, 'tenant-id');
             $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
             
-            $courtType = CourtType::forTenant($tenantId)
-                ->with([
+            $courtType = CourtType::with([
                     'courts' => function ($query) {
                         $query->active()->with('images');
                     },
-                    'availabilities'
+                    'availabilities',
+                    'tenant.country'
                 ])
                 ->where('status', true)
                 ->findOrFail($courtTypeId);
 
             return new CourtTypeResourceGeneral($courtType);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Tipo de quadra não encontrado.');
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar tipo de quadra', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar tipo de quadra'], 500);
+            abort(500, 'Erro ao buscar tipo de quadra');
         }
     }
+
     /**
      * Get court type modalities
      * 
      * @unauthenticated
-     * 
-     * @return array{data: string[]}
+     * @response array{data: array<int, array{value: string, label: string}>}
      */
     public function types()
     {
-        return response()->json(['data' => \App\Enums\CourtTypeEnum::values()]);
+        return response()->json(['data' => \App\Enums\CourtTypeEnum::options()]);
+    }
+
+    /**
+     * List popular court types
+     * 
+     * List court types ordered by popularity (likes) with optional filtering.
+     * 
+     * @queryParam search string optional Search in name and description. Example: Padel
+     * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
+     * @queryParam modality string optional Filter by court type modality. Example: padel
+     * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral>
+     */
+    public function popular(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+    {
+        try {
+            $request->validate([
+                'search' => 'nullable|string',
+                'country_id' => 'nullable|string',
+                'modality' => 'nullable|string',
+                'tenant_id' => 'nullable|string',
+            ]);
+
+            $query = CourtType::query()
+                ->with(['courts' => function ($query) {
+                    $query->active()->with('images');
+                }, 'availabilities', 'tenant.country'])
+                ->where('status', true)
+                ->orderBy('likes_count', 'desc');
+
+            // Apply Filters (same as index)
+            if ($request->search) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('name', 'like', '%' . $request->search . '%')
+                      ->orWhere('description', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            if ($request->country_id) {
+                $countryId = EasyHashAction::decode($request->country_id, 'country-id');
+                $query->whereHas('tenant', function ($q) use ($countryId) {
+                    $q->where('country_id', $countryId);
+                });
+            }
+
+            if ($request->modality) {
+                $query->where('type', $request->modality);
+            }
+
+            if ($request->tenant_id) {
+                $tenantId = EasyHashAction::decode($request->tenant_id, 'tenant-id');
+                $query->where('tenant_id', $tenantId);
+            }
+
+            $courtTypes = $query->paginate(5);
+
+            return CourtTypeResourceGeneral::collection($courtTypes);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao buscar tipos de quadras populares', ['error' => $e->getMessage()]);
+            abort(500, 'Erro ao buscar tipos de quadras populares');
+        }
     }
 }

@@ -64,20 +64,23 @@ Route::prefix('v1')->group(function () {
             Route::get('/currencies', [App\Http\Controllers\Api\V1\Mobile\MobileCurrencyController::class, 'index']);
             Route::get('/timezones', [App\Http\Controllers\Api\V1\Mobile\TimezoneController::class, 'index']);
 
-            // Public tenant-scoped routes (Now protected by verification for authenticated users)
-            Route::prefix('tenants/{tenant_id}')->group(function () {
-                // Court Types
-                Route::get('/court-types/modalities', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'types']);
-                Route::get('/court-types', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'index']);
-                Route::get('/court-types/{court_type_id}', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'show']);
+            // Court Types (Global)
+            Route::prefix('court-types')->group(function () {
+                Route::get('/modalities', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'types']);
+                Route::get('/popular', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'popular']);
+                Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'index']);
+                Route::get('/{court_type_id}', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'show']);
+                Route::post('/{court_type_id}/like', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeLikeController::class, 'toggle']);
+            });
 
-                // Courts
-                Route::get('/courts', [App\Http\Controllers\Api\V1\Mobile\MobileCourtController::class, 'index']);
-                Route::get('/courts/{court_id}', [App\Http\Controllers\Api\V1\Mobile\MobileCourtController::class, 'show']);
+            // Courts (Global)
+            Route::prefix('courts')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileCourtController::class, 'index']);
+                Route::get('/{court_id}', [App\Http\Controllers\Api\V1\Mobile\MobileCourtController::class, 'show']);
 
-                // Court Availability
-                Route::get('/courts/{court_id}/availability/dates', [App\Http\Controllers\Api\V1\Mobile\MobileCourtAvailabilityController::class, 'getDates']);
-                Route::get('/courts/{court_id}/availability/{date}/slots', [App\Http\Controllers\Api\V1\Mobile\MobileCourtAvailabilityController::class, 'getSlots']);
+                // Court Availability (Global)
+                Route::get('/{court_id}/availability/dates', [App\Http\Controllers\Api\V1\Mobile\MobileCourtAvailabilityController::class, 'getDates']);
+                Route::get('/{court_id}/availability/{date}/slots', [App\Http\Controllers\Api\V1\Mobile\MobileCourtAvailabilityController::class, 'getSlots']);
             });
 
             // Notifications (requires email verification)
@@ -100,4 +103,3 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
-

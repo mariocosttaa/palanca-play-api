@@ -18,16 +18,13 @@ class MobileCourtAvailabilityController extends Controller
      * Get available dates for a court within a date range.
      * Maximum date range is 90 days.
      * 
-     * @unauthenticated
-     * 
-     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
      * @urlParam court_id string required The HashID of the court. Example: crt_abc123
      * @queryParam start_date string required The start date (Y-m-d). Example: 2025-12-01
      * @queryParam end_date string required The end date (Y-m-d). Example: 2025-12-31
      * 
-     * @return array{data: array{dates: string[], count: int}}
+     * @response array{data: array{dates: array<int, string>, count: int}}
      */
-    public function getDates(Request $request, string $tenantIdHashId, string $courtIdHashId)
+    public function getDates(Request $request, string $courtIdHashId): \Illuminate\Http\JsonResponse
     {
         try {
             $validated = $request->validate([
@@ -40,16 +37,12 @@ class MobileCourtAvailabilityController extends Controller
             $endDate = \Carbon\Carbon::parse($validated['end_date']);
             
             if ($startDate->diffInDays($endDate) > 90) {
-                return response()->json([
-                    'message' => 'O intervalo de datas não pode exceder 90 dias.'
-                ], 422);
+                abort(422, 'O intervalo de datas não pode exceder 90 dias.');
             }
 
-            $tenantId = EasyHashAction::decode($tenantIdHashId, 'tenant-id');
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
             
-            $court = Court::forTenant($tenantId)
-                ->active()
+            $court = Court::active()
                 ->findOrFail($courtId);
 
             $dates = $court->getAvailableDates($validated['start_date'], $validated['end_date']);
@@ -61,9 +54,11 @@ class MobileCourtAvailabilityController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Quadra não encontrada.');
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar datas disponíveis', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar datas disponíveis'], 500);
+            abort(500, 'Erro ao buscar datas disponíveis');
         }
     }
 
@@ -73,15 +68,12 @@ class MobileCourtAvailabilityController extends Controller
      * Get available time slots for a specific date.
      * Respects existing bookings and buffer times.
      * 
-     * @unauthenticated
-     * 
-     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
      * @urlParam court_id string required The HashID of the court. Example: crt_abc123
      * @urlParam date string required The date (Y-m-d). Example: 2025-12-25
      * 
-     * @return array{data: array{date: string, slots: array{start: string, end: string, available: bool}[], count: int, interval_minutes: int, buffer_minutes: int}}
+     * @response array{data: array{date: string, slots: array<int, string>, count: int, interval_minutes: int, buffer_minutes: int}}
      */
-    public function getSlots(Request $request, string $tenantIdHashId, string $courtIdHashId, string $date)
+    public function getSlots(Request $request, string $courtIdHashId, string $date): \Illuminate\Http\JsonResponse
     {
         try {
             // Validate date format
@@ -90,14 +82,12 @@ class MobileCourtAvailabilityController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json(['message' => $validator->errors()->first()], 422);
+                abort(422, $validator->errors()->first());
             }
 
-            $tenantId = EasyHashAction::decode($tenantIdHashId, 'tenant-id');
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
             
-            $court = Court::forTenant($tenantId)
-                ->active()
+            $court = Court::active()
                 ->with('tenant')
                 ->findOrFail($courtId);
 
@@ -113,9 +103,11 @@ class MobileCourtAvailabilityController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Quadra não encontrada.');
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar horários disponíveis', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar horários disponíveis'], 500);
+            abort(500, 'Erro ao buscar horários disponíveis');
         }
     }
 }
