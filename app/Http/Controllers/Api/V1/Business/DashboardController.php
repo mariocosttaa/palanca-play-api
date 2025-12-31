@@ -41,11 +41,12 @@ class DashboardController extends Controller
             // 1. CARDS DATA
 
             // Total Revenue (Current Month) - Only paid bookings
-            $totalRevenue = Booking::forTenant($tenant->id)
-                ->whereBetween('start_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+            $totalRevenue = (int) (Booking::forTenant($tenant->id)
+                ->whereMonth('start_date', $now->month)
+                ->whereYear('start_date', $now->year)
                 ->where('payment_status', PaymentStatusEnum::PAID)
                 ->where('status', '!=', BookingStatusEnum::CANCELLED)
-                ->sum('price');
+                ->sum('price') ?? 0);
 
             // Total Open Bookings (Upcoming from today onwards)
             $totalOpenBookings = Booking::forTenant($tenant->id)
@@ -65,7 +66,8 @@ class DashboardController extends Controller
             // DB is faster but depends on database engine (MySQL/Postgres/SQLite).
             // Let's do PHP for compatibility and safety, fetching only necessary fields.
             $monthBookings = Booking::forTenant($tenant->id)
-                ->whereBetween('start_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+                ->whereMonth('start_date', $now->month)
+                ->whereYear('start_date', $now->year)
                 ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->get(['start_time', 'end_time']);
 
@@ -135,7 +137,8 @@ class DashboardController extends Controller
 
             // Daily Revenue (Current Month)
             $dailyRevenueBookings = Booking::forTenant($tenant->id)
-                ->whereBetween('start_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+                ->whereMonth('start_date', $now->month)
+                ->whereYear('start_date', $now->year)
                 ->where('payment_status', PaymentStatusEnum::PAID)
                 ->where('status', '!=', BookingStatusEnum::CANCELLED)
                 ->get();
