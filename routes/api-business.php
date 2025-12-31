@@ -74,6 +74,7 @@ Route::prefix('v1')->group(function () {
             // Countries and Currencies (no auth required on business side since these are reference data)
             Route::get('/countries', [App\Http\Controllers\Api\V1\Business\CountryController::class, 'index'])->name('countries.index');
             Route::get('/currencies', [App\Http\Controllers\Api\V1\Business\CurrencyController::class, 'index'])->name('currencies.index');
+            Route::get('/timezones', [App\Http\Controllers\Api\V1\Business\TimezoneController::class, 'index'])->name('timezones.index');
 
             // Tenant-scoped routes - requires tenant access middleware
             Route::middleware(['tenant.show', \App\Http\Middleware\CheckTenantSubscription::class, \App\Http\Middleware\BlockSubscriptionCrud::class])->group(function () {

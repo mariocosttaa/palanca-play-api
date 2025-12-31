@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
     // Public general routes
     Route::get('/countries', [App\Http\Controllers\Api\V1\Mobile\MobileCountryController::class, 'index']);
     Route::get('/currencies', [App\Http\Controllers\Api\V1\Mobile\MobileCurrencyController::class, 'index']);
+    Route::get('/timezones', [App\Http\Controllers\Api\V1\Mobile\TimezoneController::class, 'index']);
 
     // Public tenant-scoped routes (no authentication required for browsing)
     Route::prefix('tenants/{tenant_id}')->group(function () {
