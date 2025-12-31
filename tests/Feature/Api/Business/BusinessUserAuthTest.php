@@ -235,7 +235,8 @@ test('business user cannot login with invalid credentials', function () {
 
 test('authenticated business user can get their profile', function () {
     /** @var TestCase $this */
-    $businessUser = BusinessUser::factory()->create();
+    $timezone = \App\Models\Timezone::factory()->create(['name' => 'Europe/Madrid']);
+    $businessUser = BusinessUser::factory()->create(['timezone_id' => $timezone->id]);
     Sanctum::actingAs($businessUser, [], 'business');
 
     $response = $this->getJson('/api/business/v1/business-users/me');
@@ -245,6 +246,8 @@ test('authenticated business user can get their profile', function () {
             ->has('data', fn ($userJson) => $userJson
                 ->where('id', fn ($id) => ! empty($id))
                 ->where('email', $businessUser->email)
+                ->where('timezone.name', 'Europe/Madrid')
+                ->has('timezone_id')
                 ->has('name')
                 ->etc()
             )

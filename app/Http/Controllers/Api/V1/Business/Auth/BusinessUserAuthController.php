@@ -214,7 +214,7 @@ class BusinessUserAuthController extends Controller
     public function me(Request $request): BusinessUserResourceSpecific
     {
         try {
-            $businessUser = $request->user()->load('country');
+            $businessUser = $request->user()->load(['country', 'timezone']);
 
             return new BusinessUserResourceSpecific($businessUser);
 

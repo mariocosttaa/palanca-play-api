@@ -364,3 +364,32 @@ test('user can unlink google account', function () {
     expect($user->google_login)->toBeFalse();
 });
 
+
+
+test('authenticated user can get their profile', function () {
+    /** @var TestCase $this */
+    $timezone = \App\Models\Timezone::factory()->create(['name' => 'Asia/Tokyo']);
+    $user = User::factory()->create(['timezone_id' => $timezone->id]);
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $response = $this->getJson('/api/v1/users/me');
+
+    $response->assertStatus(200)
+        ->assertJson(fn ($json) => $json
+            ->has('data', fn ($userJson) => $userJson
+                ->where('id', fn ($id) => ! empty($id))
+                ->where('email', $user->email)
+                ->where('timezone.name', 'Asia/Tokyo')
+                ->has('timezone_id')
+                ->has('name')
+                ->etc()
+            )
+        );
+});
+
+test('unauthenticated user cannot get profile', function () {
+    /** @var TestCase $this */
+    $response = $this->getJson('/api/v1/users/me');
+
+    $response->assertStatus(401);
+});

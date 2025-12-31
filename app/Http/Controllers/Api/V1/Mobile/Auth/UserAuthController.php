@@ -210,7 +210,7 @@ class UserAuthController extends Controller
     public function me(Request $request): UserResourceSpecific
     {
         try {
-            $user = $request->user()->load('country');
+            $user = $request->user()->load(['country', 'timezone']);
 
             return new UserResourceSpecific($user);
 
