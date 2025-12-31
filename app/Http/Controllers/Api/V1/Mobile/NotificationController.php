@@ -28,7 +28,6 @@ class NotificationController extends Controller
             return NotificationResource::collection($notifications);
 
         } catch (\Exception $e) {
-        } catch (\Exception $e) {
             \Log::error('Erro ao buscar notificações recentes', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar notificações recentes'], 500);
         }
@@ -49,7 +48,6 @@ class NotificationController extends Controller
 
             return NotificationResource::collection($notifications);
 
-        } catch (\Exception $e) {
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar notificações', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar notificações'], 500);
@@ -72,7 +70,6 @@ class NotificationController extends Controller
 
             return NotificationResource::make($notification);
 
-        } catch (\Exception $e) {
         } catch (\Exception $e) {
             \Log::error('Erro ao marcar notificação como lida', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao marcar notificação como lida'], 500);

@@ -5,6 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Notification model for Client/Mobile Users.
+ * 
+ * This model handles notifications sent to end-users (clients) of the application,
+ * typically via the mobile app. For business user notifications, see BusinessNotification.
+ */
 class Notification extends Model
 {
     use HasFactory;
