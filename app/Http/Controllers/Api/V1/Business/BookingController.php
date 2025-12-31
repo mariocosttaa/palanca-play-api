@@ -151,7 +151,7 @@ class BookingController extends Controller
             $tenant = $request->tenant;
             $data   = $request->validated();
 
-            $booking = $this->createBookingService->create($tenant, $data);
+            $booking = $this->createBookingService->create($tenant, $data, \App\Enums\BookingApiContextEnum::BUSINESS);
 
             return new BookingResource($booking);
         } catch (HttpException $e) {
@@ -240,7 +240,7 @@ class BookingController extends Controller
             $tenant = $request->tenant;
             $data   = $request->validated();
 
-            $booking = $this->updateBookingService->update($tenant, $decodedBookingId, $data);
+            $booking = $this->updateBookingService->update($tenant, $decodedBookingId, $data, \App\Enums\BookingApiContextEnum::BUSINESS);
 
             return new BookingResource($booking);
         } catch (HttpException $e) {
