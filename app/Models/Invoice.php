@@ -74,9 +74,8 @@ class Invoice extends Model
     {
         return MoneyAction::format(
             amount: $this->price,
-            currency: $this->tenant->currency ?? 'aoa',
+            currency: $this->tenant->currency,
             formatWithSymbol: true
         );
     }
 }
-

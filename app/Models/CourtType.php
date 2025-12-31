@@ -68,9 +68,8 @@ class CourtType extends Model
     {
         return MoneyAction::format(
             amount: $this->price_per_interval,
-            currency: $this->tenant->currency ?? 'aoa',
+            currency: $this->tenant->currency,
             formatWithSymbol: true
         );
     }
 }
-
