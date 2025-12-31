@@ -3,35 +3,36 @@
 namespace App\Http\Controllers\Api\V1\Mobile;
 
 use App\Actions\General\EasyHashAction;
+use App\Enums\BookingApiContextEnum;
+use App\Enums\BookingStatusEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Enums\PaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Mobile\CreateMobileBookingRequest;
 use App\Http\Resources\Business\V1\Specific\BookingResource;
 use App\Models\Booking;
 use App\Models\Court;
-use App\Services\NotificationService;
+use App\Services\Booking\CancelBookingService;
+use App\Services\Booking\CreateBookingService;
+use App\Services\Booking\UpdateBookingService;
 use App\Services\EmailService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
-use App\Models\Manager\CurrencyModel;
-use App\Models\UserTenant;
-use App\Actions\General\QrCodeAction;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use App\Enums\BookingStatusEnum;
-use App\Enums\PaymentStatusEnum;
-use App\Enums\PaymentMethodEnum;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * @tags [API-MOBILE] Bookings
  */
 class MobileBookingController extends Controller
 {
-    protected $notificationService;
-    protected $emailService;
-
-    public function __construct(NotificationService $notificationService, EmailService $emailService)
-    {
-        $this->notificationService = $notificationService;
-        $this->emailService = $emailService;
+    public function __construct(
+        protected CreateBookingService $createBookingService,
+        protected UpdateBookingService $updateBookingService,
+        protected CancelBookingService $cancelBookingService,
+        protected NotificationService $notificationService,
+        protected EmailService $emailService,
+    ) {
     }
     /**
      * List authenticated user's bookings
@@ -77,8 +78,6 @@ class MobileBookingController extends Controller
     public function store(CreateMobileBookingRequest $request)
     {
         try {
-            DB::beginTransaction();
-
             $user = $request->user();
             $data = $request->validated();
             
@@ -96,55 +95,33 @@ class MobileBookingController extends Controller
             $pricePerInterval = $court->courtType->price_per_interval ?? 0;
             $totalPrice = $pricePerInterval * count($slots);
 
-            // Check tenant auto-confirmation setting
-            $isPending = !$court->tenant->auto_confirm_bookings;
-
-            // Prepare Booking Data
+            // Prepare booking data for service
             $bookingData = [
-                'tenant_id' => $court->tenant_id,
                 'court_id' => $court->id,
-                'user_id' => $user->id,
-                'currency_id' => CurrencyModel::where('code', $court->tenant->currency)->first()->id ?? 1,
+                'client_id' => $user->id,
                 'start_date' => $data['start_date'],
-                'end_date' => $data['start_date'], // Single day booking
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'price' => $totalPrice,
-                'payment_method' => PaymentMethodEnum::FROM_APP, // Mobile bookings default to from_app or similar, but user said 'from_app' in Enum.
+                'payment_method' => PaymentMethodEnum::FROM_APP,
                 'payment_status' => PaymentStatusEnum::PENDING,
-                'status' => $isPending ? BookingStatusEnum::PENDING : BookingStatusEnum::CONFIRMED,
+                // Status will be determined by service based on tenant auto_confirm_bookings setting
             ];
 
-            $booking = Booking::create($bookingData);
+            // Create booking using service (status handled automatically based on tenant settings)
+            $booking = $this->createBookingService->create(
+                $court->tenant,
+                $bookingData,
+                BookingApiContextEnum::MOBILE
+            );
 
-        // Link user to tenant if not already linked
-        UserTenant::firstOrCreate([
-            'user_id' => $user->id,
-            'tenant_id' => $court->tenant_id,
-        ]);
-
-            // Generate QR code with hashed booking ID
+            // Create notifications (for user and business users)
             try {
-                $bookingIdHashed = EasyHashAction::encode($booking->id, 'booking-id');
-                $qrCodeInfo = QrCodeAction::create(
-                    $court->tenant_id,
-                    $booking->id,
-                    $bookingIdHashed
+                $notificationResult = $this->notificationService->createBookingNotification(
+                    $booking,
+                    'created',
+                    BookingApiContextEnum::MOBILE
                 );
-                
-                // Update booking with QR code path
-                $booking->update(['qr_code' => $qrCodeInfo->url]);
-            } catch (\Exception $qrException) {
-                // Log QR generation error but don't fail the booking
-                Log::error('Failed to generate QR code for booking', [
-                    'booking_id' => $booking->id,
-                    'error' => $qrException->getMessage()
-                ]);
-            }
-
-            // Create notification
-            try {
-                $this->notificationService->createBookingNotification($booking, 'created');
             } catch (\Exception $notifException) {
                 Log::error('Failed to create notification for booking', [
                     'booking_id' => $booking->id,
@@ -152,7 +129,7 @@ class MobileBookingController extends Controller
                 ]);
             }
 
-            // Send email
+            // Send email to user
             try {
                 $this->emailService->sendBookingEmail($user, $booking, 'created');
             } catch (\Exception $emailException) {
@@ -162,14 +139,106 @@ class MobileBookingController extends Controller
                 ]);
             }
 
-            DB::commit();
+            return BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
+
+        } catch (HttpException $e) {
+            Log::warning('Erro ao criar agendamento', [
+                'error' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+            ]);
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
+        } catch (\Exception $e) {
+            Log::error('Erro inesperado ao criar agendamento', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['message' => 'Erro ao criar agendamento'], 500);
+        }
+    }
+
+    /**
+     * Update a booking
+     */
+    public function update(\App\Http\Requests\Api\V1\Mobile\UpdateMobileBookingRequest $request, string $bookingIdHashId)
+    {
+        try {
+            $user = $request->user();
+            $bookingId = EasyHashAction::decode($bookingIdHashId, 'booking-id');
+            
+            // Find booking and verify ownership
+            $booking = Booking::where('user_id', $user->id)
+                ->with('tenant')
+                ->findOrFail($bookingId);
+
+            $data = $request->validated();
+
+            // Convert slots to start_time and end_time if provided
+            if (isset($data['slots']) && is_array($data['slots']) && count($data['slots']) > 0) {
+                $data['start_time'] = $data['slots'][0]['start'];
+                $data['end_time'] = $data['slots'][count($data['slots']) - 1]['end'];
+                unset($data['slots']);
+            }
+
+            // If court_id is provided, we need to recalculate price based on slots
+            if (isset($data['court_id'])) {
+                $court = Court::with('courtType')->find($data['court_id']);
+                if ($court && isset($data['start_time']) && isset($data['end_time'])) {
+                    // Calculate price based on time difference and court type pricing
+                    $start = \Carbon\Carbon::parse($data['start_time']);
+                    $end = \Carbon\Carbon::parse($data['end_time']);
+                    $minutes = $start->diffInMinutes($end);
+                    $intervals = ceil($minutes / ($court->courtType->interval_time_minutes ?? 60));
+                    $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+                    $data['price'] = $pricePerInterval * $intervals;
+                }
+            }
+
+            // Update booking using service
+            $booking = $this->updateBookingService->update(
+                $booking->tenant,
+                $bookingId,
+                $data,
+                BookingApiContextEnum::MOBILE
+            );
+
+            // Create notifications (for user and business users)
+            try {
+                $this->notificationService->createBookingNotification(
+                    $booking,
+                    'updated',
+                    BookingApiContextEnum::MOBILE
+                );
+            } catch (\Exception $notifException) {
+                Log::error('Failed to create notification for updated booking', [
+                    'booking_id' => $booking->id,
+                    'error' => $notifException->getMessage()
+                ]);
+            }
+
+            // Send email to user
+            try {
+                $this->emailService->sendBookingEmail($user, $booking, 'updated');
+            } catch (\Exception $emailException) {
+                Log::error('Failed to send update email', [
+                    'booking_id' => $booking->id,
+                    'error' => $emailException->getMessage()
+                ]);
+            }
 
             return BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
 
+        } catch (HttpException $e) {
+            Log::warning('Erro ao atualizar agendamento', [
+                'error' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+            ]);
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Erro ao criar agendamento', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao criar agendamento'], 500);
+            Log::error('Erro inesperado ao atualizar agendamento', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['message' => 'Erro ao atualizar agendamento'], 500);
         }
     }
 
@@ -203,36 +272,24 @@ class MobileBookingController extends Controller
             $user = $request->user();
             $bookingId = EasyHashAction::decode($bookingIdHashId, 'booking-id');
             
+            // Find booking and verify ownership
             $booking = Booking::where('user_id', $user->id)
                 ->findOrFail($bookingId);
 
-            // Check if booking can be cancelled
-            if ($booking->status === BookingStatusEnum::CANCELLED) {
-                return response()->json(['message' => 'Este agendamento já foi cancelado'], 400);
-            }
+            // Cancel booking using service
+            $booking = $this->cancelBookingService->cancel(
+                $booking->tenant,
+                $bookingId,
+                BookingApiContextEnum::MOBILE
+            );
 
-            if ($booking->start_date < now()->format('Y-m-d')) {
-                return response()->json(['message' => 'Não é possível cancelar agendamentos passados'], 400);
-            }
-
-            // Mark as cancelled instead of deleting
-            $booking->update(['status' => BookingStatusEnum::CANCELLED]);
-
-            // Delete QR code if exists
-            if ($booking->qr_code) {
-                try {
-                    QrCodeAction::delete($booking->tenant_id, $booking->qr_code);
-                } catch (\Exception $qrException) {
-                    Log::error('Failed to delete QR code for cancelled booking', [
-                        'booking_id' => $booking->id,
-                        'error' => $qrException->getMessage()
-                    ]);
-                }
-            }
-
-            // Create notification
+            // Create notifications (for user and business users)
             try {
-                $this->notificationService->createBookingNotification($booking, 'cancelled');
+                $this->notificationService->createBookingNotification(
+                    $booking,
+                    'cancelled',
+                    BookingApiContextEnum::MOBILE
+                );
             } catch (\Exception $notifException) {
                 Log::error('Failed to create notification for cancelled booking', [
                     'booking_id' => $booking->id,
@@ -240,7 +297,7 @@ class MobileBookingController extends Controller
                 ]);
             }
 
-            // Send email
+            // Send email to user
             try {
                 $this->emailService->sendBookingEmail($user, $booking, 'cancelled');
             } catch (\Exception $emailException) {
@@ -252,8 +309,17 @@ class MobileBookingController extends Controller
 
             return response()->json(['message' => 'Agendamento cancelado com sucesso']);
 
+        } catch (HttpException $e) {
+            Log::warning('Erro ao cancelar agendamento', [
+                'error' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+            ]);
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         } catch (\Exception $e) {
-            Log::error('Erro ao cancelar agendamento', ['error' => $e->getMessage()]);
+            Log::error('Erro inesperado ao cancelar agendamento', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['message' => 'Erro ao cancelar agendamento'], 500);
         }
     }
