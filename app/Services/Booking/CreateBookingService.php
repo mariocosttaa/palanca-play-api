@@ -3,6 +3,7 @@ namespace App\Services\Booking;
 
 use App\Actions\General\EasyHashAction;
 use App\Actions\General\QrCodeAction;
+use App\Enums\BookingApiContextEnum;
 use App\Enums\BookingStatusEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Models\Booking;
@@ -30,13 +31,14 @@ class CreateBookingService
      *   - status: BookingStatusEnum|null (optional)
      *   - payment_status: PaymentStatusEnum|null (optional)
      *   - payment_method: PaymentMethodEnum|null (optional)
+     * @param BookingApiContextEnum $apiContext The API context (mobile or business)
      * @return Booking The created booking with court relationship loaded
      * @throws HttpException If validation fails or booking cannot be created
      */
-    public function create(Tenant $tenant, array $data): Booking
+    public function create(Tenant $tenant, array $data, BookingApiContextEnum $apiContext = BookingApiContextEnum::BUSINESS): Booking
     {
         try {
-            return DB::transaction(function () use ($tenant, $data) {
+            return DB::transaction(function () use ($tenant, $data, $apiContext) {
                 // Validate and get court
                 $court = $this->validateCourt($tenant, $data['court_id']);
 
@@ -47,7 +49,7 @@ class CreateBookingService
                 $this->checkAvailability($court, $data['start_date'], $data['start_time'], $data['end_time'], $clientId);
 
                 // Prepare booking data
-                $bookingData = $this->prepareBookingData($tenant, $data, $court, $clientId);
+                $bookingData = $this->prepareBookingData($tenant, $data, $court, $clientId, $apiContext);
 
                 // Create booking
                 $booking = Booking::create($bookingData);
@@ -140,10 +142,26 @@ class CreateBookingService
      * @param array $data
      * @param Court $court
      * @param int $clientId
+     * @param BookingApiContextEnum $apiContext
      * @return array
      */
-    protected function prepareBookingData(Tenant $tenant, array $data, Court $court, int $clientId): array
+    protected function prepareBookingData(Tenant $tenant, array $data, Court $court, int $clientId, BookingApiContextEnum $apiContext): array
     {
+        // Determine status based on API context and tenant settings
+        $status = $data['status'] ?? null;
+        
+        // For mobile API, respect tenant auto-confirmation setting
+        if ($status === null && $apiContext === BookingApiContextEnum::MOBILE) {
+            $status = $tenant->auto_confirm_bookings 
+                ? BookingStatusEnum::CONFIRMED 
+                : BookingStatusEnum::PENDING;
+        }
+        
+        // For business API, default to CONFIRMED if not specified
+        if ($status === null) {
+            $status = BookingStatusEnum::CONFIRMED;
+        }
+
         return [
             'tenant_id'      => $tenant->id,
             'court_id'       => $court->id,
@@ -154,7 +172,7 @@ class CreateBookingService
             'start_time'     => $data['start_time'],
             'end_time'       => $data['end_time'],
             'price'          => $data['price'] ?? 0,
-            'status'         => $data['status'] ?? BookingStatusEnum::CONFIRMED,
+            'status'         => $status,
             'payment_status' => $data['payment_status'] ?? PaymentStatusEnum::PENDING,
             'payment_method' => $data['payment_method'] ?? null,
         ];

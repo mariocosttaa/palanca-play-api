@@ -2,6 +2,7 @@
 
 namespace App\Services\Booking;
 
+use App\Enums\BookingApiContextEnum;
 use App\Models\Booking;
 use App\Models\Court;
 use App\Models\Tenant;
@@ -24,10 +25,11 @@ class UpdateBookingService
      *   - status: BookingStatusEnum|null (optional)
      *   - payment_status: PaymentStatusEnum|null (optional)
      *   - payment_method: PaymentMethodEnum|null (optional)
+     * @param BookingApiContextEnum $apiContext The API context (mobile or business)
      * @return Booking The updated booking with court relationship loaded
      * @throws HttpException If validation fails or booking cannot be updated
      */
-    public function update(Tenant $tenant, int $bookingId, array $data): Booking
+    public function update(Tenant $tenant, int $bookingId, array $data, BookingApiContextEnum $apiContext = BookingApiContextEnum::BUSINESS): Booking
     {
         try {
             // Find booking
