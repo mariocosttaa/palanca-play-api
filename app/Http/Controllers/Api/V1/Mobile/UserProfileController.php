@@ -17,9 +17,6 @@ class UserProfileController extends Controller
      * Update user language preference
      * 
      * Updates the preferred language for the authenticated user.
-     * 
-     * @return array{data: array{locale: string, message: string}}
-     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
     public function updateLanguage(Request $request): JsonResponse
     {
@@ -52,9 +49,6 @@ class UserProfileController extends Controller
      * Update user profile
      * 
      * Updates the profile information of the authenticated user.
-     * 
-     * @return array{data: array{user: \App\Models\User, message: string}}
-     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
     public function updateProfile(Request $request): JsonResponse
     {
@@ -89,7 +83,6 @@ class UserProfileController extends Controller
      * 
      * Updates the timezone for the authenticated user.
      * 
-     * @return array{data: array{timezone: string, message: string}}
      */
     public function updateTimezone(Request $request): JsonResponse
     {

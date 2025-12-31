@@ -18,8 +18,6 @@ class BusinessUserProfileController extends Controller
      * 
      * Updates the preferred language for the authenticated business user.
      * 
-     * @return array{data: array{locale: string, message: string}}
-     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
     public function updateLanguage(Request $request): JsonResponse
     {
@@ -53,8 +51,6 @@ class BusinessUserProfileController extends Controller
      * 
      * Updates the profile information of the authenticated business user.
      * 
-     * @return array{data: array{user: \App\Models\BusinessUser, message: string}}
-     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
     public function updateProfile(Request $request): JsonResponse
     {
@@ -89,8 +85,6 @@ class BusinessUserProfileController extends Controller
      * 
      * Updates the timezone for the authenticated business user.
      * 
-     * @return array{data: array{timezone: string, message: string}}
-     * @response 422 {"message": "Dados inválidos", "errors": []}
      */
     public function updateTimezone(Request $request): JsonResponse
     {
