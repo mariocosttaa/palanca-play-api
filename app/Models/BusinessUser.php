@@ -26,6 +26,7 @@ class BusinessUser extends Authenticatable implements MustVerifyEmail
         'timezone_id',
         'locale',
         'password',
+        'email_verified_at',
     ];
 
     protected $hidden = [

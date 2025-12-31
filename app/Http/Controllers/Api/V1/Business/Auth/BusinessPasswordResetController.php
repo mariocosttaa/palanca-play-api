@@ -98,6 +98,11 @@ class BusinessPasswordResetController extends Controller
                 'password' => Hash::make($password),
             ]);
 
+            // Auto-verify user if not already verified
+            if (!$user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified();
+            }
+
             // Mark code as used
             $resetCode->markAsUsed();
 
