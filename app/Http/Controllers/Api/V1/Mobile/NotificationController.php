@@ -13,7 +13,11 @@ use Illuminate\Http\Request;
 class NotificationController extends Controller
 {
     /**
-     * Get recent notifications (last 8)
+     * Get recent notifications
+     * 
+     * Get the last 8 notifications for the authenticated user.
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Mobile\V1\Specific\NotificationResource>
      */
     public function recent(Request $request)
     {
@@ -34,7 +38,14 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get all notifications with pagination
+     * List notifications
+     * 
+     * Get all notifications for the authenticated user with pagination.
+     * 
+     * @queryParam page int The page number. Example: 1
+     * @queryParam per_page int The number of items per page. Example: 20
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Mobile\V1\Specific\NotificationResource>
      */
     public function index(Request $request)
     {
@@ -56,6 +67,10 @@ class NotificationController extends Controller
 
     /**
      * Mark notification as read
+     * 
+     * @urlParam notification_id string required The HashID of the notification. Example: not_abc123
+     * 
+     * @return \App\Http\Resources\Mobile\V1\Specific\NotificationResource
      */
     public function markAsRead(Request $request, string $notificationHashId)
     {

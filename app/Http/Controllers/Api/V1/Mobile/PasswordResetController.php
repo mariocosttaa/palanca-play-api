@@ -27,9 +27,13 @@ class PasswordResetController extends Controller
     /**
      * Request password reset code
      * 
-     * Sends a 6-digit recovery code to the provided email address if it exists in the users table.
+     * Sends a 6-digit recovery code to the provided email address if it exists.
      * 
      * @unauthenticated
+     * 
+     * @bodyParam email string required The user's email address. Example: user@example.com
+     * 
+     * @return array{message: string}
      */
     public function requestCode(UserForgotPasswordRequest $request): JsonResponse
     {
@@ -71,6 +75,13 @@ class PasswordResetController extends Controller
      * Verifies the recovery code and updates the user's password.
      * 
      * @unauthenticated
+     * 
+     * @bodyParam email string required The user's email address. Example: user@example.com
+     * @bodyParam code string required The 6-digit code. Example: 123456
+     * @bodyParam password string required The new password. Example: new-password-123
+     * @bodyParam password_confirmation string required The password confirmation. Example: new-password-123
+     * 
+     * @return array{message: string}
      */
     public function verifyCode(UserVerifyPasswordResetRequest $request): JsonResponse
     {
@@ -123,6 +134,10 @@ class PasswordResetController extends Controller
      * Checks if a recovery code is valid without using it.
      * 
      * @unauthenticated
+     * 
+     * @urlParam code string required The 6-digit code. Example: 123456
+     * 
+     * @return array{data: array{valid: bool, email?: string, expires_at?: string, message?: string}}
      */
     public function checkCode(string $code): JsonResponse
     {

@@ -19,7 +19,9 @@ class UserProfileController extends Controller
     /**
      * Update user language preference
      * 
-     * Updates the preferred language for the authenticated user.
+     * @bodyParam locale string required The preferred locale (en, pt, es, fr). Example: pt
+     * 
+     * @return array{data: array{locale: string, message: string}}
      */
     public function updateLanguage(Request $request): JsonResponse
     {
@@ -51,7 +53,11 @@ class UserProfileController extends Controller
     /**
      * Update user profile
      * 
-     * Updates the profile information of the authenticated user.
+     * @bodyParam name string optional The user's first name. Example: Mario
+     * @bodyParam surname string optional The user's last name. Example: Rossi
+     * @bodyParam phone string optional The user's phone number. Example: +351912345678
+     * @bodyParam timezone string optional The user's timezone string. Example: Europe/Lisbon
+     * @bodyParam locale string optional The user's preferred locale. Example: pt
      */
     public function updateProfile(Request $request): JsonResponse
     {
@@ -84,8 +90,9 @@ class UserProfileController extends Controller
     /**
      * Update user timezone
      * 
-     * Updates the timezone for the authenticated user.
+     * @bodyParam timezone_id string required The HashID of the timezone. Example: tz_abc123
      * 
+     * @return array{data: array{timezone: string|null, message: string}}
      */
     public function updateTimezone(Request $request): JsonResponse
     {
@@ -122,15 +129,18 @@ class UserProfileController extends Controller
     /**
      * Update user email
      * 
-     * Updates the email address of the authenticated user and sends a verification code to the new email.
+     * Updates the email address and sends a verification code to the new email.
      * 
+     * @bodyParam email string required The new email address. Example: new-email@example.com
+     * 
+     * @return array{data: array{email: string, message: string}}
      */
     public function updateEmail(UpdateEmailRequest $request, EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
             $this->beginTransactionSafe();
 
-            $user = $user = $request->user();
+            $user = $request->user();
             $newEmail = $request->email;
 
             // Send verification code to the NEW email

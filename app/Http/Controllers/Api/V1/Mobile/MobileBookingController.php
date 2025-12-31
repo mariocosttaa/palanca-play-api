@@ -36,6 +36,12 @@ class MobileBookingController extends Controller
     }
     /**
      * List authenticated user's bookings
+     * 
+     * @queryParam status string Filter by status (upcoming, past, cancelled). Example: upcoming
+     * @queryParam page int The page number. Example: 1
+     * @queryParam per_page int The number of items per page. Example: 20
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Business\V1\Specific\BookingResource>
      */
     public function index(Request $request)
     {
@@ -73,7 +79,11 @@ class MobileBookingController extends Controller
     }
 
     /**
-     * Create a new booking with support for multiple contiguous slots
+     * Create a new booking
+     * 
+     * Allows creating a booking for multiple contiguous slots.
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
      */
     public function store(CreateMobileBookingRequest $request)
     {
@@ -158,6 +168,10 @@ class MobileBookingController extends Controller
 
     /**
      * Update a booking
+     * 
+     * @urlParam booking_id string required The HashID of the booking. Example: abc123
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
      */
     public function update(\App\Http\Requests\Api\V1\Mobile\UpdateMobileBookingRequest $request, string $bookingIdHashId)
     {
@@ -244,6 +258,10 @@ class MobileBookingController extends Controller
 
     /**
      * Get booking details
+     * 
+     * @urlParam booking_id string required The HashID of the booking. Example: abc123
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
      */
     public function show(Request $request, string $bookingIdHashId)
     {
@@ -265,6 +283,10 @@ class MobileBookingController extends Controller
 
     /**
      * Cancel a booking
+     * 
+     * @urlParam booking_id string required The HashID of the booking. Example: abc123
+     * 
+     * @return array{message: string}
      */
     public function destroy(Request $request, string $bookingIdHashId)
     {
@@ -325,7 +347,17 @@ class MobileBookingController extends Controller
     }
 
     /**
-     * Get user booking statistics only
+     * Get user booking statistics
+     * 
+     * @return array{
+     *   data: array{
+     *     total_bookings: int,
+     *     upcoming_bookings: int,
+     *     past_bookings: int,
+     *     cancelled_bookings: int,
+     *     pending_bookings: int
+     *   }
+     * }
      */
     public function getStats(Request $request)
     {
@@ -370,7 +402,11 @@ class MobileBookingController extends Controller
     }
 
     /**
-     * Get user recent bookings with pagination
+     * Get user recent bookings
+     * 
+     * @queryParam per_page int The number of items per page. Example: 10
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Business\V1\Specific\BookingResource>
      */
     public function getRecentBookings(Request $request)
     {
@@ -394,6 +430,8 @@ class MobileBookingController extends Controller
 
     /**
      * Get next upcoming booking
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|array{data: null}
      */
     public function getNextBooking(Request $request)
     {

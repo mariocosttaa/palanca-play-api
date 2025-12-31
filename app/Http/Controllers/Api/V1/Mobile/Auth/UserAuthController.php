@@ -22,7 +22,10 @@ use App\Enums\EmailTypeEnum;
 class UserAuthController extends Controller
 {
     /**
-     * Register user (Step 1: Create User & Send Verification Code)
+     * Register user
+     * 
+     * Step 1: Create User & Send Verification Code.
+     * 
      * @unauthenticated
      */
     public function register(UserRegisterRequest $request, \App\Services\EmailVerificationCodeService $emailService): JsonResponse
@@ -78,7 +81,11 @@ class UserAuthController extends Controller
     }
 
     /**
-     * Verify Email (Step 2: Verify Code)
+     * Verify Email
+     * 
+     * Step 2: Verify Code.
+     * 
+     * @bodyParam code string required The verification code sent to the email. Example: 123456
      * 
      * @return array{message: string}
      */
@@ -158,7 +165,10 @@ class UserAuthController extends Controller
 
     /**
      * Login user
+     * 
      * @unauthenticated
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\UserAuthResponseResource
      */
     public function login(UserLoginRequest $request): UserAuthResponseResource
     {
@@ -187,7 +197,9 @@ class UserAuthController extends Controller
     }
 
     /**
-     * Logout user (revoke current token)
+     * Logout user
+     * 
+     * Revoke current token.
      * 
      * @return array{message: string}
      */
@@ -206,6 +218,8 @@ class UserAuthController extends Controller
 
     /**
      * Get authenticated user
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\UserResourceSpecific
      */
     public function me(Request $request): UserResourceSpecific
     {
@@ -221,7 +235,13 @@ class UserAuthController extends Controller
     }
     /**
      * Google Login
+     * 
      * @unauthenticated
+     * 
+     * @bodyParam token string required The Google ID token. Example: eyJhbGciOiJSUzI1NiIs...
+     * @bodyParam device_name string optional The device name for the token. Example: iPhone 13
+     * 
+     * @return \App\Http\Resources\Business\V1\Specific\UserAuthResponseResource
      */
     public function googleLogin(Request $request): UserAuthResponseResource
     {
@@ -274,6 +294,8 @@ class UserAuthController extends Controller
 
     /**
      * Link Google Account
+     * 
+     * @bodyParam token string required The Google ID token. Example: eyJhbGciOiJSUzI1NiIs...
      * 
      * @return array{message: string}
      */
