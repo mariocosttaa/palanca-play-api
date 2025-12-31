@@ -25,6 +25,16 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->group(function () {
+    // Version endpoint
+    Route::get('/version', function () {
+        return response()->json([
+            'version' => '1.0.0',
+            'app_name' => config('app.name'),
+            'environment' => config('app.env'),
+            'api' => 'business'
+        ]);
+    });
+
     // Public authentication routes
     Route::prefix('business-users')->group(function () {
         Route::post('/register', [AuthBusinessUserAuthController::class, 'register']);
@@ -32,6 +42,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/google', [AuthBusinessUserAuthController::class, 'googleLogin']);
         Route::post('/auth/google/link', [AuthBusinessUserAuthController::class, 'linkGoogle'])->middleware('auth:business');
         Route::post('/auth/google/unlink', [AuthBusinessUserAuthController::class, 'unlinkGoogle'])->middleware('auth:business');
+
+        // Password Reset Routes (public)
+        Route::prefix('password')->group(function () {
+            Route::post('/forgot', [App\Http\Controllers\Api\V1\Business\Auth\BusinessPasswordResetController::class, 'requestCode']);
+            Route::post('/verify', [App\Http\Controllers\Api\V1\Business\Auth\BusinessPasswordResetController::class, 'verifyCode']);
+            Route::get('/verify/{code}', [App\Http\Controllers\Api\V1\Business\Auth\BusinessPasswordResetController::class, 'checkCode']);
+        });
     });
 
     // Protected routes - requires authentication with business guard
