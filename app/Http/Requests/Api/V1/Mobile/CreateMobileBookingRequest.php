@@ -23,6 +23,39 @@ class CreateMobileBookingRequest extends FormRequest
                 'court_id' => EasyHashAction::decode($this->input('court_id'), 'court-id'),
             ]);
         }
+
+        // Convert dates to UTC
+        if ($this->has(['start_date', 'slots'])) {
+            $timezoneService = app(\App\Services\TimezoneService::class);
+            $slots = $this->input('slots');
+            $startDate = $this->input('start_date');
+
+            // Convert each slot to UTC
+            $convertedSlots = [];
+            foreach ($slots as $slot) {
+                $startString = $startDate . ' ' . $slot['start'];
+                $endString = $startDate . ' ' . $slot['end'];
+
+                $startUtc = $timezoneService->toUTC($startString);
+                $endUtc = $timezoneService->toUTC($endString);
+
+                if ($startUtc && $endUtc) {
+                    $convertedSlots[] = [
+                        'start' => $startUtc->format('H:i'),
+                        'end' => $endUtc->format('H:i'),
+                    ];
+                }
+            }
+
+            // Also convert start_date to UTC (in case it shifts due to timezone)
+            if (!empty($convertedSlots)) {
+                $firstSlotUtc = $timezoneService->toUTC($startDate . ' ' . $slots[0]['start']);
+                $this->merge([
+                    'start_date' => $firstSlotUtc->format('Y-m-d'),
+                    'slots' => $convertedSlots,
+                ]);
+            }
+        }
     }
 
     /**

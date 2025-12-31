@@ -31,6 +31,68 @@ class UpdateMobileBookingRequest extends FormRequest
                 'court_id' => EasyHashAction::decode($this->input('court_id'), 'court-id'),
             ]);
         }
+
+        // Handle Timezone Conversion
+        if ($this->hasAny(['start_date', 'slots'])) {
+            $bookingId = $this->booking_id ?? EasyHashAction::decode($this->route('booking_id'), 'booking-id');
+            $booking = \App\Models\Booking::find($bookingId);
+
+            if ($booking) {
+                $timezoneService = app(\App\Services\TimezoneService::class);
+
+                // Get current values in User TZ
+                $currentStartUtc = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'), 'UTC');
+                $currentEndUtc = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC');
+
+                $currentStartUser = $timezoneService->toUserTime($currentStartUtc);
+                $currentEndUser = $timezoneService->toUserTime($currentEndUtc);
+
+                $startUserCarbon = \Carbon\Carbon::parse($currentStartUser);
+                $endUserCarbon = \Carbon\Carbon::parse($currentEndUser);
+
+                // Overlay Input Data
+                $newStartDate = $this->input('start_date', $startUserCarbon->format('Y-m-d'));
+                $newSlots = $this->input('slots');
+
+                // If slots are provided, convert them
+                if ($newSlots) {
+                    $convertedSlots = [];
+                    foreach ($newSlots as $slot) {
+                        $startString = $newStartDate . ' ' . $slot['start'];
+                        $endString = $newStartDate . ' ' . $slot['end'];
+
+                        $startUtc = $timezoneService->toUTC($startString);
+                        $endUtc = $timezoneService->toUTC($endString);
+
+                        if ($startUtc && $endUtc) {
+                            $convertedSlots[] = [
+                                'start' => $startUtc->format('H:i'),
+                                'end' => $endUtc->format('H:i'),
+                            ];
+                        }
+                    }
+
+                    // Update start_date based on first slot
+                    if (!empty($convertedSlots)) {
+                        $firstSlotUtc = $timezoneService->toUTC($newStartDate . ' ' . $newSlots[0]['start']);
+                        $this->merge([
+                            'start_date' => $firstSlotUtc->format('Y-m-d'),
+                            'slots' => $convertedSlots,
+                        ]);
+                    }
+                } elseif ($this->has('start_date')) {
+                    // Only date changed, convert it but keep existing times
+                    $newStartString = $newStartDate . ' ' . $startUserCarbon->format('H:i');
+                    $newStartUtc = $timezoneService->toUTC($newStartString);
+                    
+                    if ($newStartUtc) {
+                        $this->merge([
+                            'start_date' => $newStartUtc->format('Y-m-d'),  
+                        ]);
+                    }
+                }
+            }
+        }
     }
 
     /**
