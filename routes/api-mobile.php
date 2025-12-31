@@ -13,6 +13,16 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->group(function () {
+    // Version endpoint
+    Route::get('/version', function () {
+        return response()->json([
+            'version' => '1.0.0',
+            'app_name' => config('app.name'),
+            'environment' => config('app.env'),
+            'api' => 'mobile'
+        ]);
+    });
+
     // Public authentication routes
     Route::prefix('users')->group(function () {
         Route::post('/register', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'register']);

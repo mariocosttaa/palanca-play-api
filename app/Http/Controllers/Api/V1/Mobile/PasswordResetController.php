@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\V1\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Auth\UserForgotPasswordRequest;
+use App\Http\Requests\Api\V1\Auth\UserVerifyPasswordResetRequest;
 use App\Models\PasswordResetCode;
 use App\Models\User;
 use App\Services\EmailService;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @tags [API-MOBILE] Password Reset
@@ -24,17 +26,15 @@ class PasswordResetController extends Controller
 
     /**
      * Request password reset code
+     * 
+     * Sends a 6-digit recovery code to the provided email address if it exists in the users table.
+     * 
+     * @unauthenticated
      */
-    public function requestCode(Request $request)
+    public function requestCode(UserForgotPasswordRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email|exists:users,email',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
-            }
+            $this->beginTransactionSafe();
 
             $email = $request->email;
 
@@ -54,71 +54,74 @@ class PasswordResetController extends Controller
             // Send email with code
             $this->emailService->sendPasswordResetEmail($email, $code);
 
+            $this->commitSafe();
+
             return response()->json(['message' => 'Código de recuperação enviado para seu email']);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao enviar código de recuperação', ['error' => $e->getMessage()]);
+            $this->rollBackSafe();
+            Log::error('Erro ao enviar código de recuperação', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao enviar código de recuperação'], 500);
         }
     }
 
     /**
      * Verify code and reset password
+     * 
+     * Verifies the recovery code and updates the user's password.
+     * 
+     * @unauthenticated
      */
-    public function verifyCode(Request $request)
+    public function verifyCode(UserVerifyPasswordResetRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email|exists:users,email',
-                'code' => 'required|string|size:6',
-                'password' => 'required|string|min:8|confirmed',
-            ]);
+            $this->beginTransactionSafe();
 
-            if ($validator->fails()) {
-                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
-            }
+            $email = $request->email;
+            $code = $request->code;
+            $password = $request->password;
 
             // Find valid code
-            $resetCode = PasswordResetCode::forEmail($request->email)
-                ->where('code', $request->code)
+            $resetCode = PasswordResetCode::forEmail($email)
+                ->where('code', $code)
                 ->valid()
                 ->first();
 
             if (!$resetCode) {
+                $this->rollBackSafe();
                 return response()->json(['message' => 'Código inválido ou expirado'], 400);
             }
 
             // Update user password
-            $user = User::where('email', $request->email)->first();
+            $user = User::where('email', $email)->first();
             $user->update([
-                'password' => Hash::make($request->password),
+                'password' => Hash::make($password),
             ]);
 
             // Mark code as used
             $resetCode->markAsUsed();
 
+            $this->commitSafe();
+
             return response()->json(['message' => 'Senha redefinida com sucesso']);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao redefinir senha', ['error' => $e->getMessage()]);
+            $this->rollBackSafe();
+            Log::error('Erro ao redefinir senha', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao redefinir senha'], 500);
         }
     }
 
     /**
-     * Check if code is valid (without using it)
+     * Check if code is valid
+     * 
+     * Checks if a recovery code is valid without using it.
+     * 
+     * @unauthenticated
      */
-    public function checkCode(Request $request, string $code)
+    public function checkCode(string $code): JsonResponse
     {
         try {
-            $validator = Validator::make(['code' => $code], [
-                'code' => 'required|string|size:6',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json(['message' => 'Código inválido', 'errors' => $validator->errors()], 422);
-            }
-
             $resetCode = PasswordResetCode::where('code', $code)
                 ->valid()
                 ->first();
@@ -141,7 +144,7 @@ class PasswordResetController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao verificar código', ['error' => $e->getMessage()]);
+            Log::error('Erro ao verificar código', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao verificar código'], 500);
         }
     }
