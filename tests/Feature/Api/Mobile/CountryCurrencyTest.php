@@ -5,7 +5,13 @@ use App\Models\Manager\CurrencyModel;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-test('can get all countries from mobile api without auth', function () {
+test('can get all countries from mobile api with auth and verification', function () {
+    // Create a verified user
+    $user = \App\Models\User::factory()->create([
+        'email_verified_at' => now(),
+    ]);
+    \Laravel\Sanctum\Sanctum::actingAs($user);
+
     // Create some countries
     Country::factory()->count(3)->create();
 
@@ -26,7 +32,13 @@ test('can get all countries from mobile api without auth', function () {
     expect($response->json('data'))->toHaveCount(3);
 });
 
-test('can get all currencies from mobile api without auth', function () {
+test('can get all currencies from mobile api with auth and verification', function () {
+    // Create a verified user
+    $user = \App\Models\User::factory()->create([
+        'email_verified_at' => now(),
+    ]);
+    \Laravel\Sanctum\Sanctum::actingAs($user);
+
     // Create some currencies
     CurrencyModel::factory()->count(3)->create();
 
@@ -44,4 +56,19 @@ test('can get all currencies from mobile api without auth', function () {
         ]);
 
     expect($response->json('data'))->toHaveCount(3);
+});
+
+test('unverified user cannot get countries', function () {
+    $user = \App\Models\User::factory()->create([
+        'email_verified_at' => null,
+    ]);
+    \Laravel\Sanctum\Sanctum::actingAs($user);
+
+    $response = $this->getJson('/api/v1/countries');
+
+    $response->assertStatus(403)
+        ->assertJson([
+            'message' => 'Your email address is not verified.',
+            'verification_needed' => true
+        ]);
 });
