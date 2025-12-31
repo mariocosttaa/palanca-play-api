@@ -59,6 +59,7 @@ Route::prefix('v1')->group(function () {
         // Business User Profile routes (NO email verification required for basic profile settings)
         Route::prefix('profile')->group(function () {
             Route::patch('/language', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateLanguage']);
+            Route::put('/timezone', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateTimezone']);
             Route::put('/', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateProfile']);
         });
 

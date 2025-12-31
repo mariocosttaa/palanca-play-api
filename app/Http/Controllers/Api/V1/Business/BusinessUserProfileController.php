@@ -84,4 +84,43 @@ class BusinessUserProfileController extends Controller
             return response()->json(['message' => 'Erro ao atualizar perfil'], 500);
         }
     }
+    /**
+     * Update business user timezone
+     * 
+     * Updates the timezone for the authenticated business user.
+     * 
+     * @return array{data: array{timezone: string, message: string}}
+     * @response 422 {"message": "Dados inválidos", "errors": []}
+     */
+    public function updateTimezone(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'timezone_id' => ['required', new \App\Rules\HashIdExists('timezones', 'id')],
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
+            }
+
+            $businessUser = $request->user('business');
+            $timezoneId = \App\Actions\General\EasyHashAction::decode($request->timezone_id);
+            
+            $businessUser->update([
+                'timezone_id' => $timezoneId,
+            ]);
+
+            // Reload timezone relationship to get the name
+            $businessUser->load('timezone');
+
+            return response()->json(['data' => [
+                'timezone' => $businessUser->timezone?->name,
+                'message' => 'Fuso horário atualizado com sucesso',
+            ]]);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao atualizar fuso horário', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar fuso horário'], 500);
+        }
+    }
 }

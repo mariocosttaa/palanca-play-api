@@ -68,6 +68,7 @@ Route::prefix('v1')->group(function () {
         // User Profile routes (NO email verification required for basic profile settings)
         Route::prefix('profile')->group(function () {
             Route::patch('/language', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateLanguage']);
+            Route::put('/timezone', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateTimezone']);
             Route::put('/', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateProfile']);
         });
 
