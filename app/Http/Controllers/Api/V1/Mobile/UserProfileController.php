@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use App\Http\Requests\Api\V1\Profile\UpdateEmailRequest;
+use App\Services\EmailVerificationCodeService;
+use App\Enums\EmailTypeEnum;
 
 /**
  * @tags [API-MOBILE] Profile
@@ -113,6 +116,46 @@ class UserProfileController extends Controller
         } catch (\Exception $e) {
             Log::error('Erro ao atualizar fuso horário', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao atualizar fuso horário'], 500);
+        }
+    }
+
+    /**
+     * Update user email
+     * 
+     * Updates the email address of the authenticated user and sends a verification code to the new email.
+     * 
+     */
+    public function updateEmail(UpdateEmailRequest $request, EmailVerificationCodeService $emailService): JsonResponse
+    {
+        try {
+            $this->beginTransactionSafe();
+
+            $user = $user = $request->user();
+            $newEmail = $request->email;
+
+            // Send verification code to the NEW email
+            $emailService->sendVerificationCode($newEmail, EmailTypeEnum::CONFIRMATION_EMAIL);
+
+            // Update user email and mark as unverified
+            $user->update([
+                'email' => $newEmail,
+                'email_verified_at' => null,
+            ]);
+
+            $this->commitSafe();
+
+            return response()->json(['data' => [
+                'email' => $user->email,
+                'message' => 'Email atualizado com sucesso. Por favor, verifique seu novo email.',
+            ]]);
+
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            $this->rollBackSafe();
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        } catch (\Exception $e) {
+            $this->rollBackSafe();
+            Log::error('Erro ao atualizar email', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar email'], 500);
         }
     }
 }
