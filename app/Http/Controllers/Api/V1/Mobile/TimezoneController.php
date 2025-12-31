@@ -9,10 +9,17 @@ use Illuminate\Http\Request;
 
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
+/**
+ * @tags [API-MOBILE] Timezones
+ */
 class TimezoneController extends Controller
 {
     /**
-     * List all timezones
+     * List timezones
+     * 
+     * @unauthenticated
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\TimezoneResourceGeneral>
      */
     public function index(Request $request): AnonymousResourceCollection
     {
