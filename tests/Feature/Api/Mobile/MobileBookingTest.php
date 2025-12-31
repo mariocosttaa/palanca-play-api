@@ -21,7 +21,7 @@ test('user can get booking statistics', function () {
     Sanctum::actingAs($user, [], 'sanctum');
 
     // Create a tenant with auto-confirm enabled
-    $tenant = Tenant::factory()->create(['auto_confirm_bookings' => true]);
+    $tenant = Tenant::factory()->create(['auto_confirm_bookings' => true, 'timezone' => 'UTC']);
     
     // Create court type and court
     $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
@@ -71,7 +71,7 @@ test('user can get recent bookings with pagination', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, [], 'sanctum');
 
-    $tenant = Tenant::factory()->create();
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
     $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
     $court = Court::factory()->create([
         'tenant_id' => $tenant->id,
@@ -96,7 +96,7 @@ test('user can get next upcoming booking', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, [], 'sanctum');
 
-    $tenant = Tenant::factory()->create();
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
     $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
     $court = Court::factory()->create([
         'tenant_id' => $tenant->id,
@@ -144,6 +144,7 @@ test('booking is auto-confirmed when tenant has auto_confirm_bookings enabled', 
         'auto_confirm_bookings' => true,
         'booking_interval_minutes' => 60,
         'currency' => 'usd',
+        'timezone' => 'UTC',
     ]);
     $courtType = CourtType::factory()->create([
         'tenant_id' => $tenant->id,
@@ -188,6 +189,7 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
         'auto_confirm_bookings' => false,
         'booking_interval_minutes' => 60,
         'currency' => 'usd',
+        'timezone' => 'UTC',
     ]);
     $courtType = CourtType::factory()->create([
         'tenant_id' => $tenant->id,

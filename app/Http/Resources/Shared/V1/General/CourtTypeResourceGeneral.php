@@ -25,7 +25,7 @@ class CourtTypeResourceGeneral extends JsonResource
             'availabilities' => CourtAvailabilityResourceGeneral::collection($this->whenLoaded('availabilities')),
             'courts' => CourtResourceGeneral::collection($this->whenLoaded('courts')),
             'courts_count' => $this->when($this->relationLoaded('courts'), $this->courts->count()),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
         ];
     }
 }

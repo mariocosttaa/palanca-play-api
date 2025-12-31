@@ -18,15 +18,15 @@ class InvoiceResourceGeneral extends JsonResource
         return [
             'id' => EasyHashAction::encode($this->id, 'invoice-id'),
             'period' => $this->period,
-            'date_start' => $this->date_start->toISOString(),
-            'date_end' => $this->date_end->toISOString(),
+            'date_start' => app(\App\Services\TimezoneService::class)->toUserTime($this->date_start),
+            'date_end' => app(\App\Services\TimezoneService::class)->toUserTime($this->date_end),
             'price' => $this->price,
             'price_formatted' => $this->price_formatted,
             'currency' => $this->tenant->currency,
             'max_courts' => $this->max_courts,
             'status' => $this->status,
             'metadata' => $this->metadata,
-            'created_at' => $this->created_at->toISOString(),
+            'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
         ];
     }
 }

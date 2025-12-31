@@ -18,7 +18,7 @@ class SubscriptionDetailsResource extends JsonResource
             'status' => $this->resource['status'],
             'max_courts' => $this->resource['max_courts'],
             'current_courts' => $this->resource['current_courts'],
-            'date_end' => $this->resource['date_end'] ? $this->resource['date_end']->toISOString() : null,
+            'date_end' => $this->resource['date_end'] ? app(\App\Services\TimezoneService::class)->toUserTime($this->resource['date_end']) : null,
             'days_remaining' => $this->resource['days_remaining'],
             'invoice' => $this->resource['invoice'] ? new InvoiceResourceGeneral($this->resource['invoice']) : null,
         ];

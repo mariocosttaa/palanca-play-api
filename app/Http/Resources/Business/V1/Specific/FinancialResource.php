@@ -14,11 +14,17 @@ class FinancialResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $timezoneService = app(\App\Services\TimezoneService::class);
+        
+        // Convert stored UTC dates to User TZ
+        $startUtc = \Carbon\Carbon::parse($this->start_date->format('Y-m-d') . ' ' . $this->start_time->format('H:i:s'), 'UTC');
+        $startParts = $timezoneService->getUserTimeParts($startUtc);
+        
         return [
             'id'               => $this->hashid,
-            'date'             => $this->start_date->format('Y-m-d'),
-            'date_formatted'   => $this->start_date->translatedFormat('d M Y'),
-            'time'             => $this->start_time->format('H:i'),
+            'date'             => $startParts['date'],
+            'date_formatted'   => \Carbon\Carbon::parse($startParts['date'])->translatedFormat('d M Y'),
+            'time'             => $startParts['time'],
             'user'             => new UserResourceSpecific($this->whenLoaded('user')),
             'amount'           => $this->price, // in cents
             'amount_formatted' => MoneyAction::format($this->price, null, $this->currency?->code ?? 'eur', true),

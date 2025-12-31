@@ -23,11 +23,8 @@ class BookingResourceGeneral extends JsonResource
         $startUtc = \Carbon\Carbon::parse($this->start_date->format('Y-m-d') . ' ' . $this->start_time->format('H:i:s'), 'UTC');
         $endUtc = \Carbon\Carbon::parse($this->end_date->format('Y-m-d') . ' ' . $this->end_time->format('H:i:s'), 'UTC');
 
-        $startUser = $timezoneService->toUserTime($startUtc);
-        $endUser = $timezoneService->toUserTime($endUtc);
-
-        $startUserCarbon = \Carbon\Carbon::parse($startUser);
-        $endUserCarbon = \Carbon\Carbon::parse($endUser);
+        $startParts = $timezoneService->getUserTimeParts($startUtc);
+        $endParts = $timezoneService->getUserTimeParts($endUtc);
 
         return [
             'id' => EasyHashAction::encode($this->id, 'booking-id'),
@@ -37,10 +34,10 @@ class BookingResourceGeneral extends JsonResource
             'court' => new CourtResourceGeneral($this->whenLoaded('court')),
             'user_id' => EasyHashAction::encode($this->user_id, 'user-id'),
             'user' => new UserResourceGeneral($this->whenLoaded('user')),
-            'start_date' => $startUserCarbon->format('Y-m-d'),
-            'end_date' => $endUserCarbon->format('Y-m-d'),
-            'start_time' => $startUserCarbon->format('H:i'),
-            'end_time' => $endUserCarbon->format('H:i'),
+            'start_date' => $startParts['date'],
+            'end_date' => $endParts['date'],
+            'start_time' => $startParts['time'],
+            'end_time' => $endParts['time'],
             'price' => $this->price,
             'price_fmt' => $this->price_fmt,
             'is_pending' => $this->is_pending,

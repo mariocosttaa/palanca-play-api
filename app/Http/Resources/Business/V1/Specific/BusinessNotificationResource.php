@@ -20,8 +20,8 @@ class BusinessNotificationResource extends JsonResource
             'subject' => $this->subject,
             'message' => $this->message,
             'read' => !is_null($this->read_at),
-            'read_at' => $this->read_at?->toIso8601String(),
-            'created_at' => $this->created_at->toIso8601String(),
+            'read_at' => $this->read_at ? app(\App\Services\TimezoneService::class)->toUserTime($this->read_at) : null,
+            'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
         ];
     }
 }

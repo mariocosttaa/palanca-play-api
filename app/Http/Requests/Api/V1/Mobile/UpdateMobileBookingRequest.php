@@ -32,64 +32,44 @@ class UpdateMobileBookingRequest extends FormRequest
             ]);
         }
 
-        // Handle Timezone Conversion
-        if ($this->hasAny(['start_date', 'slots'])) {
-            $bookingId = $this->booking_id ?? EasyHashAction::decode($this->route('booking_id'), 'booking-id');
+        // Handle Timezone Conversion for Partial Updates
+        if ($this->has(['start_date']) || $this->has(['slots'])) {
+            $bookingId = $this->input('booking_id');
             $booking = \App\Models\Booking::find($bookingId);
 
             if ($booking) {
                 $timezoneService = app(\App\Services\TimezoneService::class);
 
-                // Get current values in User TZ
+                // 1. Get current booking start time in User Timezone
+                // Stored as UTC: 2025-01-01 17:00:00
+                // User TZ (NY): 2025-01-01 12:00:00
                 $currentStartUtc = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'), 'UTC');
-                $currentEndUtc = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC');
+                $currentUserTime = $currentStartUtc->copy()->setTimezone($timezoneService->getContextTimezone());
 
-                $currentStartUser = $timezoneService->toUserTime($currentStartUtc);
-                $currentEndUser = $timezoneService->toUserTime($currentEndUtc);
+                // 2. Determine New User Date
+                $newUserDate = $this->input('start_date') ?? $currentUserTime->format('Y-m-d');
 
-                $startUserCarbon = \Carbon\Carbon::parse($currentStartUser);
-                $endUserCarbon = \Carbon\Carbon::parse($currentEndUser);
+                // 3. Determine New User Slots
+                $slots = $this->input('slots');
+                
+                // If slots are not provided, we need to infer them from existing booking time
+                // But existing booking might not match "slots" structure if it wasn't created via mobile or if interval changed.
+                // However, if we are only updating date, we want to keep the same "Time".
+                if (!$slots) {
+                    $slots = [[
+                        'start' => $currentUserTime->format('H:i'),
+                        'end' => $currentStartUtc->copy()->addMinutes($currentStartUtc->diffInMinutes(\Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC')))->setTimezone($timezoneService->getContextTimezone())->format('H:i')
+                    ]];
+                }
 
-                // Overlay Input Data
-                $newStartDate = $this->input('start_date', $startUserCarbon->format('Y-m-d'));
-                $newSlots = $this->input('slots');
+                // 4. Convert New User Date + Slots to UTC
+                $result = $timezoneService->convertSlotsToUtc($newUserDate, $slots);
 
-                // If slots are provided, convert them
-                if ($newSlots) {
-                    $convertedSlots = [];
-                    foreach ($newSlots as $slot) {
-                        $startString = $newStartDate . ' ' . $slot['start'];
-                        $endString = $newStartDate . ' ' . $slot['end'];
-
-                        $startUtc = $timezoneService->toUTC($startString);
-                        $endUtc = $timezoneService->toUTC($endString);
-
-                        if ($startUtc && $endUtc) {
-                            $convertedSlots[] = [
-                                'start' => $startUtc->format('H:i'),
-                                'end' => $endUtc->format('H:i'),
-                            ];
-                        }
-                    }
-
-                    // Update start_date based on first slot
-                    if (!empty($convertedSlots)) {
-                        $firstSlotUtc = $timezoneService->toUTC($newStartDate . ' ' . $newSlots[0]['start']);
-                        $this->merge([
-                            'start_date' => $firstSlotUtc->format('Y-m-d'),
-                            'slots' => $convertedSlots,
-                        ]);
-                    }
-                } elseif ($this->has('start_date')) {
-                    // Only date changed, convert it but keep existing times
-                    $newStartString = $newStartDate . ' ' . $startUserCarbon->format('H:i');
-                    $newStartUtc = $timezoneService->toUTC($newStartString);
-                    
-                    if ($newStartUtc) {
-                        $this->merge([
-                            'start_date' => $newStartUtc->format('Y-m-d'),  
-                        ]);
-                    }
+                if (!empty($result['slots'])) {
+                    $this->merge([
+                        'slots' => $result['slots'],
+                        'start_date' => $result['start_date'] ?? $newUserDate,
+                    ]);
                 }
             }
         }
@@ -153,10 +133,16 @@ class UpdateMobileBookingRequest extends FormRequest
     protected function validateSlotsAvailability($validator)
     {
         $courtId = $this->input('court_id');
-        $date = $this->input('start_date');
-        $slots = $this->input('slots');
+        $date = $this->input('start_date'); // UTC
+        $slots = $this->input('slots'); // UTC
+        $bookingId = $this->input('booking_id');
 
-        // If court_id is not provided, we can't validate availability
+        // If court_id is not provided, fetch from booking
+        if (!$courtId && $bookingId) {
+            $booking = \App\Models\Booking::find($bookingId);
+            $courtId = $booking?->court_id;
+        }
+
         if (!$courtId || !$date) {
             return;
         }
@@ -167,25 +153,20 @@ class UpdateMobileBookingRequest extends FormRequest
             return;
         }
 
-        // Get available slots for the date
-        $availableSlots = $court->getAvailableSlots($date);
-        
-        // Check each requested slot
+        // Check each requested slot using checkAvailability
         foreach ($slots as $index => $requestedSlot) {
-            $found = false;
+            $error = $court->checkAvailability(
+                $date,
+                $requestedSlot['start'],
+                $requestedSlot['end'],
+                null, // excludeUserId
+                $bookingId // excludeBookingId (to allow updating same booking)
+            );
             
-            foreach ($availableSlots as $availableSlot) {
-                if ($availableSlot['start'] === $requestedSlot['start'] && 
-                    $availableSlot['end'] === $requestedSlot['end']) {
-                    $found = true;
-                    break;
-                }
-            }
-            
-            if (!$found) {
+            if ($error) {
                 $validator->errors()->add(
                     "slots.{$index}",
-                    "O horário {$requestedSlot['start']} - {$requestedSlot['end']} não está disponível"
+                    $error
                 );
             }
         }

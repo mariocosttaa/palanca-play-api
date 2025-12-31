@@ -22,8 +22,8 @@ class CourtAvailabilityResourceGeneral extends JsonResource
             'court_type_id' => $this->court_type_id ? EasyHashAction::encode($this->court_type_id, 'court-type-id') : null,
             'day_of_week_recurring' => $this->day_of_week_recurring,
             'specific_date' => $this->specific_date?->format('Y-m-d'),
-            'start_time' => \Carbon\Carbon::parse($this->start_time)->format('H:i'),
-            'end_time' => \Carbon\Carbon::parse($this->end_time)->format('H:i'),
+            'start_time' => app(\App\Services\TimezoneService::class)->toUserTime($this->start_time) ? \Carbon\Carbon::parse(app(\App\Services\TimezoneService::class)->toUserTime($this->start_time))->format('H:i') : null,
+            'end_time' => app(\App\Services\TimezoneService::class)->toUserTime($this->end_time) ? \Carbon\Carbon::parse(app(\App\Services\TimezoneService::class)->toUserTime($this->end_time))->format('H:i') : null,
             'is_available' => $this->is_available,
         ];
     }

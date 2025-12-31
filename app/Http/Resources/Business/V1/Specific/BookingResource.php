@@ -21,14 +21,10 @@ class BookingResource extends JsonResource
 
         // Convert stored UTC dates to User TZ
         $startUtc = \Carbon\Carbon::parse($this->start_date->format('Y-m-d') . ' ' . $this->start_time->format('H:i:s'), 'UTC');
-        // Note: end_date might be same as start_date in DB, but we use what's stored
         $endUtc = \Carbon\Carbon::parse($this->end_date->format('Y-m-d') . ' ' . $this->end_time->format('H:i:s'), 'UTC');
 
-        $startUser = $timezoneService->toUserTime($startUtc);
-        $endUser = $timezoneService->toUserTime($endUtc);
-
-        $startUserCarbon = \Carbon\Carbon::parse($startUser);
-        $endUserCarbon = \Carbon\Carbon::parse($endUser);
+        $startParts = $timezoneService->getUserTimeParts($startUtc);
+        $endParts = $timezoneService->getUserTimeParts($endUtc);
 
         return [
             'id' => EasyHashAction::encode($this->id, 'booking-id'),
@@ -36,10 +32,10 @@ class BookingResource extends JsonResource
             'court' => new CourtResourceGeneral($this->whenLoaded('court')),
             'user_id' => EasyHashAction::encode($this->user_id, 'user-id'),
             'user' => new UserResourceSpecific($this->whenLoaded('user')),
-            'start_date' => $startUserCarbon->format('Y-m-d'),
-            'end_date' => $endUserCarbon->format('Y-m-d'),
-            'start_time' => $startUserCarbon->format('H:i'),
-            'end_time' => $endUserCarbon->format('H:i'),
+            'start_date' => $startParts['date'],
+            'end_date' => $endParts['date'],
+            'start_time' => $startParts['time'],
+            'end_time' => $endParts['time'],
             'price' => $this->price,
             'currency' => $this->currency ? $this->currency->code : null,
             'status' => $this->status,

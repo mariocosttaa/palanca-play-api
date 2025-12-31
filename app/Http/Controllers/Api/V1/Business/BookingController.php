@@ -505,42 +505,47 @@ class BookingController extends Controller
      */
     protected function validatePresenceTiming(Booking $booking): void
     {
-        $now = \Carbon\Carbon::now();
+        $timezoneService = app(\App\Services\TimezoneService::class);
+        
+        // Get current time in both UTC and User timezone
+        $nowUtc = \Carbon\Carbon::now('UTC');
+        $nowUserTz = \Carbon\Carbon::now($timezoneService->getContextTimezone());
 
-                                           // Combine start_date and start_time to get the full booking datetime
-                                           // Following the same pattern used in Court model
-                                           // start_date is cast as 'date' (Carbon date instance)
-                                           // start_time is cast as 'datetime' (Carbon datetime instance, but time column uses today's date)
-                                           // We need to combine the date from start_date with the time from start_time
+        // Combine start_date and start_time to get the full booking datetime in UTC
         $startDate = $booking->start_date; // Already a Carbon instance
         $startTime = $booking->start_time; // Already a Carbon instance (but date part is today)
 
-        // Combine the date from start_date with the time from start_time
-        $bookingDateTime = \Carbon\Carbon::parse(
-            $startDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s')
+        // Combine the date from start_date with the time from start_time (UTC)
+        $bookingDateTimeUtc = \Carbon\Carbon::parse(
+            $startDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s'),
+            'UTC'
         );
 
-        // Check if booking has already passed
-        if ($now->greaterThanOrEqualTo($bookingDateTime)) {
+        // Convert booking datetime to user timezone for display logic
+        $bookingDateTimeUserTz = $bookingDateTimeUtc->copy()->setTimezone($timezoneService->getContextTimezone());
+
+        // Check if booking has already passed (use UTC for accurate comparison)
+        if ($nowUtc->greaterThanOrEqualTo($bookingDateTimeUtc)) {
             // Booking has passed - allow marking presence (retroactive)
             return;
         }
 
-        // Booking is in the future - check if it's the same day
-        $isSameDay = $now->format('Y-m-d') === $startDate->format('Y-m-d');
+        // Booking is in the future - check if it's the same day IN USER'S TIMEZONE
+        // This ensures the validation matches what the user sees in the UI
+        $isSameDay = $nowUserTz->format('Y-m-d') === $bookingDateTimeUserTz->format('Y-m-d');
 
         if (! $isSameDay) {
             // Not the same day - cannot mark presence for future bookings
             abort(400, 'Não é possível marcar presença para agendamentos futuros. Apenas é permitido marcar presença no dia do agendamento (com pelo menos 1 hora de antecedência) ou após o horário do agendamento.');
         }
 
-        // Same day - check if it's at least 1 hour before booking time
-        $oneHourBefore = $bookingDateTime->copy()->subHour();
-        if ($now->greaterThan($oneHourBefore)) {
+        // Same day - check if it's at least 1 hour before booking time (use UTC for accurate comparison)
+        $oneHourBeforeUtc = $bookingDateTimeUtc->copy()->subHour();
+        if ($nowUtc->greaterThan($oneHourBeforeUtc)) {
             // Less than 1 hour before - cannot mark presence yet
             abort(400, 'Só é possível marcar presença com pelo menos 1 hora de antecedência do horário do agendamento.');
         }
 
-        // Valid: same day and at least 1 hour before booking time (now <= oneHourBefore)
+        // Valid: same day and at least 1 hour before booking time
     }
 }

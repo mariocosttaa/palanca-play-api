@@ -6,6 +6,7 @@ use App\Enums\BookingStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class Court extends Model
@@ -257,16 +258,36 @@ class Court extends Model
      * @param string|int|null $excludeBookingId Optional Booking ID to exclude from availability checks (for updates)
      * @return string|null Returns null if available, or error message string if not available
      */
+    /**
+     * Check if a time slot is available for booking
+     *
+     * @param string $date Date in Y-m-d format (UTC)
+     * @param string $startTime Start time in H:i format (UTC)
+     * @param string $endTime End time in H:i format (UTC)
+     * @param string|int|null $excludeUserId Optional User ID to exclude buffer checks for sequential bookings
+     * @param string|int|null $excludeBookingId Optional Booking ID to exclude from availability checks (for updates)
+     * @return string|null Returns null if available, or error message string if not available
+     */
     public function checkAvailability($date, $startTime, $endTime, $excludeUserId = null, $excludeBookingId = null)
     {
-        $date      = \Carbon\Carbon::parse($date);
-        $dayOfWeek = $date->format('l');
-        $reqStart  = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
-        $reqEnd    = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
+        // Inputs are in UTC
+        $utcStart = \Carbon\Carbon::parse($date . ' ' . $startTime, 'UTC');
+        $utcEnd = \Carbon\Carbon::parse($date . ' ' . $endTime, 'UTC');
 
-        // 1. Check if there's any availability configuration
+        // Get Tenant Timezone
+        // If tenant has no timezone set, default to UTC (or app default)
+        $tenantTimezone = $this->tenant->timezone ?? 'UTC';
+
+        // Convert UTC inputs to Tenant Timezone for Operating Hours check
+        $localStart = $utcStart->copy()->setTimezone($tenantTimezone);
+        $localEnd = $utcEnd->copy()->setTimezone($tenantTimezone);
+
+        $localDate = $localStart->format('Y-m-d');
+        $dayOfWeek = $localStart->format('l');
+
+        // 1. Check if there's any availability configuration (using Local Date/Day)
         $availability = $this->availabilities()
-            ->whereDate('specific_date', $date->format('Y-m-d'))
+            ->whereDate('specific_date', $localDate)
             ->first();
 
         if (! $availability) {
@@ -284,30 +305,44 @@ class Court extends Model
             return 'Quadra marcada como indisponível nesta data.';
         }
 
-        // 3. Check if requested time is within operating hours
-        $operatingStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time);
-        $operatingEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
+        // 3. Check if requested time is within operating hours (using Local Time)
+        // Operating hours are stored as H:i:s strings, implying local time
+        $operatingStart = \Carbon\Carbon::parse($localDate . ' ' . $availability->start_time, $tenantTimezone);
+        $operatingEnd   = \Carbon\Carbon::parse($localDate . ' ' . $availability->end_time, $tenantTimezone);
 
-        if ($reqStart->lt($operatingStart) || $reqEnd->gt($operatingEnd)) {
+        // Handle overnight operating hours (e.g. 22:00 - 02:00)
+        if ($operatingEnd->lt($operatingStart)) {
+            $operatingEnd->addDay();
+        }
+
+        if ($localStart->lt($operatingStart) || $localEnd->gt($operatingEnd)) {
             return 'Horário solicitado está fora do horário de funcionamento da quadra ('
             . $availability->start_time . ' - ' . $availability->end_time . ').';
         }
 
-        // 4. Check if time conflicts with a break
+        // 4. Check if time conflicts with a break (using Local Time)
         $breaks = $availability->breaks ?? [];
         foreach ($breaks as $break) {
-            $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
-            $breakEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
+            $breakStart = \Carbon\Carbon::parse($localDate . ' ' . $break['start'], $tenantTimezone);
+            $breakEnd   = \Carbon\Carbon::parse($localDate . ' ' . $break['end'], $tenantTimezone);
 
-            if ($reqStart->lt($breakEnd) && $reqEnd->gt($breakStart)) {
+            if ($localStart->lt($breakEnd) && $localEnd->gt($breakStart)) {
                 return 'Horário conflita com uma pausa configurada ('
                     . $break['start'] . ' - ' . $break['end'] . ').';
             }
         }
 
-        // 5. Check if time conflicts with existing bookings
+        // 5. Check if time conflicts with existing bookings (using UTC)
+        // We need to check for overlaps in UTC.
+        // Since the booking might span across days in UTC or Local, we should check a range around the requested time.
+        // A safe bet is to check bookings that start/end on the UTC date, previous day, and next day.
+        
+        $checkDateUtc = $utcStart->format('Y-m-d');
+        $prevDateUtc = $utcStart->copy()->subDay()->format('Y-m-d');
+        $nextDateUtc = $utcStart->copy()->addDay()->format('Y-m-d');
+
         $bookingsQuery = $this->bookings()
-            ->whereDate('start_date', $date->format('Y-m-d'))
+            ->whereIn(DB::raw('DATE(start_date)'), [$prevDateUtc, $checkDateUtc, $nextDateUtc])
             ->where('status', '!=', BookingStatusEnum::CANCELLED);
 
         if ($excludeBookingId) {
@@ -320,8 +355,9 @@ class Court extends Model
         $buffer = $this->courtType->buffer_time_minutes ?? 0;
 
         foreach ($bookings as $booking) {
-            $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
-            $bookingEnd   = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
+            // Bookings are stored in UTC
+            $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'), 'UTC');
+            $bookingEnd   = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC');
 
             // Calculate buffer end
             $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
@@ -332,14 +368,18 @@ class Court extends Model
                 // If the requested start time is EXACTLY the booking end time,
                 // we treat the booking end as the effective end (ignoring buffer)
                 // This allows [13:00-14:00] then [14:00-15:00] for same user
-                if ($reqStart->eq($bookingEnd)) {
+                if ($utcStart->eq($bookingEnd)) {
                     $bookingEndWithBuffer = $bookingEnd;
                 }
             }
 
-            if ($reqStart->lt($bookingEndWithBuffer) && $reqEnd->gt($bookingStart)) {
+            if ($utcStart->lt($bookingEndWithBuffer) && $utcEnd->gt($bookingStart)) {
+                // Return error in Local Time for better UX
+                $bookingStartLocal = $bookingStart->copy()->setTimezone($tenantTimezone);
+                $bookingEndLocal = $bookingEnd->copy()->setTimezone($tenantTimezone);
+                
                 return 'Este horário já está reservado ('
-                . $booking->start_time->format('H:i') . ' - ' . $booking->end_time->format('H:i') . ').';
+                . $bookingStartLocal->format('H:i') . ' - ' . $bookingEndLocal->format('H:i') . ').';
             }
         }
 

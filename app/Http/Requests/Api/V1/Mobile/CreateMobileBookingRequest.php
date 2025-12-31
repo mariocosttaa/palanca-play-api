@@ -25,34 +25,17 @@ class CreateMobileBookingRequest extends FormRequest
         }
 
         // Convert dates to UTC
-        if ($this->has(['start_date', 'slots'])) {
+        if ($this->has(['start_date', 'slots']) && is_array($this->input('slots'))) {
             $timezoneService = app(\App\Services\TimezoneService::class);
-            $slots = $this->input('slots');
             $startDate = $this->input('start_date');
+            $slots = $this->input('slots');
 
-            // Convert each slot to UTC
-            $convertedSlots = [];
-            foreach ($slots as $slot) {
-                $startString = $startDate . ' ' . $slot['start'];
-                $endString = $startDate . ' ' . $slot['end'];
+            $result = $timezoneService->convertSlotsToUtc($startDate, $slots);
 
-                $startUtc = $timezoneService->toUTC($startString);
-                $endUtc = $timezoneService->toUTC($endString);
-
-                if ($startUtc && $endUtc) {
-                    $convertedSlots[] = [
-                        'start' => $startUtc->format('H:i'),
-                        'end' => $endUtc->format('H:i'),
-                    ];
-                }
-            }
-
-            // Also convert start_date to UTC (in case it shifts due to timezone)
-            if (!empty($convertedSlots)) {
-                $firstSlotUtc = $timezoneService->toUTC($startDate . ' ' . $slots[0]['start']);
+            if (!empty($result['slots'])) {
                 $this->merge([
-                    'start_date' => $firstSlotUtc->format('Y-m-d'),
-                    'slots' => $convertedSlots,
+                    'slots' => $result['slots'],
+                    'start_date' => $result['start_date'] ?? $startDate,
                 ]);
             }
         }
@@ -116,8 +99,8 @@ class CreateMobileBookingRequest extends FormRequest
     protected function validateSlotsAvailability($validator)
     {
         $courtId = $this->input('court_id');
-        $date = $this->input('start_date');
-        $slots = $this->input('slots');
+        $date = $this->input('start_date'); // This is now UTC date
+        $slots = $this->input('slots'); // These are now UTC slots
 
         $court = \App\Models\Court::with('tenant')->find($courtId);
         
@@ -125,25 +108,18 @@ class CreateMobileBookingRequest extends FormRequest
             return;
         }
 
-        // Get available slots for the date
-        $availableSlots = $court->getAvailableSlots($date);
-        
-        // Check each requested slot
+        // Check each requested slot using checkAvailability
         foreach ($slots as $index => $requestedSlot) {
-            $found = false;
+            $error = $court->checkAvailability(
+                $date,
+                $requestedSlot['start'],
+                $requestedSlot['end']
+            );
             
-            foreach ($availableSlots as $availableSlot) {
-                if ($availableSlot['start'] === $requestedSlot['start'] && 
-                    $availableSlot['end'] === $requestedSlot['end']) {
-                    $found = true;
-                    break;
-                }
-            }
-            
-            if (!$found) {
+            if ($error) {
                 $validator->errors()->add(
                     "slots.{$index}",
-                    "O horário {$requestedSlot['start']} - {$requestedSlot['end']} não está disponível"
+                    $error
                 );
             }
         }

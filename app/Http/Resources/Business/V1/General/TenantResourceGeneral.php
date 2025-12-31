@@ -28,7 +28,7 @@ class TenantResourceGeneral extends JsonResource
             'timezone' => $this->timezone,
             'country' => $this->country ? new CountryResourceGeneral($this->country) : null,
             'subscription_plan' => new SubscriptionPlanResourceGeneral($this->whenLoaded('subscriptionPlan')),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
         ];
     }
 }

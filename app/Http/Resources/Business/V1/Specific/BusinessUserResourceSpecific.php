@@ -30,8 +30,8 @@ class BusinessUserResourceSpecific extends JsonResource
             'calling_code' => $this->calling_code,
             'phone' => $this->phone,
             'timezone' => $this->timezone,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
+            'updated_at' => $this->updated_at ? app(\App\Services\TimezoneService::class)->toUserTime($this->updated_at) : null,
         ];
     }
 }

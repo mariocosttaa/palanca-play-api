@@ -33,7 +33,7 @@ class TenantFactory extends Factory
             'latitude' => fake()->latitude(),
             'longitude' => fake()->longitude(),
             'currency' => fake()->randomElement(['usd', 'aoa', 'eur', 'brl']),
-            'timezone' => fake()->timezone(),
+            'timezone' => 'UTC',
             'auto_confirm_bookings' => fake()->boolean(),
             'booking_interval_minutes' => fake()->numberBetween(30, 120),
             'buffer_between_bookings_minutes' => fake()->numberBetween(0, 30),
