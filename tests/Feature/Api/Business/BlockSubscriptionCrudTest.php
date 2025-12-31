@@ -135,12 +135,13 @@ test('tenant profile update allowed with expired subscription', function () {
     Sanctum::actingAs($user, [], 'business');
 
     // PUT request to tenant.update should be allowed (200 OK)
+    $timezone = \App\Models\Timezone::factory()->create();
     $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenantHashId]), [
         'name' => 'Updated Tenant Name',
-        'country_id' => 1,
+        'country_id' => EasyHashAction::encode($tenant->country_id, 'country-id'),
         'address' => 'Test Address',
         'currency' => 'usd',
-        'timezone' => 'UTC',
+        'timezone_id' => EasyHashAction::encode($timezone->id, 'timezone-id'),
         'auto_confirm_bookings' => true,
         'booking_interval_minutes' => 60,
         'buffer_between_bookings_minutes' => 0,

@@ -154,7 +154,10 @@ test('business user can update a tenant details', function () {
     $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
 
     // Logic goes here
+    $timezone = \App\Models\Timezone::factory()->create();
     $tenantUpdateData = Tenant::factory()->make()->toArray();
+    $tenantUpdateData['country_id'] = \App\Actions\General\EasyHashAction::encode($tenant->country_id, 'country-id');
+    $tenantUpdateData['timezone_id'] = \App\Actions\General\EasyHashAction::encode($timezone->id, 'timezone-id');
     unset($tenantUpdateData['logo']);
 
     $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenantHashId]), $tenantUpdateData);
@@ -168,6 +171,9 @@ test('business user can update a tenant details', function () {
 
     $data = $tenantUpdateData;
     $data['id'] = $tenant->id;
+    $data['country_id'] = $tenant->country_id;
+    $data['timezone_id'] = $timezone->id;
+    unset($data['timezone']); // Timezone string is updated by controller based on timezone_id
     $this->assertDatabaseHas('tenants', $data);
 });
 
@@ -193,7 +199,10 @@ test('business user cannot update a tenant details they are not attached to', fu
     $tenant2HashId = EasyHashAction::encode($tenant2->id, 'tenant-id');
 
     // Logic goes here
+    $timezone = \App\Models\Timezone::factory()->create();
     $tenantUpdateData = Tenant::factory()->make()->toArray();
+    $tenantUpdateData['country_id'] = \App\Actions\General\EasyHashAction::encode($tenant->country_id, 'country-id');
+    $tenantUpdateData['timezone_id'] = \App\Actions\General\EasyHashAction::encode($timezone->id, 'timezone-id');
     unset($tenantUpdateData['logo']);
     $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenant2HashId]), $tenantUpdateData);
 
@@ -202,4 +211,32 @@ test('business user cannot update a tenant details they are not attached to', fu
         ->has('message')
         ->etc()
     );
+});
+
+test('business user can update tenant timezone', function () {
+    /** @var TestCase $this */
+    $tenant = Tenant::factory()->create();
+    $businessUser = BusinessUser::factory()->create();
+    $businessUser->tenants()->attach($tenant);
+
+    Sanctum::actingAs($businessUser, [], 'business');
+    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
+
+    $timezone = \App\Models\Timezone::factory()->create(['name' => 'Europe/London']);
+    $timezoneHashId = EasyHashAction::encode($timezone->id, 'timezone-id');
+
+    $tenantUpdateData = Tenant::factory()->make()->toArray();
+    $tenantUpdateData['country_id'] = EasyHashAction::encode($tenant->country_id, 'country-id');
+    $tenantUpdateData['timezone_id'] = $timezoneHashId;
+    unset($tenantUpdateData['logo']);
+
+    $response = $this->putJson(route('tenant.update', ['tenant_id' => $tenantHashId]), $tenantUpdateData);
+
+    $response->assertStatus(200);
+    
+    $this->assertDatabaseHas('tenants', [
+        'id' => $tenant->id,
+        'timezone_id' => $timezone->id,
+        'timezone' => 'Europe/London',
+    ]);
 });
