@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
 use App\Enums\BookingStatusEnum;
 use App\Enums\PaymentStatusEnum;
+use App\Actions\General\MoneyAction;
 
 /**
  * @tags [API-BUSINESS] Dashboard
@@ -159,14 +160,14 @@ class DashboardController extends Controller
                     'date' => $date,
                     'day' => $day,
                     'revenue' => $dayRevenue,
-                    'revenue_formatted' => $this->formatMoney($dayRevenue, $tenant),
+                    'revenue_formatted' => MoneyAction::format($dayRevenue, null, $tenant->currency, true),
                 ];
             }
 
 
             return new \App\Http\Resources\Business\V1\Specific\DashboardResource([
                 'total_revenue' => $totalRevenue,
-                'total_revenue_formatted' => $this->formatMoney($totalRevenue, $tenant),
+                'total_revenue_formatted' => MoneyAction::format($totalRevenue, null, $tenant->currency, true),
                 'total_open_bookings' => $totalOpenBookings,
                 'total_clients' => $totalClients,
                 'total_court_usage_hours' => $totalHours,
@@ -182,18 +183,5 @@ class DashboardController extends Controller
         }
     }
 
-    private function formatMoney($amountInCents, $tenant)
-    {
-        $currencyMap = [
-            'usd' => '$',
-            'eur' => '€',
-            'gbp' => '£',
-            'brl' => 'R$',
-            'jpy' => '¥',
-        ];
-        $symbol = $currencyMap[strtolower($tenant->currency)] ?? $tenant->currency;
-        
-        $amount = $amountInCents / 100;
-        return $symbol . ' ' . number_format($amount, 2, '.', ',');
-    }
+
 }

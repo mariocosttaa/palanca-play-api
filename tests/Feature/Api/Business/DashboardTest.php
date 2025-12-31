@@ -93,7 +93,7 @@ test('can get dashboard statistics', function () {
 
     // Revenue: Only booking 1 (1000)
     expect($data['cards']['total_revenue'])->toBe(1000);
-    expect($data['cards']['total_revenue_formatted'])->toBe('$ 10.00');
+    expect($data['cards']['total_revenue_formatted'])->toBe('$ 10,00');
 
     // Open Bookings: Booking 1 (Today) + Booking 2 (Today, later time) = 2
     expect($data['cards']['total_open_bookings'])->toBe(2);
