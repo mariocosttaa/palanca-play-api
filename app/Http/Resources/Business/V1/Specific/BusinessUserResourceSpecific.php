@@ -4,6 +4,7 @@ namespace App\Http\Resources\Business\V1\Specific;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Resources\Shared\V1\General\CountryResourceGeneral;
+use App\Http\Resources\Shared\V1\General\TimezoneResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,7 +30,10 @@ class BusinessUserResourceSpecific extends JsonResource
             'country' => $this->country ? new CountryResourceGeneral($this->country) : null,
             'calling_code' => $this->calling_code,
             'phone' => $this->phone,
-            'timezone' => $this->timezone,
+            'timezone_id' => $this->timezone_id
+                ? EasyHashAction::encode($this->timezone_id, 'timezone-id')
+                : null,
+            'timezone' => new TimezoneResourceGeneral($this->whenLoaded('timezone')),
             'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
             'updated_at' => $this->updated_at ? app(\App\Services\TimezoneService::class)->toUserTime($this->updated_at) : null,
         ];
