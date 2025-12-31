@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         // 1. Default Configuration (Production Safe)
         $this->call([
             'Database\\Seeders\\Default\\CountrySeeder',
+            'Database\\Seeders\\Default\\TimezoneSeeder',
         ]);
     }
 }
