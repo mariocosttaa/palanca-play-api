@@ -21,6 +21,8 @@ class CourtTypeResourceGeneral extends JsonResource
             'buffer_time_minutes' => $this->buffer_time_minutes,
             'price_per_interval' => $this->price_per_interval,
             'price_formatted' => $this->price_formatted,
+            'likes_count' => $this->likes_count,
+            'is_liked' => $this->is_liked,
             'status' => $this->status,
             'availabilities' => CourtAvailabilityResourceGeneral::collection($this->whenLoaded('availabilities')),
             'courts' => CourtResourceGeneral::collection($this->whenLoaded('courts')),

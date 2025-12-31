@@ -68,6 +68,12 @@ class User extends Authenticatable implements MustVerifyEmail
             ->withTimestamps();
     }
 
+    public function likedCourtTypes()
+    {
+        return $this->belongsToMany(CourtType::class, 'court_type_user_likes')
+            ->withTimestamps();
+    }
+
     // Scopes
     public function scopeForCountry($query, $countryId)
     {

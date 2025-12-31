@@ -23,6 +23,7 @@ class CourtType extends Model
         'interval_time_minutes',
         'buffer_time_minutes',
         'price_per_interval',
+        'likes_count',
         'status',
     ];
 
@@ -32,6 +33,7 @@ class CourtType extends Model
         'interval_time_minutes' => 'integer',
         'buffer_time_minutes' => 'integer',
         'price_per_interval' => 'integer',
+        'likes_count' => 'integer',
     ];
 
 
@@ -50,6 +52,12 @@ class CourtType extends Model
     public function availabilities()
     {
         return $this->hasMany(CourtAvailability::class);
+    }
+
+    public function likes()
+    {
+        return $this->belongsToMany(User::class, 'court_type_user_likes')
+            ->withTimestamps();
     }
 
     // Scopes
@@ -71,5 +79,14 @@ class CourtType extends Model
             currency: $this->tenant->currency,
             formatWithSymbol: true
         );
+    }
+
+    public function getIsLikedAttribute()
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+
+        return $this->likes()->where('user_id', auth()->id())->exists();
     }
 }
