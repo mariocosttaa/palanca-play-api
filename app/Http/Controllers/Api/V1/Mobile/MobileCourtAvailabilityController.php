@@ -14,14 +14,26 @@ class MobileCourtAvailabilityController extends Controller
 {
     /**
      * Get available dates for a court within a date range
+     * 
+     * Maximum date range is 90 days to prevent large result sets.
      */
     public function getDates(Request $request, string $tenantIdHashId, string $courtIdHashId)
     {
         try {
-            $request->validate([
+            $validated = $request->validate([
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after_or_equal:start_date',
             ]);
+
+            // Validate date range doesn't exceed 90 days
+            $startDate = \Carbon\Carbon::parse($validated['start_date']);
+            $endDate = \Carbon\Carbon::parse($validated['end_date']);
+            
+            if ($startDate->diffInDays($endDate) > 90) {
+                return response()->json([
+                    'message' => 'O intervalo de datas não pode exceder 90 dias.'
+                ], 422);
+            }
 
             $tenantId = EasyHashAction::decode($tenantIdHashId, 'tenant-id');
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
@@ -30,7 +42,7 @@ class MobileCourtAvailabilityController extends Controller
                 ->active()
                 ->findOrFail($courtId);
 
-            $dates = $court->getAvailableDates($request->start_date, $request->end_date);
+            $dates = $court->getAvailableDates($validated['start_date'], $validated['end_date']);
 
             return response()->json([
                 'data' => [
