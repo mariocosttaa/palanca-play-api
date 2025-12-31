@@ -35,7 +35,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected routes - requires authentication with business guard
-    Route::middleware('auth:business')->group(function () {
+    Route::middleware(['auth:business', 'timezone'])->group(function () {
         // Business User authentication routes (no tenant required, NO email verification required)
         Route::prefix('business-users')->group(function () {
             Route::post('/logout', [AuthBusinessUserAuthController::class, 'logout']);

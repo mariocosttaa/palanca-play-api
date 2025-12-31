@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'business.cors' => \App\Http\Middleware\BusinessCorsMiddleware::class,
             'api.log' => \App\Http\Middleware\LogApiRequests::class,
             'verified.api' => \App\Http\Middleware\EnsureEmailIsVerifiedApi::class,
+            'timezone' => \App\Http\Middleware\SetUserTimezone::class,
         ]);
 
         $middleware->append(\App\Http\Middleware\SetLocale::class);

@@ -51,7 +51,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected routes - requires authentication
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'timezone'])->group(function () {
         // User authentication routes (NO verification required to access these)
         Route::prefix('users')->group(function () {
             Route::post('/logout', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'logout']);
