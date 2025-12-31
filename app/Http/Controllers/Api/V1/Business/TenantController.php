@@ -70,6 +70,12 @@ class TenantController extends Controller
 
             $data = $request->validated();
 
+            if (isset($data['timezone_id'])) {
+                $timezone = \App\Models\Timezone::find($data['timezone_id']);
+                if ($timezone) {
+                    $data['timezone'] = $timezone->name;
+                }
+            }
 
             $tenant->update($data);
 

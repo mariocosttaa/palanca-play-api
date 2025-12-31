@@ -26,6 +26,7 @@ class TenantResourceGeneral extends JsonResource
             'longitude' => $this->longitude,
             'currency' => $this->currency,
             'timezone' => $this->timezone,
+            'timezone_id' => $this->timezone_id ? EasyHashAction::encode($this->timezone_id, 'timezone-id') : null,
             'country' => $this->country ? new CountryResourceGeneral($this->country) : null,
             'subscription_plan' => new SubscriptionPlanResourceGeneral($this->whenLoaded('subscriptionPlan')),
             'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
