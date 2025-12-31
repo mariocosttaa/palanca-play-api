@@ -13,7 +13,11 @@ use Illuminate\Http\JsonResponse;
 class MobileCurrencyController extends Controller
 {
     /**
-     * List all currencies
+     * List currencies
+     * 
+     * @unauthenticated
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CurrencyResourceGeneral>
      */
     public function index()
     {

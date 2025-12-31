@@ -13,9 +13,19 @@ use Illuminate\Http\Request;
 class MobileCourtAvailabilityController extends Controller
 {
     /**
-     * Get available dates for a court within a date range
+     * Get available dates
      * 
-     * Maximum date range is 90 days to prevent large result sets.
+     * Get available dates for a court within a date range.
+     * Maximum date range is 90 days.
+     * 
+     * @unauthenticated
+     * 
+     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * @urlParam court_id string required The HashID of the court. Example: crt_abc123
+     * @queryParam start_date string required The start date (Y-m-d). Example: 2025-12-01
+     * @queryParam end_date string required The end date (Y-m-d). Example: 2025-12-31
+     * 
+     * @return array{data: array{dates: string[], count: int}}
      */
     public function getDates(Request $request, string $tenantIdHashId, string $courtIdHashId)
     {
@@ -58,8 +68,18 @@ class MobileCourtAvailabilityController extends Controller
     }
 
     /**
-     * Get available time slots for a specific date
-     * Respects existing bookings and buffer times
+     * Get available slots
+     * 
+     * Get available time slots for a specific date.
+     * Respects existing bookings and buffer times.
+     * 
+     * @unauthenticated
+     * 
+     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * @urlParam court_id string required The HashID of the court. Example: crt_abc123
+     * @urlParam date string required The date (Y-m-d). Example: 2025-12-25
+     * 
+     * @return array{data: array{date: string, slots: array{start: string, end: string, available: bool}[], count: int, interval_minutes: int, buffer_minutes: int}}
      */
     public function getSlots(Request $request, string $tenantIdHashId, string $courtIdHashId, string $date)
     {

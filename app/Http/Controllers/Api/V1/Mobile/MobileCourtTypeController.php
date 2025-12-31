@@ -14,8 +14,15 @@ use Illuminate\Http\Request;
 class MobileCourtTypeController extends Controller
 {
     /**
-     * List all active court types for a tenant
-     * Used in the mobile booking page to show available court types
+     * List court types
+     * 
+     * List all active court types for a tenant.
+     * 
+     * @unauthenticated
+     * 
+     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral>
      */
     public function index(Request $request, string $tenantIdHashId)
     {
@@ -38,8 +45,14 @@ class MobileCourtTypeController extends Controller
     }
 
     /**
-     * Get detailed information about a specific court type
-     * Used when user clicks on a court type to see details
+     * Get court type details
+     * 
+     * @unauthenticated
+     * 
+     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * @urlParam court_type_id string required The HashID of the court type. Example: ct_abc123
+     * 
+     * @return \App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral
      */
     public function show(Request $request, string $tenantIdHashId, string $courtTypeIdHashId)
     {
@@ -64,6 +77,13 @@ class MobileCourtTypeController extends Controller
             return response()->json(['message' => 'Erro ao buscar tipo de quadra'], 500);
         }
     }
+    /**
+     * Get court type modalities
+     * 
+     * @unauthenticated
+     * 
+     * @return array{data: string[]}
+     */
     public function types()
     {
         return response()->json(['data' => \App\Enums\CourtTypeEnum::values()]);

@@ -14,7 +14,16 @@ use Illuminate\Http\Request;
 class MobileCourtController extends Controller
 {
     /**
-     * List courts for a tenant, optionally filtered by court type
+     * List courts
+     * 
+     * List courts for a tenant, optionally filtered by court type.
+     * 
+     * @unauthenticated
+     * 
+     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * @queryParam court_type_id string optional Filter by court type HashID. Example: ct_abc123
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtResourceGeneral>
      */
     public function index(Request $request, string $tenantIdHashId)
     {
@@ -42,7 +51,14 @@ class MobileCourtController extends Controller
     }
 
     /**
-     * Get detailed information about a specific court
+     * Get court details
+     * 
+     * @unauthenticated
+     * 
+     * @urlParam tenant_id string required The HashID of the tenant. Example: ten_abc123
+     * @urlParam court_id string required The HashID of the court. Example: crt_abc123
+     * 
+     * @return \App\Http\Resources\Shared\V1\General\CourtResourceGeneral
      */
     public function show(Request $request, string $tenantIdHashId, string $courtIdHashId)
     {

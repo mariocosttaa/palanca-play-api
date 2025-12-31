@@ -14,7 +14,11 @@ use Illuminate\Http\Request;
 class MobileCountryController extends Controller
 {
     /**
-     * List all countries
+     * List countries
+     * 
+     * @unauthenticated
+     * 
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CountryResourceGeneral>
      */
     public function index()
     {
