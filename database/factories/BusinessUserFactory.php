@@ -34,7 +34,6 @@ class BusinessUserFactory extends Factory
             'country_id' => null,
             'calling_code' => null,
             'phone' => null,
-            'timezone' => fake()->timezone(),
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
         ];
