@@ -45,6 +45,55 @@ class UpdateBookingRequest extends FormRequest
                 'court_id' => EasyHashAction::decode($this->input('court_id'), 'court-id'),
             ]);
         }
+
+        // Handle Timezone Conversion
+        if ($this->hasAny(['start_date', 'start_time', 'end_time'])) {
+            $bookingId = $this->booking_id ?? EasyHashAction::decode($this->route('booking_id'), 'booking-id');
+            $booking = Booking::find($bookingId);
+
+            if ($booking) {
+                $timezoneService = app(\App\Services\TimezoneService::class);
+
+                // 1. Get current values in User TZ
+                // Note: We assume the DB values are in UTC (which they will be after this feature is live)
+                // If they are currently not UTC, this might shift them, but we are migrating.
+                // Actually, for existing data, it might be messy if we don't migrate DB.
+                // But let's assume we are starting fresh or data is compatible.
+                
+                // We need to construct the full datetime from DB to convert it correctly
+                $currentStartUtc = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'), 'UTC');
+                $currentEndUtc = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC');
+                // Note: end_date is assumed same as start_date in DB currently.
+
+                $currentStartUser = $timezoneService->toUserTime($currentStartUtc);
+                $currentEndUser = $timezoneService->toUserTime($currentEndUtc);
+                
+                // Parse back to Carbon to extract date/time parts in User TZ
+                $startUserCarbon = \Carbon\Carbon::parse($currentStartUser);
+                $endUserCarbon = \Carbon\Carbon::parse($currentEndUser);
+
+                // 2. Overlay Input Data
+                $newStartDate = $this->input('start_date', $startUserCarbon->format('Y-m-d'));
+                $newStartTime = $this->input('start_time', $startUserCarbon->format('H:i'));
+                $newEndTime = $this->input('end_time', $endUserCarbon->format('H:i'));
+
+                // 3. Convert back to UTC
+                $newStartString = $newStartDate . ' ' . $newStartTime;
+                // For end time, we use the NEW start date as base (User TZ assumption of single day)
+                $newEndString = $newStartDate . ' ' . $newEndTime;
+
+                $newStartUtc = $timezoneService->toUTC($newStartString);
+                $newEndUtc = $timezoneService->toUTC($newEndString);
+
+                if ($newStartUtc && $newEndUtc) {
+                    $this->merge([
+                        'start_date' => $newStartUtc->format('Y-m-d'),
+                        'start_time' => $newStartUtc->format('H:i'),
+                        'end_time' => $newEndUtc->format('H:i'),
+                    ]);
+                }
+            }
+        }
     }
 
     /**

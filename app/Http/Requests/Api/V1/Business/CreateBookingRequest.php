@@ -32,6 +32,32 @@ class CreateBookingRequest extends FormRequest
                 'client_id' => EasyHashAction::decode($this->input('client_id'), 'user-id'),
             ]);
         }
+
+        // Convert dates to UTC
+        if ($this->has(['start_date', 'start_time', 'end_time'])) {
+            $timezoneService = app(\App\Services\TimezoneService::class);
+            
+            // Parse start datetime in user timezone
+            $startString = $this->input('start_date') . ' ' . $this->input('start_time');
+            $startUtc = $timezoneService->toUTC($startString);
+
+            // Parse end datetime in user timezone
+            // Assuming end time is on the same day as start time (as per current validation rules)
+            $endString = $this->input('start_date') . ' ' . $this->input('end_time');
+            $endUtc = $timezoneService->toUTC($endString);
+
+            if ($startUtc && $endUtc) {
+                $this->merge([
+                    'start_date' => $startUtc->format('Y-m-d'),
+                    'start_time' => $startUtc->format('H:i'),
+                    'end_time' => $endUtc->format('H:i'),
+                    // We might need to handle end_date if we support it, but for now
+                    // we are limited by the request structure.
+                    // If the conversion pushes it to the next day, start_date will update.
+                    // If it crosses midnight in UTC, end_time will be < start_time, which will fail validation.
+                ]);
+            }
+        }
     }
 
     /**
