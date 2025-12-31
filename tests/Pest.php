@@ -51,3 +51,17 @@ function testCase(): \Tests\TestCase
 {
     return test()->getTestCase();
 }
+
+/**
+ * Create an authenticated user for testing.
+ */
+function createAuthenticatedUser(?\App\Models\Tenant $tenant = null) {
+    $timezone = \App\Models\Timezone::factory()->create();
+    $user = \App\Models\User::factory()->create(['timezone_id' => $timezone->id]);
+    if ($tenant) {
+        $user->tenants()->attach($tenant->id);
+    }
+    $user->markEmailAsVerified();
+    \Laravel\Sanctum\Sanctum::actingAs($user, [], 'sanctum');
+    return $user;
+}

@@ -13,13 +13,10 @@ test('can get court type enums with auth and verification', function () {
     ]);
     \Laravel\Sanctum\Sanctum::actingAs($user);
 
-    $tenant = Tenant::factory()->create();
-    $tenantHashId = EasyHashAction::encode($tenant->id, 'tenant-id');
-
-    $response = $this->getJson("/api/v1/tenants/{$tenantHashId}/court-types/modalities");
+    $response = $this->getJson("/api/v1/court-types/modalities");
 
     $response->assertStatus(200)
         ->assertJson([
-            'data' => CourtTypeEnum::values()
+            'data' => CourtTypeEnum::options()
         ]);
 });
