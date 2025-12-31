@@ -20,12 +20,33 @@ beforeEach(function () {
 });
 
 function createValidSubscription($tenant) {
+    // Create currency using factory
+    \App\Models\Manager\CurrencyModel::factory()->create([
+        'code' => $tenant->currency ?? 'eur'
+    ]);
+    
     Invoice::factory()->create([
         'tenant_id' => $tenant->id,
         'status' => 'paid',
         'date_end' => now()->addMonth(),
         'max_courts' => 10,
     ]);
+}
+
+function createCourtAvailability($court, $tenant) {
+    // Create availability for all days of the week (09:00 - 21:00)
+    $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    foreach ($daysOfWeek as $day) {
+        \App\Models\CourtAvailability::factory()->create([
+            'tenant_id' => $tenant->id,
+            'court_id' => $court->id,
+            'day_of_week_recurring' => $day,
+            'start_time' => '09:00:00',
+            'end_time' => '21:00:00',
+            'is_available' => true,
+        ]);
+    }
 }
 
 test('booking created in NY timezone is saved in UTC and returned in NY time', function () {
@@ -35,6 +56,7 @@ test('booking created in NY timezone is saved in UTC and returned in NY time', f
     $user->tenants()->attach($tenant);
     createValidSubscription($tenant);
     $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    createCourtAvailability($court, $tenant);
     $client = User::factory()->create();
 
     Sanctum::actingAs($user, [], 'business');
@@ -75,6 +97,7 @@ test('booking created in Tokyo timezone with date shift is saved in UTC and retu
     $user->tenants()->attach($tenant);
     createValidSubscription($tenant);
     $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    createCourtAvailability($court, $tenant);
     $client = User::factory()->create();
 
     Sanctum::actingAs($user, [], 'business');
@@ -116,6 +139,7 @@ test('booking update handles timezone conversion correctly', function () {
     $user->tenants()->attach($tenant);
     createValidSubscription($tenant);
     $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+    createCourtAvailability($court, $tenant);
     $client = User::factory()->create();
 
     // Create initial booking in UTC: Tomorrow 17:00 (12:00 NY)
