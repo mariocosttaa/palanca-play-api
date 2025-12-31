@@ -25,8 +25,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/google/unlink', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'unlinkGoogle'])->middleware('auth:sanctum');
     });
 
-
-
     // Password Reset Routes (public)
     Route::prefix('password')->group(function () {
         Route::post('/forgot', [App\Http\Controllers\Api\V1\Mobile\PasswordResetController::class, 'requestCode']);
@@ -34,13 +32,18 @@ Route::prefix('v1')->group(function () {
         Route::get('/verify/{code}', [App\Http\Controllers\Api\V1\Mobile\PasswordResetController::class, 'checkCode']);
     });
 
+    // Public Reference Data Routes
+    Route::get('/countries', [App\Http\Controllers\Api\V1\Mobile\MobileCountryController::class, 'index']);
+    Route::get('/currencies', [App\Http\Controllers\Api\V1\Mobile\MobileCurrencyController::class, 'index']);
+    Route::get('/timezones', [App\Http\Controllers\Api\V1\Mobile\TimezoneController::class, 'index']);
+
     // Protected routes - requires authentication
     Route::middleware(['auth:sanctum', 'timezone'])->group(function () {
         // User authentication routes (NO verification required to access these)
         Route::prefix('users')->group(function () {
             Route::post('/logout', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'logout']);
             Route::get('/me', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'me']);
-            
+
             // Verification Routes (accessible without email verification)
             Route::prefix('verification')->group(function () {
                 Route::post('/verify', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'verifyEmail']);
@@ -53,17 +56,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('profile')->group(function () {
             Route::patch('/language', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateLanguage']);
             Route::put('/timezone', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateTimezone']);
-            Route::post('/email', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateEmail']);
+            Route::put('/email', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateEmail']);
             Route::put('/', [App\Http\Controllers\Api\V1\Mobile\UserProfileController::class, 'updateProfile']);
         });
 
         // Routes requiring Email Verification - ONLY booking operations
         Route::middleware('verified.api')->group(function () {
-            // Public general routes (Now protected by verification for authenticated users)
-            Route::get('/countries', [App\Http\Controllers\Api\V1\Mobile\MobileCountryController::class, 'index']);
-            Route::get('/currencies', [App\Http\Controllers\Api\V1\Mobile\MobileCurrencyController::class, 'index']);
-            Route::get('/timezones', [App\Http\Controllers\Api\V1\Mobile\TimezoneController::class, 'index']);
-
             // Court Types (Global)
             Route::prefix('court-types')->group(function () {
                 Route::get('/modalities', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'types']);
@@ -89,6 +87,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'index']);
                 Route::patch('/{notification_id}/read', [App\Http\Controllers\Api\V1\Mobile\NotificationController::class, 'markAsRead']);
             });
+
             // Bookings (user-specific, not tenant-scoped in URL)
             Route::prefix('bookings')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'index']);

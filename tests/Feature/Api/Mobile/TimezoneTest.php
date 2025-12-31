@@ -27,3 +27,21 @@ test('can list timezones with auth and verification', function () {
             ],
         ]);
 });
+
+test('guest can list timezones', function () {
+    $this->seed(TimezoneSeeder::class);
+
+    $response = $this->getJson('/api/v1/timezones');
+
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'data' => [
+                '*' => [
+                    'id',
+                    'name',
+                    'label',
+                    'offset',
+                ],
+            ],
+        ]);
+});

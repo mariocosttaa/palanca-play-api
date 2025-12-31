@@ -58,17 +58,63 @@ test('can get all currencies from mobile api with auth and verification', functi
     expect($response->json('data'))->toHaveCount(3);
 });
 
-test('unverified user cannot get countries', function () {
+test('unverified user can get countries', function () {
     $user = \App\Models\User::factory()->create([
         'email_verified_at' => null,
     ]);
     \Laravel\Sanctum\Sanctum::actingAs($user);
 
+    // Create some countries
+    Country::factory()->count(3)->create();
+
     $response = $this->getJson('/api/v1/countries');
 
-    $response->assertStatus(403)
-        ->assertJson([
-            'message' => 'Your email address is not verified.',
-            'verification_needed' => true
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'data' => [
+                '*' => [
+                    'id',
+                    'name',
+                    'code',
+                    'calling_code',
+                ]
+            ]
+        ]);
+});
+
+test('guest can get countries', function () {
+    // Create some countries
+    Country::factory()->count(3)->create();
+
+    $response = $this->getJson('/api/v1/countries');
+
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'data' => [
+                '*' => [
+                    'id',
+                    'name',
+                    'code',
+                    'calling_code',
+                ]
+            ]
+        ]);
+});
+
+test('guest can get currencies', function () {
+    // Create some currencies
+    CurrencyModel::factory()->count(3)->create();
+
+    $response = $this->getJson('/api/v1/currencies');
+
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'data' => [
+                '*' => [
+                    'code',
+                    'symbol',
+                    'decimal_separator',
+                ]
+            ]
         ]);
 });
