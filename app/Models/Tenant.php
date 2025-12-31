@@ -20,6 +20,7 @@ class Tenant extends Model
         'longitude',
         'currency',
         'timezone',
+        'timezone_id',
         'auto_confirm_bookings',
         'booking_interval_minutes',
         'buffer_between_bookings_minutes',
@@ -34,6 +35,11 @@ class Tenant extends Model
     ];
 
     // Relationships
+    public function timezone()
+    {
+        return $this->belongsTo(Timezone::class);
+    }
+
     public function country()
     {
         return $this->belongsTo(Country::class);
