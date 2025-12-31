@@ -23,6 +23,7 @@ class UpdateTenantRequest extends FormRequest
 /**
  * Request validates
  *
+ * @property string $country_id Example: Xy7z (hashed country ID)
  * @property string $name Example: Palanca Club
  * @property string $address Example: Luanda, Angola
  * @property decimal $latitude Example: -8.839988
@@ -32,6 +33,7 @@ class UpdateTenantRequest extends FormRequest
  * @property int $buffer_between_bookings_minutes Example: 15
  * @property string $currency Example: aoa
  * @property string $timezone Example: Africa/Luanda
+ * @property string $timezone_id Example: Abc1 (hashed timezone ID)
  */
     /**
      * Determine if the user is authorized to make this request.

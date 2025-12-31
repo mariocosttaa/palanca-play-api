@@ -22,7 +22,6 @@ class TenantController extends Controller
      * @queryParam page int optional Page number. Example: 1
      * @queryParam per_page int optional Items per page. Example: 15
      *
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
     public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
@@ -39,7 +38,6 @@ class TenantController extends Controller
     /**
      * Get a specific tenant by ID
      * 
-     * @return TenantResourceGeneral
      */
     public function show(Request $request, string $tenantId): TenantResourceGeneral
     {
@@ -49,7 +47,6 @@ class TenantController extends Controller
     /**
      * Update a tenant
      * 
-     * @return TenantResourceGeneral
      */
     public function update(UpdateTenantRequest $request, $tenantId): TenantResourceGeneral
     {
@@ -94,7 +91,6 @@ class TenantController extends Controller
     /**
      * Upload a logo for the tenant
      * 
-     * @return TenantResourceGeneral
      */
     public function uploadLogo(Request $request, string $tenantId): TenantResourceGeneral
     {
@@ -143,7 +139,6 @@ class TenantController extends Controller
     /**
      * Delete the tenant logo
      * 
-     * @return TenantResourceGeneral
      */
     public function deleteLogo(Request $request, string $tenantId): TenantResourceGeneral
     {
