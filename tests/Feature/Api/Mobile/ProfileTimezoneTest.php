@@ -14,7 +14,7 @@ beforeEach(function () {
 test('mobile user can_update_timezone', function () {
     $user = User::factory()->create();
     $timezone = Timezone::where('name', 'Asia/Tokyo')->first();
-    $encodedTimezoneId = EasyHashAction::encode($timezone->id);
+    $encodedTimezoneId = EasyHashAction::encode($timezone->id, 'timezone-id');
 
     $response = $this->actingAs($user, 'sanctum')
         ->putJson('/api/v1/profile/timezone', [

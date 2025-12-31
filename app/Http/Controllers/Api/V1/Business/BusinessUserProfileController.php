@@ -90,7 +90,7 @@ class BusinessUserProfileController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'timezone_id' => ['required', new \App\Rules\HashIdExists('timezones', 'id')],
+                'timezone_id' => ['required', new \App\Rules\HashIdExists('timezones', 'id', 'timezone-id')],
             ]);
 
             if ($validator->fails()) {
@@ -98,7 +98,7 @@ class BusinessUserProfileController extends Controller
             }
 
             $businessUser = $request->user('business');
-            $timezoneId = \App\Actions\General\EasyHashAction::decode($request->timezone_id);
+            $timezoneId = \App\Actions\General\EasyHashAction::decode($request->timezone_id, 'timezone-id');
             
             $businessUser->update([
                 'timezone_id' => $timezoneId,

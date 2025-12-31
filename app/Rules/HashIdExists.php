@@ -11,11 +11,13 @@ class HashIdExists implements ValidationRule
 {
     protected string $table;
     protected string $column;
+    protected string $type;
 
-    public function __construct(string $table, string $column = 'id')
+    public function __construct(string $table, string $column = 'id', string $type = '')
     {
         $this->table = $table;
         $this->column = $column;
+        $this->type = $type;
     }
 
     /**
@@ -30,7 +32,7 @@ class HashIdExists implements ValidationRule
             return;
         }
 
-        $decodedId = EasyHashAction::decode($value);
+        $decodedId = EasyHashAction::decode($value, $this->type);
 
         if (! $decodedId) {
             $fail('The selected :attribute is invalid.');

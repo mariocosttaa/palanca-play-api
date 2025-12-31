@@ -14,7 +14,7 @@ beforeEach(function () {
 test('business user can update timezone', function () {
     $user = BusinessUser::factory()->create();
     $timezone = Timezone::where('name', 'Europe/Madrid')->first();
-    $encodedTimezoneId = EasyHashAction::encode($timezone->id);
+    $encodedTimezoneId = EasyHashAction::encode($timezone->id, 'timezone-id');
 
     $response = $this->actingAs($user, 'business')
         ->putJson('/api/business/v1/profile/timezone', [

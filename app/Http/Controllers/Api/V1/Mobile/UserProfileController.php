@@ -88,7 +88,7 @@ class UserProfileController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'timezone_id' => ['required', new \App\Rules\HashIdExists('timezones', 'id')],
+                'timezone_id' => ['required', new \App\Rules\HashIdExists('timezones', 'id', 'timezone-id')],
             ]);
 
             if ($validator->fails()) {
@@ -96,7 +96,7 @@ class UserProfileController extends Controller
             }
 
             $user = $request->user();
-            $timezoneId = \App\Actions\General\EasyHashAction::decode($request->timezone_id);
+            $timezoneId = \App\Actions\General\EasyHashAction::decode($request->timezone_id, 'timezone-id');
             
             $user->update([
                 'timezone_id' => $timezoneId,
