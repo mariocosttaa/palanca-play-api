@@ -51,9 +51,9 @@ Route::prefix('v1')->group(function () {
 
         // Notifications (user-specific, not tenant-scoped, NO email verification required)
         Route::prefix('notifications')->group(function () {
-            Route::get('/recent', [NotificationController::class, 'recent']);
-            Route::get('/', [NotificationController::class, 'index']);
-            Route::patch('/{notification_id}/read', [NotificationController::class, 'markAsRead']);
+            Route::get('/recent', [NotificationController::class, 'recent'])->name('business.notifications.recent');
+            Route::get('/', [NotificationController::class, 'index'])->name('business.notifications.index');
+            Route::patch('/{notification_id}/read', [NotificationController::class, 'markAsRead'])->name('business.notifications.read');
         });
 
         // Business User Profile routes (NO email verification required for basic profile settings)

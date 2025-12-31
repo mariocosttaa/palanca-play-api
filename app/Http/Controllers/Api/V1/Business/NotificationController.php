@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\V1\Business;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Shared\V1\General\NotificationResourceGeneral;
-use App\Models\Notification;
+use App\Http\Resources\Business\V1\Specific\BusinessNotificationResource;
+use App\Models\BusinessNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Actions\General\EasyHashAction;
@@ -24,12 +24,12 @@ class NotificationController extends Controller
         try {
             $user = $request->user();
             
-            $notifications = Notification::forUser($user->id)
+            $notifications = BusinessNotification::forBusinessUser($user->id)
                 ->latest()
                 ->limit(5)
                 ->get();
 
-            return NotificationResourceGeneral::collection($notifications);
+            return BusinessNotificationResource::collection($notifications);
 
         } catch (\Exception $e) {
             Log::error('Erro ao buscar notificações recentes', ['error' => $e->getMessage()]);
@@ -51,11 +51,11 @@ class NotificationController extends Controller
             $user = $request->user();
             
             $perPage = $request->input('per_page', 20);
-            $notifications = Notification::forUser($user->id)
+            $notifications = BusinessNotification::forBusinessUser($user->id)
                 ->latest()
                 ->paginate($perPage);
 
-            return NotificationResourceGeneral::collection($notifications);
+            return BusinessNotificationResource::collection($notifications);
 
         } catch (\Exception $e) {
             Log::error('Erro ao buscar notificações', ['error' => $e->getMessage()]);
@@ -66,21 +66,23 @@ class NotificationController extends Controller
     /**
      * Mark notification as read
      * 
-     * @return \App\Http\Resources\Shared\V1\General\NotificationResourceGeneral
+     * @return \App\Http\Resources\Business\V1\Specific\BusinessNotificationResource|\Illuminate\Http\JsonResponse
      */
-    public function markAsRead(Request $request, $notificationId): \App\Http\Resources\Shared\V1\General\NotificationResourceGeneral
+    public function markAsRead(Request $request, $notificationId): \App\Http\Resources\Business\V1\Specific\BusinessNotificationResource|\Illuminate\Http\JsonResponse
     {
         try {
             $user = $request->user();
             $notificationId = EasyHashAction::decode($notificationId, 'notification-id');
             
-            $notification = Notification::forUser($user->id)
+            $notification = BusinessNotification::forBusinessUser($user->id)
                 ->findOrFail($notificationId);
 
             $notification->markAsRead();
 
-            return new NotificationResourceGeneral($notification);
+            return new BusinessNotificationResource($notification);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Notificação não encontrada'], 404);
         } catch (\Exception $e) {
             Log::error('Erro ao marcar notificação como lida', ['error' => $e->getMessage()]);
             abort(500, 'Erro ao marcar notificação como lida');
