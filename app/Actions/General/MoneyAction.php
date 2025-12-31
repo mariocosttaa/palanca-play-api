@@ -50,6 +50,8 @@ class MoneyAction
 
         }
 
+        $formattedAmount = strtoupper($formattedAmount);
+
         return $formattedAmount;
     }
 
