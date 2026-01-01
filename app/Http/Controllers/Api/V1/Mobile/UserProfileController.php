@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\Api\V1\Profile\UpdateEmailRequest;
+use App\Http\Requests\Api\V1\Profile\UpdateProfileRequest;
 use App\Services\EmailVerificationCodeService;
 use App\Enums\EmailTypeEnum;
 
@@ -55,27 +56,24 @@ class UserProfileController extends Controller
      * 
      * @bodyParam name string optional The user's first name. Example: Mario
      * @bodyParam surname string optional The user's last name. Example: Rossi
-     * @bodyParam phone string optional The user's phone number. Example: +351912345678
-     * @bodyParam timezone string optional The user's timezone string. Example: Europe/Lisbon
+     * @bodyParam phone_code string optional The country calling code. Example: 351
+     * @bodyParam phone string optional The user's phone number. Example: 912345678
+     * @bodyParam country_id string optional The HashID of the country. Example: c_abc123
+     * @bodyParam timezone_id string optional The HashID of the timezone. Example: tz_abc123
      * @bodyParam locale string optional The user's preferred locale. Example: pt
      */
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'name' => 'sometimes|string|max:255',
-                'surname' => 'sometimes|string|max:255',
-                'phone' => 'sometimes|string|max:20',
-                'timezone' => 'sometimes|string|max:50',
-                'locale' => 'sometimes|in:en,pt,es,fr',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json(['message' => 'Dados inválidos', 'errors' => $validator->errors()], 422);
+            $user = $request->user();
+            
+            $data = $request->only(['name', 'surname', 'phone', 'country_id', 'timezone_id', 'locale']);
+            
+            if ($request->has('phone_code')) {
+                $data['calling_code'] = $request->phone_code;
             }
 
-            $user = $request->user();
-            $user->update($request->only(['name', 'surname', 'phone', 'timezone', 'locale']));
+            $user->update($data);
 
             return response()->json(['data' => [
                 'user' => $user,

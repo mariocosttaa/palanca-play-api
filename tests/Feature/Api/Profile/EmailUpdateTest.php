@@ -19,7 +19,7 @@ class EmailUpdateTest extends TestCase
         $newEmail = 'newemail@example.com';
 
         $response = $this->actingAs($user)
-            ->postJson('/api/v1/profile/email', [
+            ->putJson('/api/v1/profile/email', [
                 'email' => $newEmail,
             ]);
 
@@ -42,7 +42,7 @@ class EmailUpdateTest extends TestCase
         $newEmail = 'newbusiness@example.com';
 
         $response = $this->actingAs($user, 'business')
-            ->postJson('/api/business/v1/profile/email', [
+            ->putJson('/api/business/v1/profile/email', [
                 'email' => $newEmail,
             ]);
 
@@ -67,12 +67,12 @@ class EmailUpdateTest extends TestCase
         // Send 3 emails (burst limit)
         for ($i = 0; $i < 3; $i++) {
             $this->actingAs($user)
-                ->postJson('/api/v1/profile/email', ['email' => $newEmail]);
+                ->putJson('/api/v1/profile/email', ['email' => $newEmail]);
         }
 
         // 4th email should be rate limited
         $response = $this->actingAs($user)
-            ->postJson('/api/v1/profile/email', ['email' => $newEmail]);
+            ->putJson('/api/v1/profile/email', ['email' => $newEmail]);
 
         $response->assertStatus(429);
         $this->assertStringContainsString('Please wait', $response->json('message'));
@@ -84,7 +84,7 @@ class EmailUpdateTest extends TestCase
         $user2 = User::factory()->create(['email' => 'user2@example.com']);
 
         $response = $this->actingAs($user1)
-            ->postJson('/api/v1/profile/email', [
+            ->putJson('/api/v1/profile/email', [
                 'email' => 'user2@example.com',
             ]);
 
