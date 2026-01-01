@@ -15,6 +15,7 @@ use App\Models\Manager\CurrencyModel;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
@@ -297,24 +298,32 @@ test('business user cannot confirm booking presence for future booking not on sa
 });
 
 test('business user cannot confirm booking presence for same day booking less than 1 hour before', function () {
+    // Set test time to noon UTC to avoid midnight crossing issues
+    Carbon::setTestNow(Carbon::parse('2025-01-01 12:00:00', 'UTC'));
+
     $currency = CurrencyModel::factory()->create(['code' => 'eur']);
     $tenant   = Tenant::factory()->create(['currency' => 'eur', 'booking_interval_minutes' => 60]);
     $user     = BusinessUser::factory()->create();
     $user->tenants()->attach($tenant);
 
-    Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'paid', 'date_end' => now()->addDay()]);
+    Invoice::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'paid',
+        'date_start' => now()->subDay(),
+        'date_end' => now()->addDay(),
+    ]);
 
     $court  = Court::factory()->create(['tenant_id' => $tenant->id]);
     $client = User::factory()->create();
 
     // Create a booking for today, 30 minutes from now (less than 1 hour before)
-    $futureTime = now()->addMinutes(30);
+    $futureTime = now('UTC')->addMinutes(30);
     $booking    = Booking::factory()->create([
         'tenant_id'  => $tenant->id,
         'court_id'   => $court->id,
         'user_id'    => $client->id,
-        'start_date' => now()->format('Y-m-d'),
-        'end_date'   => now()->format('Y-m-d'),
+        'start_date' => $futureTime->format('Y-m-d'),
+        'end_date'   => $futureTime->format('Y-m-d'),
         'start_time' => $futureTime->format('H:i:s'),
         'end_time'   => $futureTime->copy()->addHour()->format('H:i:s'),
         'present'    => null,
