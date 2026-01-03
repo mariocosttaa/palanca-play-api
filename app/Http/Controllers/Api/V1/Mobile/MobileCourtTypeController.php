@@ -22,7 +22,6 @@ class MobileCourtTypeController extends Controller
      * @queryParam search string optional Search in name and description. Example: Padel
      * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
      * @queryParam modality string optional Filter by court type modality (e.g., padel, tennis). Example: padel
-     * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Api\V1\Mobile\MobileCourtTypeResource>
      */
     public function index(Request $request)
@@ -32,7 +31,6 @@ class MobileCourtTypeController extends Controller
                 'search' => 'nullable|string',
                 'country_id' => 'nullable|string',
                 'modality' => 'nullable|string',
-                'tenant_id' => 'nullable|string',
             ]);
 
             $query = CourtType::query()
@@ -61,11 +59,6 @@ class MobileCourtTypeController extends Controller
 
             if ($request->modality) {
                 $query->where('type', $request->modality);
-            }
-
-            if ($request->tenant_id) {
-                $tenantId = EasyHashAction::decode($request->tenant_id, 'tenant-id');
-                $query->where('tenant_id', $tenantId);
             }
 
             $courtTypes = $query->paginate(20);
@@ -130,7 +123,6 @@ class MobileCourtTypeController extends Controller
      * @queryParam search string optional Search in name and description. Example: Padel
      * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
      * @queryParam modality string optional Filter by court type modality. Example: padel
-     * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Api\V1\Mobile\MobileCourtTypeResource>
      */
     public function popular(Request $request)
@@ -140,7 +132,6 @@ class MobileCourtTypeController extends Controller
                 'search' => 'nullable|string',
                 'country_id' => 'nullable|string',
                 'modality' => 'nullable|string',
-                'tenant_id' => 'nullable|string',
             ]);
 
             $query = CourtType::query()
@@ -170,11 +161,6 @@ class MobileCourtTypeController extends Controller
 
             if ($request->modality) {
                 $query->where('type', $request->modality);
-            }
-
-            if ($request->tenant_id) {
-                $tenantId = EasyHashAction::decode($request->tenant_id, 'tenant-id');
-                $query->where('tenant_id', $tenantId);
             }
 
             $courtTypes = $query->paginate(5);
