@@ -81,11 +81,11 @@ class UserAuthController extends Controller
     }
 
     /**
-     * Verify Email
+     * Verify email address
      * 
-     * Step 2: Verify Code.
+     * Verifies the user's email address using the 6-digit code sent during registration or via the resend endpoint.
      * 
-     * @bodyParam code string required The verification code sent to the email. Example: 123456
+     * @bodyParam code string required The 6-digit verification code sent to the email. Example: 123456
      * 
      * @return array{message: string}
      */
@@ -117,7 +117,13 @@ class UserAuthController extends Controller
     }
 
     /**
-     * Resend Verification Code
+     * Resend verification code
+     * 
+     * Resends the 6-digit verification code to the user's email address.
+     * 
+     * **Rate Limits:**
+     * - Burst: 3 requests per 170 seconds.
+     * - Daily: 10 requests per 24 hours.
      * 
      * @return array{message: string}
      */
@@ -143,7 +149,9 @@ class UserAuthController extends Controller
     }
 
     /**
-     * Check Verification Status
+     * Check verification status
+     * 
+     * Returns whether the authenticated user has verified their email address.
      * 
      * @return array{verified: bool, email: string}
      */

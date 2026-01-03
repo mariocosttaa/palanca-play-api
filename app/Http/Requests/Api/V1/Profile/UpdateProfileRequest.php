@@ -27,9 +27,12 @@ class UpdateProfileRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->phone_code) {
+        // Support both phone_code and calling_code from mobile
+        $phoneCode = $this->phone_code ?? $this->calling_code;
+
+        if ($phoneCode) {
             $this->merge([
-                'phone_code' => str_replace('+', '', $this->phone_code),
+                'phone_code' => str_replace('+', '', $phoneCode),
             ]);
         }
 
@@ -52,6 +55,7 @@ class UpdateProfileRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'surname' => 'sometimes|string|max:255',
             'phone_code' => 'sometimes|string|max:5',
+            'calling_code' => 'sometimes|string|max:10', // Allow for + and spaces
             'phone' => 'sometimes|string|max:20',
             'country_id' => ['sometimes', 'integer', Rule::exists(Country::class, 'id')],
             'timezone_id' => ['sometimes', 'integer', Rule::exists(Timezone::class, 'id')],

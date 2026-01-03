@@ -68,9 +68,11 @@ class BusinessUserAuthController extends Controller
     }
 
     /**
-     * Verify Email
+     * Verify email address
      * 
-     * Verifies the user's email address using the provided verification code.
+     * Verifies the business user's email address using the 6-digit code sent during registration or via the resend endpoint.
+     * 
+     * @bodyParam code string required The 6-digit verification code sent to the email. Example: 123456
      * 
      * @return array{message: string}
      */
@@ -102,9 +104,13 @@ class BusinessUserAuthController extends Controller
     }
 
     /**
-     * Resend Verification Code
+     * Resend verification code
      * 
-     * Resends the email verification code to the authenticated user.
+     * Resends the 6-digit verification code to the business user's email address.
+     * 
+     * **Rate Limits:**
+     * - Burst: 3 requests per 170 seconds.
+     * - Daily: 10 requests per 24 hours.
      * 
      * @return array{message: string}
      */
@@ -130,9 +136,9 @@ class BusinessUserAuthController extends Controller
     }
 
     /**
-     * Check Verification Status
+     * Check verification status
      * 
-     * Checks if the authenticated user's email is verified.
+     * Returns whether the authenticated business user has verified their email address.
      * 
      * @return array{data: array{verified: bool, email: string}}
      */
