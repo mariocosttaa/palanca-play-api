@@ -34,24 +34,31 @@ class MobileBookingController extends Controller
         protected EmailService $emailService,
     ) {
     }
+
     /**
      * List authenticated user's bookings
      * 
      * @queryParam status string Filter by status (upcoming, past, cancelled). Example: upcoming
      * @queryParam page int The page number. Example: 1
-     * @queryParam per_page int The number of items per page. Example: 20
      * 
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Business\V1\Specific\BookingResource>
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection|\Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
         try {
+            $request->validate([
+                'status' => 'nullable|string|in:upcoming,past,cancelled',
+                'court_id' => 'nullable|string',
+                'tenant_id' => 'nullable|string',
+                'modality' => 'nullable|string',
+            ]);
+
             $user = $request->user();
             
             $query = Booking::where('user_id', $user->id)
                 ->with(['court.courtType', 'court.primaryImage', 'currency', 'court.tenant']);
 
-            // Filter by status if provided
+            // Filter by status
             if ($request->has('status')) {
                 switch ($request->status) {
                     case 'upcoming':
@@ -68,7 +75,28 @@ class MobileBookingController extends Controller
                 }
             }
 
-            $bookings = $query->latest('start_date')->paginate(20);
+            // Filter by Court
+            if ($request->court_id) {
+                $courtId = EasyHashAction::decode($request->court_id, 'court-id');
+                $query->where('court_id', $courtId);
+            }
+
+            // Filter by Tenant
+            if ($request->tenant_id) {
+                $tenantId = EasyHashAction::decode($request->tenant_id, 'tenant-id');
+                $query->where('tenant_id', $tenantId);
+            }
+
+            // Filter by Modality
+            if ($request->modality) {
+                $query->whereHas('court.courtType', function ($q) use ($request) {
+                    $q->where('type', $request->modality);
+                });
+            }
+
+            $bookings = $query->orderBy('start_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->paginate(20);
 
             return BookingResource::collection($bookings);
 
@@ -83,7 +111,7 @@ class MobileBookingController extends Controller
      * 
      * Allows creating a booking for multiple contiguous slots.
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
      */
     public function store(CreateMobileBookingRequest $request)
     {
@@ -127,7 +155,7 @@ class MobileBookingController extends Controller
 
             // Create notifications (for user and business users)
             try {
-                $notificationResult = $this->notificationService->createBookingNotification(
+                $this->notificationService->createBookingNotification(
                     $booking,
                     'created',
                     BookingApiContextEnum::MOBILE
@@ -171,7 +199,7 @@ class MobileBookingController extends Controller
      * 
      * @urlParam booking_id string required The HashID of the booking. Example: abc123
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
      */
     public function update(\App\Http\Requests\Api\V1\Mobile\UpdateMobileBookingRequest $request, string $bookingIdHashId)
     {
@@ -261,7 +289,7 @@ class MobileBookingController extends Controller
      * 
      * @urlParam booking_id string required The HashID of the booking. Example: abc123
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
      */
     public function show(Request $request, string $bookingIdHashId)
     {
@@ -286,7 +314,7 @@ class MobileBookingController extends Controller
      * 
      * @urlParam booking_id string required The HashID of the booking. Example: abc123
      * 
-     * @return array{message: string}
+     * @return \Illuminate\Http\JsonResponse
      */
     public function destroy(Request $request, string $bookingIdHashId)
     {
@@ -349,15 +377,7 @@ class MobileBookingController extends Controller
     /**
      * Get user booking statistics
      * 
-     * @return array{
-     *   data: array{
-     *     total_bookings: int,
-     *     upcoming_bookings: int,
-     *     past_bookings: int,
-     *     cancelled_bookings: int,
-     *     pending_bookings: int
-     *   }
-     * }
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getStats(Request $request)
     {
@@ -402,45 +422,25 @@ class MobileBookingController extends Controller
     }
 
     /**
-     * Get user recent bookings
-     * 
-     * @queryParam per_page int The number of items per page. Example: 10
-     * 
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Business\V1\Specific\BookingResource>
-     */
-    public function getRecentBookings(Request $request)
-    {
-        try {
-            $user = $request->user();
-            
-            // Get recent bookings with pagination (lazy load support)
-            $perPage = $request->input('per_page', 10);
-            $bookings = Booking::where('user_id', $user->id)
-                ->with(['court.courtType', 'court.primaryImage', 'court.tenant', 'currency'])
-                ->latest('created_at')
-                ->paginate($perPage);
-
-            return BookingResource::collection($bookings);
-
-        } catch (\Exception $e) {
-            Log::error('Erro ao buscar agendamentos recentes', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao buscar agendamentos recentes'], 500);
-        }
-    }
-
-    /**
      * Get next upcoming booking
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|array{data: null}
+     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
      */
     public function getNextBooking(Request $request)
     {
         try {
             $user = $request->user();
+            $now = now();
             
             $nextBooking = Booking::where('user_id', $user->id)
-                ->where('start_date', '>=', now()->format('Y-m-d'))
                 ->where('status', '!=', BookingStatusEnum::CANCELLED)
+                ->where(function ($query) use ($now) {
+                    $query->whereDate('start_date', '>', $now->format('Y-m-d'))
+                        ->orWhere(function ($q) use ($now) {
+                            $q->whereDate('start_date', $now->format('Y-m-d'))
+                                ->whereRaw("time(start_time) >= ?", [$now->format('H:i:s')]);
+                        });
+                })
                 ->with(['court.courtType', 'court.primaryImage', 'court.tenant', 'currency'])
                 ->orderBy('start_date')
                 ->orderBy('start_time')

@@ -95,7 +95,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'index']);
                 Route::post('/', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'store']);
                 Route::get('/stats', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'getStats']);
-                Route::get('/recent', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'getRecentBookings']);
+                Route::get('/stats', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'getStats']);
                 Route::get('/next', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'getNextBooking']);
                 Route::get('/{booking_id}', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'show']);
                 Route::put('/{booking_id}', [App\Http\Controllers\Api\V1\Mobile\MobileBookingController::class, 'update']);

@@ -67,7 +67,7 @@ test('user can get booking statistics', function () {
     ]);
 });
 
-test('user can get recent bookings with pagination', function () {
+test('user can get bookings with pagination', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, [], 'sanctum');
 
@@ -78,18 +78,178 @@ test('user can get recent bookings with pagination', function () {
         'court_type_id' => $courtType->id,
     ]);
 
-    // Create 15 bookings
-    Booking::factory()->count(15)->create([
+    // Create 25 bookings
+    Booking::factory()->count(25)->create([
         'user_id' => $user->id,
         'tenant_id' => $tenant->id,
         'court_id' => $court->id,
     ]);
 
-    // Get recent bookings with pagination
-    $response = $this->getJson('/api/v1/bookings/recent?per_page=5');
+    // Get bookings (should return 20 by default)
+    $response = $this->getJson('/api/v1/bookings');
 
     $response->assertStatus(200);
-    $response->assertJsonCount(5, 'data');
+    $response->assertJsonCount(20, 'data');
+    $response->assertJsonStructure([
+        'data',
+        'links',
+        'meta'
+    ]);
+});
+
+test('bookings are ordered from future to old', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
+    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
+    $court = Court::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_type_id' => $courtType->id,
+    ]);
+
+    // Create a past booking
+    $pastBooking = Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'start_date' => now()->subDays(1)->format('Y-m-d'),
+        'start_time' => '10:00:00',
+    ]);
+
+    // Create a future booking
+    $futureBooking = Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'start_date' => now()->addDays(1)->format('Y-m-d'),
+        'start_time' => '10:00:00',
+    ]);
+
+    // Create a further future booking
+    $furtherFutureBooking = Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'start_date' => now()->addDays(2)->format('Y-m-d'),
+        'start_time' => '10:00:00',
+    ]);
+
+    $response = $this->getJson('/api/v1/bookings');
+
+    $response->assertStatus(200);
+    $data = $response->json('data');
+
+    // Check ordering: further future, future, past
+    expect(EasyHashAction::decode($data[0]['id'], 'booking-id'))->toBe($furtherFutureBooking->id);
+    expect(EasyHashAction::decode($data[1]['id'], 'booking-id'))->toBe($futureBooking->id);
+    expect(EasyHashAction::decode($data[2]['id'], 'booking-id'))->toBe($pastBooking->id);
+});
+
+test('user can filter bookings by court', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
+    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
+    $court1 = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType->id]);
+    $court2 = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType->id]);
+
+    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant->id, 'court_id' => $court1->id]);
+    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant->id, 'court_id' => $court2->id]);
+
+    $response = $this->getJson('/api/v1/bookings?court_id=' . EasyHashAction::encode($court1->id, 'court-id'));
+
+    $response->assertStatus(200);
+    $response->assertJsonCount(1, 'data');
+    $response->assertJsonPath('data.0.court_id', EasyHashAction::encode($court1->id, 'court-id'));
+});
+
+test('user can filter bookings by tenant', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $tenant1 = Tenant::factory()->create(['timezone' => 'UTC']);
+    $tenant2 = Tenant::factory()->create(['timezone' => 'UTC']);
+    
+    $court1 = Court::factory()->create(['tenant_id' => $tenant1->id]);
+    $court2 = Court::factory()->create(['tenant_id' => $tenant2->id]);
+
+    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant1->id, 'court_id' => $court1->id]);
+    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant2->id, 'court_id' => $court2->id]);
+
+    $response = $this->getJson('/api/v1/bookings?tenant_id=' . EasyHashAction::encode($tenant1->id, 'tenant-id'));
+
+    $response->assertStatus(200);
+    $response->assertJsonCount(1, 'data');
+    // BookingResource doesn't directly return tenant_id, but we can check the court's tenant if needed
+});
+
+test('user can filter bookings by modality', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
+    $courtType1 = CourtType::factory()->create(['tenant_id' => $tenant->id, 'type' => 'padel']);
+    $courtType2 = CourtType::factory()->create(['tenant_id' => $tenant->id, 'type' => 'tennis']);
+    
+    $court1 = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType1->id]);
+    $court2 = Court::factory()->create(['tenant_id' => $tenant->id, 'court_type_id' => $courtType2->id]);
+
+    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant->id, 'court_id' => $court1->id]);
+    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant->id, 'court_id' => $court2->id]);
+
+    $response = $this->getJson('/api/v1/bookings?modality=padel');
+
+    $response->assertStatus(200);
+    $response->assertJsonCount(1, 'data');
+});
+
+test('user can get next upcoming booking with precise time', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
+    $court = Court::factory()->create(['tenant_id' => $tenant->id]);
+
+    // Set a fixed time for the test
+    $now = \Carbon\Carbon::parse('2026-01-03 12:00:00');
+    \Carbon\Carbon::setTestNow($now);
+
+    // Past booking today
+    Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'start_date' => '2026-01-03',
+        'start_time' => '10:00:00',
+    ]);
+
+    // Next booking today
+    $nextBooking = Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'start_date' => '2026-01-03',
+        'start_time' => '14:00:00',
+    ]);
+
+    // Future booking tomorrow
+    Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+        'start_date' => '2026-01-04',
+        'start_time' => '10:00:00',
+    ]);
+
+    $response = $this->getJson('/api/v1/bookings/next');
+
+    $response->assertStatus(200);
+    $response->assertJsonPath('data.id', EasyHashAction::encode($nextBooking->id, 'booking-id'));
+
+    // Clean up
+    \Carbon\Carbon::setTestNow();
 });
 
 test('user can get next upcoming booking', function () {
