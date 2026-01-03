@@ -8,6 +8,8 @@ use App\Http\Requests\Api\V1\Auth\UserVerifyPasswordResetRequest;
 use App\Models\PasswordResetCode;
 use App\Models\User;
 use App\Services\EmailService;
+use App\Services\EmailVerificationCodeService;
+use App\Enums\EmailTypeEnum;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -18,16 +20,22 @@ use Illuminate\Support\Facades\Log;
 class PasswordResetController extends Controller
 {
     protected $emailService;
+    protected $verificationService;
 
-    public function __construct(EmailService $emailService)
+    public function __construct(EmailService $emailService, EmailVerificationCodeService $verificationService)
     {
         $this->emailService = $emailService;
+        $this->verificationService = $verificationService;
     }
 
     /**
      * Request password reset code
      * 
      * Sends a 6-digit recovery code to the provided email address if it exists.
+     * 
+     * **Rate Limits:**
+     * - Burst: 3 requests per 170 seconds.
+     * - Daily: 10 requests per 24 hours.
      * 
      * @unauthenticated
      * 
@@ -38,9 +46,12 @@ class PasswordResetController extends Controller
     public function requestCode(UserForgotPasswordRequest $request): JsonResponse
     {
         try {
-            $this->beginTransactionSafe();
-
             $email = $request->email;
+
+            // Check rate limit
+            $this->verificationService->checkRateLimit($email, EmailTypeEnum::PASSWORD_CHANGE);
+
+            $this->beginTransactionSafe();
 
             // Invalidate any existing codes for this email
             PasswordResetCode::forEmail($email)->delete();
@@ -62,6 +73,8 @@ class PasswordResetController extends Controller
 
             return response()->json(['message' => 'Código de recuperação enviado para seu email']);
 
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
         } catch (\Exception $e) {
             $this->rollBackSafe();
             Log::error('Erro ao enviar código de recuperação', ['error' => $e->getMessage()]);

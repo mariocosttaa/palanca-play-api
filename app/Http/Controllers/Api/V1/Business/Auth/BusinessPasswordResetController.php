@@ -8,6 +8,8 @@ use App\Http\Requests\Api\V1\Auth\BusinessVerifyPasswordResetRequest;
 use App\Models\PasswordResetCode;
 use App\Models\BusinessUser;
 use App\Services\EmailService;
+use App\Services\EmailVerificationCodeService;
+use App\Enums\EmailTypeEnum;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -18,10 +20,12 @@ use Illuminate\Support\Facades\Log;
 class BusinessPasswordResetController extends Controller
 {
     protected $emailService;
+    protected $verificationService;
 
-    public function __construct(EmailService $emailService)
+    public function __construct(EmailService $emailService, EmailVerificationCodeService $verificationService)
     {
         $this->emailService = $emailService;
+        $this->verificationService = $verificationService;
     }
 
     /**
@@ -29,14 +33,25 @@ class BusinessPasswordResetController extends Controller
      * 
      * Sends a 6-digit recovery code to the provided email address if it exists in the business users table.
      * 
+     * **Rate Limits:**
+     * - Burst: 3 requests per 170 seconds.
+     * - Daily: 10 requests per 24 hours.
+     * 
      * @unauthenticated
+     * 
+     * @bodyParam email string required The business user's email address. Example: admin@example.com
+     * 
+     * @return array{message: string}
      */
     public function requestCode(BusinessForgotPasswordRequest $request): JsonResponse
     {
         try {
-            $this->beginTransactionSafe();
-
             $email = $request->email;
+
+            // Check rate limit
+            $this->verificationService->checkRateLimit($email, EmailTypeEnum::PASSWORD_CHANGE);
+
+            $this->beginTransactionSafe();
 
             // Invalidate any existing codes for this email
             PasswordResetCode::forEmail($email)->delete();
@@ -58,6 +73,8 @@ class BusinessPasswordResetController extends Controller
 
             return response()->json(['message' => 'Código de recuperação enviado para seu email']);
 
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
         } catch (\Exception $e) {
             $this->rollBackSafe();
             Log::error('Erro ao enviar código de recuperação (Business)', ['error' => $e->getMessage()]);
@@ -71,6 +88,13 @@ class BusinessPasswordResetController extends Controller
      * Verifies the recovery code and updates the business user's password.
      * 
      * @unauthenticated
+     * 
+     * @bodyParam email string required The business user's email address. Example: admin@example.com
+     * @bodyParam code string required The 6-digit code. Example: 123456
+     * @bodyParam password string required The new password. Example: new-password-123
+     * @bodyParam password_confirmation string required The password confirmation. Example: new-password-123
+     * 
+     * @return array{message: string}
      */
     public function verifyCode(BusinessVerifyPasswordResetRequest $request): JsonResponse
     {
@@ -123,6 +147,10 @@ class BusinessPasswordResetController extends Controller
      * Checks if a recovery code is valid without using it.
      * 
      * @unauthenticated
+     * 
+     * @urlParam code string required The 6-digit code. Example: 123456
+     * 
+     * @return array{data: array{valid: bool, email?: string, expires_at?: string, message?: string}}
      */
     public function checkCode(string $code): JsonResponse
     {

@@ -11,6 +11,8 @@ use App\Mail\BookingCancelled;
 use App\Mail\PasswordResetCode as PasswordResetCodeMail;
 use App\Jobs\SendEmailJob;
 
+use App\Enums\EmailTypeEnum;
+
 class EmailService
 {
     /**
@@ -35,12 +37,20 @@ class EmailService
             return;
         }
 
+        $type = match($action) {
+            'created' => EmailTypeEnum::BOOKING,
+            'updated' => EmailTypeEnum::BOOKING_EDITED,
+            'cancelled' => EmailTypeEnum::BOOKING_CANCELLED,
+            default => EmailTypeEnum::BOOKING,
+        };
+
         // Create email record with pending status
         $emailSent = $this->createEmailRecord(
             $user->email,
             $mailable->subject,
             $this->getEmailTitle($action),
-            $mailable->render()
+            $mailable->render(),
+            $type
         );
 
         // Dispatch job to send email
@@ -62,7 +72,8 @@ class EmailService
             $email,
             $mailable->subject,
             'Código de Recuperação de Senha',
-            $mailable->render()
+            $mailable->render(),
+            EmailTypeEnum::PASSWORD_CHANGE
         );
 
         // Dispatch job to send email
@@ -72,13 +83,14 @@ class EmailService
     /**
      * Create email record in database with pending status
      */
-    private function createEmailRecord(string $email, string $subject, string $title, string $htmlContent): EmailSent
+    private function createEmailRecord(string $email, string $subject, string $title, string $htmlContent, EmailTypeEnum $type): EmailSent
     {
         return EmailSent::create([
             'user_email' => $email,
             'subject' => $subject,
             'title' => $title,
             'html_content' => $htmlContent,
+            'type' => $type,
             'status' => 'pending',
             'sent_at' => null, // Will be updated when email is sent
         ]);

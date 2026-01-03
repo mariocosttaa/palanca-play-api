@@ -98,3 +98,23 @@ test('user can check if code is valid', function () {
         ->assertJsonPath('data.valid', true)
         ->assertJsonPath('data.email', 'john.doe@example.com');
 });
+
+test('user is rate limited when requesting password reset code too many times', function () {
+    /** @var TestCase $this */
+    Mail::fake();
+    $user = User::factory()->create(['email' => 'john.doe@example.com']);
+
+    // Request 3 times (burst limit)
+    for ($i = 0; $i < 3; $i++) {
+        $this->postJson('/api/v1/password/forgot', ['email' => 'john.doe@example.com'])
+            ->assertStatus(200);
+    }
+
+    // 4th request should be rate limited
+    $response = $this->postJson('/api/v1/password/forgot', ['email' => 'john.doe@example.com']);
+
+    $response->assertStatus(429)
+        ->assertJsonStructure(['message']);
+    
+    $this->assertStringContainsString('Please wait', $response->json('message'));
+});

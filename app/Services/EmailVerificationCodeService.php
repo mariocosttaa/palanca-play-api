@@ -17,36 +17,7 @@ class EmailVerificationCodeService
      */
     public function sendVerificationCode(string $email, EmailTypeEnum $type): string
     {
-        // Check for max limit (10 emails in 24 hours)
-        $dailyCount = EmailSent::where('user_email', $email)
-            ->where('type', $type)
-            ->where('sent_at', '>=', now()->subHours(24))
-            ->count();
-
-        if ($dailyCount >= 10) {
-            throw new \App\Exceptions\EmailRateLimitException(
-                'You have reached the maximum number of verification emails. Please contact support for assistance.',
-                429
-            );
-        }
-
-        // Check for burst limit (3 emails every 2 minutes 50 seconds / 170 seconds)
-        $recentEmails = EmailSent::where('user_email', $email)
-            ->where('type', $type)
-            ->where('sent_at', '>=', now()->subSeconds(170))
-            ->orderBy('sent_at', 'desc')
-            ->get();
-
-        if ($recentEmails->count() >= 3) {
-            // Find the oldest of the recent emails to calculate when it expires
-            $oldestRecent = $recentEmails->last();
-            $secondsRemaining = ceil(170 - $oldestRecent->sent_at->diffInSeconds(now()));
-            
-            throw new \App\Exceptions\EmailRateLimitException(
-                "Please wait {$secondsRemaining} seconds before requesting a new verification email.",
-                429
-            );
-        }
+        $this->checkRateLimit($email, $type);
 
         // Generate a 6-digit code
         $code = (string) random_int(100000, 999999);
@@ -94,6 +65,47 @@ class EmailVerificationCodeService
             ->first();
 
         return $verification !== null;
+    }
+
+    /**
+     * Check if the email has reached the rate limit for the given type.
+     *
+     * @param string $email
+     * @param EmailTypeEnum $type
+     * @throws \App\Exceptions\EmailRateLimitException
+     */
+    public function checkRateLimit(string $email, EmailTypeEnum $type): void
+    {
+        // Check for max limit (10 emails in 24 hours)
+        $dailyCount = EmailSent::where('user_email', $email)
+            ->where('type', $type)
+            ->where('sent_at', '>=', now()->subHours(24))
+            ->count();
+
+        if ($dailyCount >= 10) {
+            throw new \App\Exceptions\EmailRateLimitException(
+                'You have reached the maximum number of verification emails. Please contact support for assistance.',
+                429
+            );
+        }
+
+        // Check for burst limit (3 emails every 2 minutes 50 seconds / 170 seconds)
+        $recentEmails = EmailSent::where('user_email', $email)
+            ->where('type', $type)
+            ->where('sent_at', '>=', now()->subSeconds(170))
+            ->orderBy('sent_at', 'desc')
+            ->get();
+
+        if ($recentEmails->count() >= 3) {
+            // Find the oldest of the recent emails to calculate when it expires
+            $oldestRecent = $recentEmails->last();
+            $secondsRemaining = ceil(170 - $oldestRecent->sent_at->diffInSeconds(now()));
+
+            throw new \App\Exceptions\EmailRateLimitException(
+                "Please wait {$secondsRemaining} seconds before requesting a new verification email.",
+                429
+            );
+        }
     }
 
     protected function getSubjectForType(EmailTypeEnum $type): string
