@@ -60,6 +60,11 @@ class CourtType extends Model
             ->withTimestamps();
     }
 
+    public function userLikes()
+    {
+        return $this->hasMany(CourtTypeUserLike::class);
+    }
+
     // Scopes
     public function scopeForTenant($query, $tenantId)
     {
@@ -79,14 +84,5 @@ class CourtType extends Model
             currency: $this->tenant->currency,
             formatWithSymbol: true
         );
-    }
-
-    public function getIsLikedAttribute()
-    {
-        if (!auth()->check()) {
-            return false;
-        }
-
-        return $this->likes()->where('user_id', auth()->id())->exists();
     }
 }

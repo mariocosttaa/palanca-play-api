@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Mobile;
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
 use App\Models\CourtType;
+use App\Models\CourtTypeUserLike;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -33,11 +34,16 @@ class MobileCourtTypeLikeController extends Controller
             $this->beginTransactionSafe();
 
             if ($user->likedCourtTypes()->where('court_type_id', $courtType->id)->exists()) {
-                $user->likedCourtTypes()->detach($courtType->id);
+                CourtTypeUserLike::where('user_id', $user->id)
+                    ->where('court_type_id', $courtType->id)
+                    ->delete();
                 $courtType->decrement('likes_count');
                 $liked = false;
             } else {
-                $user->likedCourtTypes()->attach($courtType->id);
+                CourtTypeUserLike::create([
+                    'user_id' => $user->id,
+                    'court_type_id' => $courtType->id,
+                ]);
                 $courtType->increment('likes_count');
                 $liked = true;
             }
