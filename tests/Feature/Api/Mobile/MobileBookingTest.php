@@ -165,26 +165,6 @@ test('user can filter bookings by court', function () {
     $response->assertJsonPath('data.0.court_id', EasyHashAction::encode($court1->id, 'court-id'));
 });
 
-test('user can filter bookings by tenant', function () {
-    $user = User::factory()->create();
-    Sanctum::actingAs($user, [], 'sanctum');
-
-    $tenant1 = Tenant::factory()->create(['timezone' => 'UTC']);
-    $tenant2 = Tenant::factory()->create(['timezone' => 'UTC']);
-    
-    $court1 = Court::factory()->create(['tenant_id' => $tenant1->id]);
-    $court2 = Court::factory()->create(['tenant_id' => $tenant2->id]);
-
-    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant1->id, 'court_id' => $court1->id]);
-    Booking::factory()->create(['user_id' => $user->id, 'tenant_id' => $tenant2->id, 'court_id' => $court2->id]);
-
-    $response = $this->getJson('/api/v1/bookings?tenant_id=' . EasyHashAction::encode($tenant1->id, 'tenant-id'));
-
-    $response->assertStatus(200);
-    $response->assertJsonCount(1, 'data');
-    // BookingResource doesn't directly return tenant_id, but we can check the court's tenant if needed
-});
-
 test('user can filter bookings by modality', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, [], 'sanctum');

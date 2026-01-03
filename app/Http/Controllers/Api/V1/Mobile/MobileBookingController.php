@@ -49,7 +49,6 @@ class MobileBookingController extends Controller
             $request->validate([
                 'status' => 'nullable|string|in:upcoming,past,cancelled',
                 'court_id' => 'nullable|string',
-                'tenant_id' => 'nullable|string',
                 'modality' => 'nullable|string',
             ]);
 
@@ -81,11 +80,6 @@ class MobileBookingController extends Controller
                 $query->where('court_id', $courtId);
             }
 
-            // Filter by Tenant
-            if ($request->tenant_id) {
-                $tenantId = EasyHashAction::decode($request->tenant_id, 'tenant-id');
-                $query->where('tenant_id', $tenantId);
-            }
 
             // Filter by Modality
             if ($request->modality) {
