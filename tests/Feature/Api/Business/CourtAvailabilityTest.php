@@ -426,6 +426,9 @@ test('getDates endpoint validates year parameter', function () {
 });
 
 test('getDates returns all dates in month when availability exists for all days', function () {
+    // Set test time to before January 2026 to ensure all days in Jan are future dates
+    \Illuminate\Support\Carbon::setTestNow('2025-12-01');
+
     // Create a tenant and business user
     $tenant = Tenant::factory()->create();
     $businessUser = BusinessUser::factory()->create();
