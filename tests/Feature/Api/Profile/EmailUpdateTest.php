@@ -13,7 +13,7 @@ class EmailUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_update_email_and_receives_verification_code()
+    public function test_user_can_request_email_update_and_receives_verification_code()
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $newEmail = 'newemail@example.com';
@@ -24,11 +24,13 @@ class EmailUpdateTest extends TestCase
             ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.email', $newEmail);
+            ->assertJsonPath('data.email', $newEmail)
+            ->assertJsonPath('message', 'Código de verificação enviado para o novo email.');
 
+        // User email should NOT be updated yet
         $user->refresh();
-        $this->assertEquals($newEmail, $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertNotEquals($newEmail, $user->email);
+        $this->assertNotNull($user->email_verified_at);
 
         $this->assertDatabaseHas('emails_sent', [
             'user_email' => $newEmail,
@@ -36,7 +38,35 @@ class EmailUpdateTest extends TestCase
         ]);
     }
 
-    public function test_business_user_can_update_email_and_receives_verification_code()
+    public function test_user_can_verify_and_finalize_email_update()
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $newEmail = 'newemail@example.com';
+        $oldEmail = $user->email;
+
+        // 1. Request update
+        $this->actingAs($user)
+            ->putJson('/api/v1/profile/email', ['email' => $newEmail]);
+
+        $emailSent = EmailSent::where('user_email', $newEmail)->latest()->first();
+
+        // 2. Verify update
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/profile/email/verify', [
+                'email' => $newEmail,
+                'code' => $emailSent->code,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.email', $newEmail)
+            ->assertJsonPath('message', 'Email atualizado e verificado com sucesso.');
+
+        $user->refresh();
+        $this->assertEquals($newEmail, $user->email);
+        $this->assertNotNull($user->email_verified_at);
+    }
+
+    public function test_business_user_can_request_email_update_and_receives_verification_code()
     {
         $user = BusinessUser::factory()->create(['email_verified_at' => now()]);
         $newEmail = 'newbusiness@example.com';
@@ -47,16 +77,43 @@ class EmailUpdateTest extends TestCase
             ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.email', $newEmail);
+            ->assertJsonPath('data.email', $newEmail)
+            ->assertJsonPath('message', 'Código de verificação enviado para o novo email.');
 
         $user->refresh();
-        $this->assertEquals($newEmail, $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertNotEquals($newEmail, $user->email);
 
         $this->assertDatabaseHas('emails_sent', [
             'user_email' => $newEmail,
             'type' => EmailTypeEnum::CONFIRMATION_EMAIL->value,
         ]);
+    }
+
+    public function test_business_user_can_verify_and_finalize_email_update()
+    {
+        $user = BusinessUser::factory()->create(['email_verified_at' => now()]);
+        $newEmail = 'newbusiness@example.com';
+
+        // 1. Request update
+        $this->actingAs($user, 'business')
+            ->putJson('/api/business/v1/profile/email', ['email' => $newEmail]);
+
+        $emailSent = EmailSent::where('user_email', $newEmail)->latest()->first();
+
+        // 2. Verify update
+        $response = $this->actingAs($user, 'business')
+            ->postJson('/api/business/v1/profile/email/verify', [
+                'email' => $newEmail,
+                'code' => $emailSent->code,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.email', $newEmail)
+            ->assertJsonPath('message', 'Email atualizado e verificado com sucesso.');
+
+        $user->refresh();
+        $this->assertEquals($newEmail, $user->email);
+        $this->assertNotNull($user->email_verified_at);
     }
 
     public function test_email_update_rate_limiting()

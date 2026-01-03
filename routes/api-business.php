@@ -71,6 +71,8 @@ Route::prefix('v1')->group(function () {
             Route::patch('/language', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateLanguage']);
             Route::put('/timezone', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateTimezone']);
             Route::put('/email', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateEmail']);
+            Route::post('/email/verify', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'verifyEmailUpdate']);
+            Route::put('/password', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updatePassword']);
             Route::put('/', [App\Http\Controllers\Api\V1\Business\BusinessUserProfileController::class, 'updateProfile']);
         });
 

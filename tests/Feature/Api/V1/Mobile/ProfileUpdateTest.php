@@ -69,4 +69,25 @@ class ProfileUpdateTest extends TestCase
             'phone' => '5555555555',
         ]);
     }
+
+    public function test_user_can_update_profile_with_calling_code()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->putJson('/api/v1/profile', [
+                'calling_code' => '+244',
+                'phone' => '912322',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.user.calling_code', '244')
+            ->assertJsonPath('data.user.phone', '912322');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'calling_code' => '244',
+            'phone' => '912322',
+        ]);
+    }
 }
