@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Mobile;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\V1\Mobile\MobileCourtTypeResource;
 use App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral;
 use App\Models\CourtType;
 use Illuminate\Http\Request;
@@ -22,10 +23,9 @@ class MobileCourtTypeController extends Controller
      * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
      * @queryParam modality string optional Filter by court type modality (e.g., padel, tennis). Example: padel
      * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
-     * 
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral>
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Api\V1\Mobile\MobileCourtTypeResource>
      */
-    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+    public function index(Request $request)
     {
         try {
             $request->validate([
@@ -39,6 +39,9 @@ class MobileCourtTypeController extends Controller
                 ->with(['courts' => function ($query) {
                     $query->active()->with('images');
                 }, 'availabilities', 'tenant.country'])
+                ->withExists(['userLikes as is_liked' => function ($query) {
+                    $query->where('user_id', auth()->id());
+                }])
                 ->where('status', true);
 
             // Apply Filters
@@ -66,8 +69,8 @@ class MobileCourtTypeController extends Controller
             }
 
             $courtTypes = $query->paginate(20);
-
-            return CourtTypeResourceGeneral::collection($courtTypes);
+            
+            return MobileCourtTypeResource::collection($courtTypes);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar tipos de quadras', ['error' => $e->getMessage()]);
@@ -80,7 +83,7 @@ class MobileCourtTypeController extends Controller
      * 
      * @urlParam court_type_id string required The HashID of the court type. Example: ct_abc123
      */
-    public function show(Request $request, string $courtTypeIdHashId): CourtTypeResourceGeneral
+    public function show(Request $request, string $courtTypeIdHashId)
     {
         try {
             $courtTypeId = EasyHashAction::decode($courtTypeIdHashId, 'court-type-id');
@@ -92,10 +95,13 @@ class MobileCourtTypeController extends Controller
                     'availabilities',
                     'tenant.country'
                 ])
+                ->withExists(['userLikes as is_liked' => function ($query) {
+                    $query->where('user_id', auth()->id());
+                }])
                 ->where('status', true)
                 ->findOrFail($courtTypeId);
 
-            return new CourtTypeResourceGeneral($courtType);
+            return new MobileCourtTypeResource($courtType);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             abort(404, 'Tipo de quadra não encontrado.');
@@ -125,10 +131,9 @@ class MobileCourtTypeController extends Controller
      * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
      * @queryParam modality string optional Filter by court type modality. Example: padel
      * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
-     * 
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtTypeResourceGeneral>
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Api\V1\Mobile\MobileCourtTypeResource>
      */
-    public function popular(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+    public function popular(Request $request)
     {
         try {
             $request->validate([
@@ -142,6 +147,9 @@ class MobileCourtTypeController extends Controller
                 ->with(['courts' => function ($query) {
                     $query->active()->with('images');
                 }, 'availabilities', 'tenant.country'])
+                ->withExists(['userLikes as is_liked' => function ($query) {
+                    $query->where('user_id', auth()->id());
+                }])
                 ->where('status', true)
                 ->orderBy('likes_count', 'desc');
 
@@ -171,7 +179,7 @@ class MobileCourtTypeController extends Controller
 
             $courtTypes = $query->paginate(5);
 
-            return CourtTypeResourceGeneral::collection($courtTypes);
+            return MobileCourtTypeResource::collection($courtTypes);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar tipos de quadras populares', ['error' => $e->getMessage()]);
