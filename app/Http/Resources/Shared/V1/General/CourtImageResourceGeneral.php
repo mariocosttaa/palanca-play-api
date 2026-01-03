@@ -5,6 +5,11 @@ use App\Actions\General\EasyHashAction;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property int $id
+ * @property string $path
+ * @property bool $is_primary
+ */
 class CourtImageResourceGeneral extends JsonResource
 {
     /**
@@ -17,7 +22,7 @@ class CourtImageResourceGeneral extends JsonResource
         return [
             'id'         => EasyHashAction::encode($this->id, 'court-image-id'),
             'url'        => url($this->path),
-            'is_primary' => $this->is_primary,
+            'is_primary' => (bool) $this->is_primary,
         ];
     }
 }

@@ -7,6 +7,21 @@ use App\Http\Resources\Shared\V1\General\CourtAvailabilityResourceGeneral;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property int $id
+ * @property \App\Enums\CourtTypeEnum $type
+ * @property string $name
+ * @property string|null $description
+ * @property int $interval_time_minutes
+ * @property int $buffer_time_minutes
+ * @property int $price_per_interval
+ * @property string $price_formatted
+ * @property int $likes_count
+ * @property bool $status
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CourtAvailability[] $availabilities
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Court[] $courts
+ */
 class CourtTypeResourceGeneral extends JsonResource
 {
     public function toArray(Request $request): array
@@ -17,16 +32,15 @@ class CourtTypeResourceGeneral extends JsonResource
             'type_label' => $this->type->label(),
             'name' => $this->name,
             'description' => $this->description,
-            'interval_time_minutes' => $this->interval_time_minutes,
-            'buffer_time_minutes' => $this->buffer_time_minutes,
-            'price_per_interval' => $this->price_per_interval,
+            'interval_time_minutes' => (int) $this->interval_time_minutes,
+            'buffer_time_minutes' => (int) $this->buffer_time_minutes,
+            'price_per_interval' => (int) $this->price_per_interval,
             'price_formatted' => $this->price_formatted,
-            'likes_count' => $this->likes_count,
-            'is_liked' => $this->is_liked,
-            'status' => $this->status,
+            'likes_count' => (int) $this->likes_count,
+            'status' => (bool) $this->status,
             'availabilities' => CourtAvailabilityResourceGeneral::collection($this->whenLoaded('availabilities')),
             'courts' => CourtResourceGeneral::collection($this->whenLoaded('courts')),
-            'courts_count' => $this->when($this->relationLoaded('courts'), $this->courts->count()),
+            'courts_count' => $this->when($this->relationLoaded('courts'), fn() => (int) $this->courts->count()),
             'created_at' => app(\App\Services\TimezoneService::class)->toUserTime($this->created_at),
         ];
     }
