@@ -52,7 +52,15 @@ class EmailVerificationCodeService
         $code = (string) random_int(100000, 999999);
 
         // Send the email
-        \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\EmailVerificationCode($code));
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\EmailVerificationCode($code));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send verification email. Code will still be recorded for debugging.', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+                'code' => $code,
+            ]);
+        }
 
         EmailSent::create([
             'user_email' => $email,

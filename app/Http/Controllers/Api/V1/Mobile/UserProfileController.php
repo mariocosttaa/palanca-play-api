@@ -9,8 +9,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\Api\V1\Profile\UpdateEmailRequest;
 use App\Http\Requests\Api\V1\Profile\UpdateProfileRequest;
+use App\Http\Requests\Api\V1\Profile\UpdatePasswordRequest;
+use App\Http\Requests\Api\V1\Profile\VerifyEmailUpdateRequest;
 use App\Services\EmailVerificationCodeService;
 use App\Enums\EmailTypeEnum;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * @tags [API-MOBILE] Profile
@@ -69,8 +72,10 @@ class UserProfileController extends Controller
             
             $data = $request->only(['name', 'surname', 'phone', 'country_id', 'timezone_id', 'locale']);
             
-            if ($request->has('phone_code')) {
-                $data['calling_code'] = $request->phone_code;
+            // Support both naming conventions
+            $phoneCode = $request->phone_code ?? $request->calling_code;
+            if ($phoneCode) {
+                $data['calling_code'] = str_replace('+', '', $phoneCode);
             }
 
             $user->update($data);
@@ -125,45 +130,115 @@ class UserProfileController extends Controller
     }
 
     /**
-     * Update user email
+     * Request email update
      * 
-     * Updates the email address and sends a verification code to the new email.
+     * Starts the email change process by sending a verification code to the new email address.
+     * The email is only updated after verification using the `verifyEmailUpdate` endpoint.
+     * 
+     * **Rate Limits:**
+     * - Burst: 3 requests per 170 seconds.
+     * - Daily: 10 requests per 24 hours.
      * 
      * @bodyParam email string required The new email address. Example: new-email@example.com
-     * 
-     * @return array{data: array{email: string, message: string}}
      */
     public function updateEmail(UpdateEmailRequest $request, EmailVerificationCodeService $emailService): JsonResponse
+    {
+        $user = $request->user();
+        try {
+            \Illuminate\Support\Facades\Log::debug('Email update request received', [
+                'user_id' => $user->id,
+                'new_email' => $request->email,
+                'current_email' => $user->email,
+            ]);
+
+            $newEmail = $request->email;
+
+            // Send verification code to the NEW email
+            $emailService->sendVerificationCode($newEmail, EmailTypeEnum::CONFIRMATION_EMAIL);
+
+            return response()->json([
+                'data' => [
+                    'email' => $newEmail,
+                ],
+                'message' => 'Código de verificação enviado para o novo email.',
+            ]);
+
+        } catch (\App\Exceptions\EmailRateLimitException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        } catch (\Exception $e) {
+            Log::error('Erro ao solicitar alteração de email', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao solicitar alteração de email'], 500);
+        }
+    }
+
+    /**
+     * Verify and update email
+     * 
+     * Verifies the 6-digit code sent to the new email and finalizes the email update process.
+     * 
+     * @bodyParam email string required The new email address. Example: new-email@example.com
+     * @bodyParam code string required The verification code. Example: 123456
+     */
+    public function verifyEmailUpdate(VerifyEmailUpdateRequest $request, EmailVerificationCodeService $emailService): JsonResponse
     {
         try {
             $this->beginTransactionSafe();
 
             $user = $request->user();
             $newEmail = $request->email;
+            $code = $request->code;
 
-            // Send verification code to the NEW email
-            $emailService->sendVerificationCode($newEmail, EmailTypeEnum::CONFIRMATION_EMAIL);
+            if (!$emailService->verifyCode($newEmail, $code, EmailTypeEnum::CONFIRMATION_EMAIL)) {
+                return response()->json(['message' => 'Código de verificação inválido ou expirado.'], 422);
+            }
 
-            // Update user email and mark as unverified
+            // Update user email and mark as verified
             $user->update([
                 'email' => $newEmail,
-                'email_verified_at' => null,
+                'email_verified_at' => now(),
             ]);
 
             $this->commitSafe();
 
-            return response()->json(['data' => [
-                'email' => $user->email,
-                'message' => 'Email atualizado com sucesso. Por favor, verifique seu novo email.',
-            ]]);
+            return response()->json([
+                'data' => [
+                    'email' => $user->email,
+                ],
+                'message' => 'Email atualizado e verificado com sucesso.',
+            ]);
 
-        } catch (\App\Exceptions\EmailRateLimitException $e) {
-            $this->rollBackSafe();
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
         } catch (\Exception $e) {
             $this->rollBackSafe();
-            Log::error('Erro ao atualizar email', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erro ao atualizar email'], 500);
+            Log::error('Erro ao verificar alteração de email', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao verificar alteração de email'], 500);
+        }
+    }
+
+    /**
+     * Update user password
+     * 
+     * @bodyParam current_password string required The current password.
+     * @bodyParam new_password string required The new password.
+     * @bodyParam new_password_confirmation string required The new password confirmation.
+     */
+    public function updatePassword(UpdatePasswordRequest $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json(['message' => 'A senha atual está incorreta.', 'errors' => ['current_password' => ['A senha atual está incorreta.']]], 422);
+            }
+
+            $user->update([
+                'password' => Hash::make($request->new_password),
+            ]);
+
+            return response()->json(['message' => 'Senha atualizada com sucesso.']);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao atualizar senha', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Erro ao atualizar senha'], 500);
         }
     }
 }
