@@ -9,6 +9,7 @@ use App\Enums\PaymentMethodEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Mobile\CreateMobileBookingRequest;
+use App\Http\Resources\Api\V1\Mobile\MobileBookingResource;
 use App\Http\Resources\Business\V1\Specific\BookingResource;
 use App\Models\Booking;
 use App\Models\Court;
@@ -92,7 +93,7 @@ class MobileBookingController extends Controller
                 ->orderBy('start_time', 'desc')
                 ->paginate(20);
 
-            return BookingResource::collection($bookings);
+            return MobileBookingResource::collection($bookings);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar agendamentos', ['error' => $e->getMessage()]);
@@ -105,7 +106,7 @@ class MobileBookingController extends Controller
      * 
      * Allows creating a booking for multiple contiguous slots.
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\Api\V1\Mobile\MobileBookingResource|\Illuminate\Http\JsonResponse
      */
     public function store(CreateMobileBookingRequest $request)
     {
@@ -171,7 +172,7 @@ class MobileBookingController extends Controller
                 ]);
             }
 
-            return BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
+            return MobileBookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
 
         } catch (HttpException $e) {
             Log::warning('Erro ao criar agendamento', [
@@ -193,7 +194,7 @@ class MobileBookingController extends Controller
      * 
      * @urlParam booking_id string required The HashID of the booking. Example: abc123
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\Api\V1\Mobile\MobileBookingResource|\Illuminate\Http\JsonResponse
      */
     public function update(\App\Http\Requests\Api\V1\Mobile\UpdateMobileBookingRequest $request, string $bookingIdHashId)
     {
@@ -261,7 +262,7 @@ class MobileBookingController extends Controller
                 ]);
             }
 
-            return BookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
+            return MobileBookingResource::make($booking->load(['court.courtType', 'court.primaryImage', 'currency']));
 
         } catch (HttpException $e) {
             Log::warning('Erro ao atualizar agendamento', [
@@ -283,7 +284,7 @@ class MobileBookingController extends Controller
      * 
      * @urlParam booking_id string required The HashID of the booking. Example: abc123
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\Api\V1\Mobile\MobileBookingResource|\Illuminate\Http\JsonResponse
      */
     public function show(Request $request, string $bookingIdHashId)
     {
@@ -295,7 +296,7 @@ class MobileBookingController extends Controller
                 ->with(['court.courtType', 'court.images', 'court.tenant', 'currency'])
                 ->findOrFail($bookingId);
 
-            return BookingResource::make($booking);
+            return MobileBookingResource::make($booking);
 
         } catch (\Exception $e) {
             Log::error('Erro ao buscar agendamento', ['error' => $e->getMessage()]);
@@ -418,7 +419,7 @@ class MobileBookingController extends Controller
     /**
      * Get next upcoming booking
      * 
-     * @return \App\Http\Resources\Business\V1\Specific\BookingResource|\Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\Api\V1\Mobile\MobileBookingResource|\Illuminate\Http\JsonResponse
      */
     public function getNextBooking(Request $request)
     {
@@ -440,7 +441,7 @@ class MobileBookingController extends Controller
                 ->orderBy('start_time')
                 ->first();
 
-            return $nextBooking ? BookingResource::make($nextBooking) : response()->json(['data' => null]);
+            return $nextBooking ? MobileBookingResource::make($nextBooking) : response()->json(['data' => null]);
 
         } catch (\Exception $e) {
             Log::error('Erro ao buscar próximo agendamento', ['error' => $e->getMessage()]);

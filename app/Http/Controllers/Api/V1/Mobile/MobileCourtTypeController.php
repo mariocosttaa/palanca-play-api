@@ -36,7 +36,7 @@ class MobileCourtTypeController extends Controller
             $query = CourtType::query()
                 ->with(['courts' => function ($query) {
                     $query->active()->with('images');
-                }, 'availabilities', 'tenant.country'])
+                }, 'availabilities', 'tenant.country', 'nextBooking'])
                 ->withExists(['userLikes as is_liked' => function ($query) {
                     $query->where('user_id', auth()->id());
                 }])
@@ -86,7 +86,8 @@ class MobileCourtTypeController extends Controller
                         $query->active()->with('images');
                     },
                     'availabilities',
-                    'tenant.country'
+                    'tenant.country',
+                    'nextBooking'
                 ])
                 ->withExists(['userLikes as is_liked' => function ($query) {
                     $query->where('user_id', auth()->id());
@@ -137,7 +138,7 @@ class MobileCourtTypeController extends Controller
             $query = CourtType::query()
                 ->with(['courts' => function ($query) {
                     $query->active()->with('images');
-                }, 'availabilities', 'tenant.country'])
+                }, 'availabilities', 'tenant.country', 'nextBooking'])
                 ->withExists(['userLikes as is_liked' => function ($query) {
                     $query->where('user_id', auth()->id());
                 }])

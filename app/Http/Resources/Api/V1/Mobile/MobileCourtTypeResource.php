@@ -15,6 +15,10 @@ class MobileCourtTypeResource extends CourtTypeResourceGeneral
         $data = parent::toArray($request);
 
         $data['is_liked'] = (bool) ($this->is_liked ?? false);
+        
+        $data['qr_code'] = $this->whenLoaded('nextBooking', function() {
+            return $this->nextBooking->qr_code ? config('app.url') . '/' . $this->nextBooking->qr_code : null;
+        });
 
         return $data;
     }

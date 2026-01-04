@@ -85,4 +85,21 @@ class CourtType extends Model
             formatWithSymbol: true
         );
     }
+
+    public function nextBooking()
+    {
+        return $this->hasOneThrough(Booking::class, Court::class, 'court_type_id', 'court_id')
+            ->where('bookings.user_id', auth()->id())
+            ->where('bookings.status', '!=', \App\Enums\BookingStatusEnum::CANCELLED)
+            ->where(function ($query) {
+                $now = now();
+                $query->whereDate('bookings.start_date', '>', $now->format('Y-m-d'))
+                    ->orWhere(function ($q) use ($now) {
+                        $q->whereDate('bookings.start_date', $now->format('Y-m-d'))
+                            ->whereRaw("time(bookings.start_time) >= ?", [$now->format('H:i:s')]);
+                    });
+            })
+            ->orderBy('bookings.start_date')
+            ->orderBy('bookings.start_time');
+    }
 }
