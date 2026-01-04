@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+use App\Actions\General\MoneyAction;
 use App\Actions\General\TenantFileAction;
 use App\Enums\BookingStatusEnum;
 use App\Enums\PaymentMethodEnum;
@@ -144,5 +145,14 @@ class Booking extends Model
                 // Don't throw exception - allow booking deletion to proceed even if QR deletion fails
             }
         });
+    }
+    
+    public function getPriceFormattedAttribute()
+    {
+        return MoneyAction::format(
+            amount: $this->price,
+            currency: $this->tenant->currency,
+            formatWithSymbol: true
+        );
     }
 }

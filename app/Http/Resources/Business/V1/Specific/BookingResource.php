@@ -37,6 +37,7 @@ class BookingResource extends JsonResource
             'start_time' => $startParts['time'],
             'end_time' => $endParts['time'],
             'price' => $this->price,
+            'price_formatted' => $this->price_formatted,
             'currency' => $this->currency ? $this->currency->code : null,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
