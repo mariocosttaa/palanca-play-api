@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'is_app_user',
         'email_verified_at',
+        'permission',
     ];
 
     protected $hidden = [
@@ -43,6 +44,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'google_login' => 'boolean',
             'is_app_user' => 'boolean',
             'locale' => \App\Enums\LocaleEnum::class,
+            'permission' => \App\Enums\UserPermissionEnum::class,
         ];
     }
 
