@@ -20,9 +20,8 @@ class VersionController extends Controller
     public function mobile(): JsonResponse
     {
         return response()->json([
-            'version' => '1.1.0',
-            'mandatoryUpdate' => false,
-            'currentVersion' => '1.0.0',
+            'version' => '1.0.0',
+            'mandatoryUpdate' => '1.0.0', // null or version to mandatory update
             'message' => 'A new version is available with exciting features and improvements!',
             'downloadIos' => 'https://apps.apple.com/app/id123456789',
             'downloadAndroid' => 'https://play.google.com/store/apps/details?id=com.example.app'
