@@ -68,6 +68,7 @@ Route::prefix('v1')->group(function () {
             Route::prefix('court-types')->group(function () {
                 Route::get('/modalities', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'types']);
                 Route::get('/popular', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'popular']);
+                Route::get("/favorites", [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, "favorites"]);
                 Route::get('/', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'index']);
                 Route::get('/{court_type_id}', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeController::class, 'show']);
                 Route::post('/{court_type_id}/like', [App\Http\Controllers\Api\V1\Mobile\MobileCourtTypeLikeController::class, 'toggle']);

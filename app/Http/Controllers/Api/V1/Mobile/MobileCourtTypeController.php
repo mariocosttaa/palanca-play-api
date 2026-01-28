@@ -173,4 +173,64 @@ class MobileCourtTypeController extends Controller
             abort(500, 'Erro ao buscar tipos de quadras populares');
         }
     }
+
+    /**
+     * List favorited court types
+     * 
+     * List court types favorited by the authenticated user with optional filtering.
+     * 
+     * @queryParam search string optional Search in name and description. Example: Padel
+     * @queryParam country_id string optional Filter by tenant's country HashID. Example: coun_abc123
+     * @queryParam modality string optional Filter by court type modality. Example: padel
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Api\V1\Mobile\MobileCourtTypeResource>
+     */
+    public function favorites(Request $request)
+    {
+        try {
+            $request->validate([
+                'search' => 'nullable|string',
+                'country_id' => 'nullable|string',
+                'modality' => 'nullable|string',
+            ]);
+
+            $query = CourtType::query()
+                ->with(['courts' => function ($query) {
+                    $query->active()->with('images');
+                }, 'availabilities', 'tenant.country', 'nextBooking'])
+                ->whereHas('userLikes', function ($query) {
+                    $query->where('user_id', auth()->id());
+                })
+                ->withExists(['userLikes as is_liked' => function ($query) {
+                    $query->where('user_id', auth()->id());
+                }])
+                ->where('status', true);
+
+            // Apply Filters
+            if ($request->search) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('name', 'like', '%' . $request->search . '%')
+                      ->orWhere('description', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            if ($request->country_id) {
+                $countryId = EasyHashAction::decode($request->country_id, 'country-id');
+                $query->whereHas('tenant', function ($q) use ($countryId) {
+                    $q->where('country_id', $countryId);
+                });
+            }
+
+            if ($request->modality) {
+                $query->where('type', $request->modality);
+            }
+
+            $courtTypes = $query->paginate(20);
+
+            return MobileCourtTypeResource::collection($courtTypes);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao buscar tipos de quadras favoritas', ['error' => $e->getMessage()]);
+            abort(500, 'Erro ao buscar tipos de quadras favoritas');
+        }
+    }
 }
