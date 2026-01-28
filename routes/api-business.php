@@ -24,9 +24,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// Version endpoint
+Route::get('/version', [\App\Http\Controllers\Api\V1\VersionController::class, 'business']);
+
 Route::prefix('v1')->group(function () {
-    // Version endpoint
-    Route::get('/version', [\App\Http\Controllers\Api\V1\VersionController::class, 'business']);
 
     // Public authentication routes
     Route::prefix('business-users')->group(function () {

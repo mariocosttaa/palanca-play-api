@@ -12,10 +12,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('v1')->group(function () {
-    // Version endpoint
-    Route::get('/version', [\App\Http\Controllers\Api\V1\VersionController::class, 'mobile']);
+// Version endpoint
+Route::get('/version', [\App\Http\Controllers\Api\V1\VersionController::class, 'mobile']);
 
+Route::prefix('v1')->group(function () {
     // Public authentication routes
     Route::prefix('users')->group(function () {
         Route::post('/register', [App\Http\Controllers\Api\V1\Mobile\Auth\UserAuthController::class, 'register']);
