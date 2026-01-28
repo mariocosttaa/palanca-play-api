@@ -17,6 +17,12 @@ class MobileBookingResource extends BookingResource
 
         $data['qr_code'] = $this->qr_code ? config('app.url') . '/' . $this->qr_code : null;
 
+        $data['court_image'] = $this->court && $this->court->primaryImage 
+            ? url($this->court->primaryImage->path) 
+            : ($this->court && $this->court->relationLoaded('images') && $this->court->images->isNotEmpty() 
+                ? url($this->court->images->first()->path) 
+                : null);
+
         return $data;
     }
 }

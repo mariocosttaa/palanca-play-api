@@ -363,3 +363,34 @@ test('booking is pending when tenant has auto_confirm_bookings disabled', functi
     $response->assertStatus(201);
     $response->assertJsonPath('data.status', \App\Enums\BookingStatusEnum::PENDING->value); // Should be pending
 });
+
+test('mobile booking resource includes court image', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, [], 'sanctum');
+
+    $tenant = Tenant::factory()->create(['timezone' => 'UTC']);
+    $courtType = CourtType::factory()->create(['tenant_id' => $tenant->id]);
+    $court = Court::factory()->create([
+        'tenant_id' => $tenant->id,
+        'court_type_id' => $courtType->id,
+    ]);
+
+    // Create a court image
+    $image = \App\Models\CourtImage::create([
+        'court_id' => $court->id,
+        'path' => 'courts/test-image.jpg',
+        'is_primary' => true,
+    ]);
+
+    // Create a booking
+    $booking = Booking::factory()->create([
+        'user_id' => $user->id,
+        'tenant_id' => $tenant->id,
+        'court_id' => $court->id,
+    ]);
+
+    $response = $this->getJson('/api/v1/bookings/' . EasyHashAction::encode($booking->id, 'booking-id'));
+
+    $response->assertStatus(200);
+    $response->assertJsonPath('data.court_image', url('courts/test-image.jpg'));
+});

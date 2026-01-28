@@ -21,8 +21,9 @@ class CourtResourceGeneral extends JsonResource
             'id'         => EasyHashAction::encode($this->id, 'court-id'),
             'name'       => $this->name,
             'number'     => (int) $this->number,
-            'images'     => CourtImageResourceGeneral::collection($this->whenLoaded('images')),
-            'status'     => (bool) $this->status,
+            'images'        => CourtImageResourceGeneral::collection($this->whenLoaded('images')),
+            'primary_image' => new CourtImageResourceGeneral($this->whenLoaded('primaryImage')),
+            'status'        => (bool) $this->status,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }
