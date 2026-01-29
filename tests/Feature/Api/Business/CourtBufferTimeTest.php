@@ -338,11 +338,11 @@ test('slot generation excludes slots overlapping with buffered bookings', functi
     // 13:00-14:00: 13:00 < 12:30 ✗ → NOT overlapping, AVAILABLE
     // 14:00-15:00: 14:00 < 12:30 ✗ → NOT overlapping, AVAILABLE
     
-    // So we should get: 10:00-11:00, 12:30-13:30, 13:30-14:30
-    expect($slots)->toHaveCount(3);
-    expect($slots->get(0)['start'])->toBe('10:00');
-    expect($slots->get(1)['start'])->toBe('12:30');
-    expect($slots->get(2)['start'])->toBe('13:30');
+    // So we should get: 12:30-13:30, 13:30-14:30
+    // (10:00-11:00 is blocked because its buffer until 11:30 overlaps with 11:00 booking)
+    expect($slots)->toHaveCount(2);
+    expect($slots->get(0)['start'])->toBe('12:30');
+    expect($slots->get(1)['start'])->toBe('13:30');
 });
 
 test('court ignores tenant buffer time setting', function () {

@@ -35,9 +35,9 @@ class Tenant extends Model
     ];
 
     // Relationships
-    public function timezone()
+    public function timezoneModel()
     {
-        return $this->belongsTo(Timezone::class);
+        return $this->belongsTo(Timezone::class, 'timezone_id');
     }
 
     public function country()

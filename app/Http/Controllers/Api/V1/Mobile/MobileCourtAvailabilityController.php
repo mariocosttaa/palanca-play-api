@@ -91,15 +91,18 @@ class MobileCourtAvailabilityController extends Controller
                 ->with('tenant')
                 ->findOrFail($courtId);
 
-            $slots = $court->getAvailableSlots($date);
+            // Pass the authenticated user ID to allow them to see slots that would 
+            // otherwise be blocked by their own booking buffers.
+            $userId = $request->user()?->id;
+            $slots = $court->getAvailableSlots($date, null, $userId);
 
             return response()->json([
                 'data' => [
                     'date' => $date,
                     'slots' => $slots,
                     'count' => $slots->count(),
-                    'interval_minutes' => $court->tenant->booking_interval_minutes ?? 60,
-                    'buffer_minutes' => $court->tenant->buffer_between_bookings_minutes ?? 0,
+                    'interval_minutes' => $court->courtType->interval_time_minutes ?? $court->tenant->booking_interval_minutes ?? 60,
+                    'buffer_minutes' => $court->courtType->buffer_time_minutes ?? 0,
                 ]
             ]);
 
