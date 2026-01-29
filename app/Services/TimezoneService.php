@@ -25,9 +25,14 @@ class TimezoneService
             return $this->userTimezone;
         }
 
-        $user = auth()->user();
-        if ($user && $user->timezone_string) {
-            return $user->timezone_string;
+        // Try to get user timezone from auth, but handle gracefully if auth is not available (e.g., unit tests)
+        try {
+            $user = auth()->user();
+            if ($user && $user->timezone_string) {
+                return $user->timezone_string;
+            }
+        } catch (\Exception $e) {
+            // Auth not available (e.g., in unit tests), fall through to fallback
         }
 
         return $fallback ?? 'UTC';

@@ -113,9 +113,8 @@ class MobileBookingController extends Controller
     /**
      * Create a new booking
      * 
-     * Allows creating a booking for multiple contiguous slots.
+     * Permite criar agendamentos com múltiplos horários. Horários não contíguos serão automaticamente divididos em agendamentos separados.
      * 
-     * @return \App\Http\Resources\Api\V1\Mobile\MobileBookingResource|\Illuminate\Http\JsonResponse
      */
     public function store(CreateMobileBookingRequest $request)
     {
@@ -129,28 +128,18 @@ class MobileBookingController extends Controller
             // Get slots from request
             $slots = $data['slots'];
             
-            // Determine start and end times from slots
-            $startTime = $slots[0]['start'];
-            $endTime = $slots[count($slots) - 1]['end'];
-
-            // Calculate price based on number of slots and court type pricing
-            $pricePerInterval = $court->courtType->price_per_interval ?? 0;
-            $totalPrice = $pricePerInterval * count($slots);
-
             // Prepare booking data for service
             $bookingData = [
                 'court_id' => $court->id,
                 'client_id' => $user->id,
                 'start_date' => $data['start_date'],
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'price' => $totalPrice,
+                'slots' => $slots, // Pass slots for automatic splitting
                 'payment_method' => PaymentMethodEnum::FROM_APP,
                 'payment_status' => PaymentStatusEnum::PENDING,
                 // Status will be determined by service based on tenant auto_confirm_bookings setting
             ];
 
-            // Create booking using service (status handled automatically based on tenant settings)
+            // Create booking using service
             $booking = $this->createBookingService->create(
                 $court->tenant,
                 $bookingData,
@@ -218,25 +207,33 @@ class MobileBookingController extends Controller
 
             $data = $request->validated();
 
-            // Convert slots to start_time and end_time if provided
+            // Handle slots: convert to start/end time and calculate price
             if (isset($data['slots']) && is_array($data['slots']) && count($data['slots']) > 0) {
+                // 1. Set start and end times
                 $data['start_time'] = $data['slots'][0]['start'];
                 $data['end_time'] = $data['slots'][count($data['slots']) - 1]['end'];
-                unset($data['slots']);
-            }
 
-            // If court_id is provided, we need to recalculate price based on slots
-            if (isset($data['court_id'])) {
-                $court = Court::with('courtType')->find($data['court_id']);
-                if ($court && isset($data['start_time']) && isset($data['end_time'])) {
-                    // Calculate price based on time difference and court type pricing
-                    $start = \Carbon\Carbon::parse($data['start_time']);
-                    $end = \Carbon\Carbon::parse($data['end_time']);
-                    $minutes = $start->diffInMinutes($end);
-                    $intervals = ceil($minutes / ($court->courtType->interval_time_minutes ?? 60));
-                    $pricePerInterval = $court->courtType->price_per_interval ?? 0;
-                    $data['price'] = $pricePerInterval * $intervals;
+                // 2. Calculate price
+                 // We need the court to calculate price. Use new court_id if provided, else use existing booking's court.
+                $courtId = $data['court_id'] ?? null;
+                
+                if ($courtId) {
+                    $court = Court::with('courtType')->find($courtId);
+                } else {
+                     // Fetch existing booking with court if needed
+                     if(!$booking->relationLoaded('court')) {
+                        $booking->load('court.courtType');
+                     }
+                     $court = $booking->court;
                 }
+
+                if ($court && $court->courtType) {
+                    $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+                    $data['price'] = $pricePerInterval * count($data['slots']);
+                }
+
+                // 3. Keep slots in data for service to handle splitting logic
+                // unset($data['slots']); 
             }
 
             // Update booking using service
