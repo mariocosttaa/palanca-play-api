@@ -11,12 +11,59 @@ use App\Models\Court;
 use App\Models\Manager\CurrencyModel;
 use App\Models\Tenant;
 use App\Models\UserTenant;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class CreateBookingService
 {
+    /**
+     * Group individual 30/60min slots into contiguous blocks, considering buffer time
+     * Using string comparisons where possible for performance
+     */
+    protected function groupSlotsIntoBlocks(array $slots, int $bufferMinutes = 0): array
+    {
+        if (empty($slots)) {
+            return [];
+        }
+
+        if (count($slots) === 1) {
+            return [[$slots[0]]];
+        }
+
+        // Sort slots by start time
+        usort($slots, fn($a, $b) => strcmp($a['start'], $b['start']));
+
+        $blocks = [];
+        $currentBlock = [$slots[0]];
+        $prevEndStr = $slots[0]['end'];
+
+        for ($i = 1; $i < count($slots); $i++) {
+            $currentStartStr = $slots[$i]['start'];
+
+            $isGroupable = ($prevEndStr === $currentStartStr);
+            
+            if (!$isGroupable && $bufferMinutes > 0) {
+                $prevEnd = \Carbon\Carbon::parse($prevEndStr);
+                $currentStart = \Carbon\Carbon::parse($currentStartStr);
+                if ($prevEnd->copy()->addMinutes($bufferMinutes)->format('H:i') === $currentStartStr) {
+                    $isGroupable = true;
+                }
+            }
+
+            if ($isGroupable) {
+                $currentBlock[] = $slots[$i];
+            } else {
+                $blocks[] = $currentBlock;
+                $currentBlock = [$slots[$i]];
+            }
+            $prevEndStr = $slots[$i]['end'];
+        }
+        $blocks[] = $currentBlock;
+
+        return $blocks;
+    }
     /**
      * Create a new booking
      *
@@ -39,31 +86,50 @@ class CreateBookingService
     {
         try {
             return DB::transaction(function () use ($tenant, $data, $apiContext) {
-                // Validate and get court
+                // Validate and get basic entities once
                 $court = $this->validateCourt($tenant, $data['court_id']);
-
-                // Validate client
                 $clientId = $this->validateClient($data['client_id']);
 
-                // Check availability
-                $this->checkAvailability($court, $data['start_date'], $data['start_time'], $data['end_time'], $clientId);
+                // If slots are provided, handle potential splitting
+                if (isset($data['slots']) && is_array($data['slots']) && count($data['slots']) > 0) {
+                    $bufferMinutes = $court->courtType->buffer_time_minutes ?? 0;
+                    $blocks = $this->groupSlotsIntoBlocks($data['slots'], $bufferMinutes);
+                    
+                    // The first block will be the "primary" booking
+                    $firstBlock = $blocks[0];
+                    $data['start_time'] = $firstBlock[0]['start'];
+                    $data['end_time'] = $firstBlock[count($firstBlock) - 1]['end'];
+                    
+                    if ($apiContext === BookingApiContextEnum::MOBILE || isset($data['price'])) {
+                        $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+                        $data['price'] = $pricePerInterval * count($firstBlock);
+                    }
 
-                // Prepare booking data
-                $bookingData = $this->prepareBookingData($tenant, $data, $court, $clientId, $apiContext);
+                    // Create primary booking
+                    $booking = $this->createSingleBooking($tenant, $data, $court, $clientId, $apiContext);
 
-                // Create booking
-                $booking = Booking::create($bookingData);
+                    // If more blocks exist, create separate bookings
+                    if (count($blocks) > 1) {
+                        $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+                        for ($i = 1; $i < count($blocks); $i++) {
+                            $block = $blocks[$i];
+                            $blockData = $data;
+                            $blockData['start_time'] = $block[0]['start'];
+                            $blockData['end_time'] = $block[count($block) - 1]['end'];
+                            
+                            if ($apiContext === BookingApiContextEnum::MOBILE || isset($data['price'])) {
+                                $blockData['price'] = $pricePerInterval * count($block);
+                            }
+                            
+                            $this->createSingleBooking($tenant, $blockData, $court, $clientId, $apiContext);
+                        }
+                    }
 
-                // Link user to tenant if not already linked
-                $this->linkUserToTenant($clientId, $tenant->id);
+                    return $booking;
+                }
 
-                // Generate QR code
-                $this->generateQrCode($tenant, $booking);
-
-                // Load relationships
-                $booking->load('court');
-
-                return $booking;
+                // Standard creation for single time range
+                return $this->createSingleBooking($tenant, $data, $court, $clientId, $apiContext);
             });
         } catch (HttpException $e) {
             // Re-throw HTTP exceptions (validation errors)
@@ -191,6 +257,32 @@ class CreateBookingService
             'user_id'   => $userId,
             'tenant_id' => $tenantId,
         ]);
+    }
+
+    /**
+     * Helper to create a single booking within the transaction
+     */
+    protected function createSingleBooking(Tenant $tenant, array $data, Court $court, int $clientId, BookingApiContextEnum $apiContext): Booking
+    {
+        // Check availability
+        $this->checkAvailability($court, $data['start_date'], $data['start_time'], $data['end_time'], $clientId);
+
+        // Prepare booking data
+        $bookingData = $this->prepareBookingData($tenant, $data, $court, $clientId, $apiContext);
+
+        // Create booking
+        $booking = Booking::create($bookingData);
+
+        // Link user to tenant if not already linked
+        $this->linkUserToTenant($clientId, $tenant->id);
+
+        // Generate QR code
+        $this->generateQrCode($tenant, $booking);
+
+        // Load relationships
+        $booking->load('court');
+
+        return $booking;
     }
 
     /**
