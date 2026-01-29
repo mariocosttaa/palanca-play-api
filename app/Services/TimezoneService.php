@@ -19,35 +19,46 @@ class TimezoneService
     /**
      * Get the current context timezone.
      */
-    public function getContextTimezone(): string
+    public function getContextTimezone(?string $fallback = null): string
     {
-        return $this->userTimezone ?? 'UTC';
+        if ($this->userTimezone) {
+            return $this->userTimezone;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->timezone_string) {
+            return $user->timezone_string;
+        }
+
+        return $fallback ?? 'UTC';
     }
 
     /**
      * Convert a frontend datetime string (in User TZ) to a Carbon instance in UTC.
      *
      * @param string|null $datetime
+     * @param string|null $fallback Fallback timezone if user timezone is not set
      * @return Carbon|null
      */
-    public function toUTC(?string $datetime): ?Carbon
+    public function toUTC(?string $datetime, ?string $fallback = null): ?Carbon
     {
         if (! $datetime) {
             return null;
         }
 
-        // Parse the date assuming it is in the user's timezone
+        // Parse the date assuming it is in the user's timezone (or fallback)
         // Then convert to UTC
-        return Carbon::parse($datetime, $this->getContextTimezone())->setTimezone('UTC');
+        return Carbon::parse($datetime, $this->getContextTimezone($fallback))->setTimezone('UTC');
     }
 
     /**
      * Convert a UTC Carbon instance (or string) to the User's Timezone formatted string.
      *
      * @param Carbon|string|null $datetime
+     * @param string|null $fallback Fallback timezone if user timezone is not set
      * @return string|null
      */
-    public function toUserTime($datetime): ?string
+    public function toUserTime($datetime, ?string $fallback = null): ?string
     {
         if (! $datetime) {
             return null;
@@ -57,18 +68,19 @@ class TimezoneService
             $datetime = Carbon::parse($datetime);
         }
 
-        return $datetime->setTimezone($this->getContextTimezone())->toIso8601String();
+        return $datetime->setTimezone($this->getContextTimezone($fallback))->toIso8601String();
     }
     /**
      * Convert a date and time string from User TZ to UTC.
      *
      * @param string $date Y-m-d
      * @param string $time H:i
+     * @param string|null $fallback Fallback timezone if user timezone is not set
      * @return Carbon|null
      */
-    public function convertSlotToUtc(string $date, string $time): ?Carbon
+    public function convertSlotToUtc(string $date, string $time, ?string $fallback = null): ?Carbon
     {
-        return $this->toUTC($date . ' ' . $time);
+        return $this->toUTC($date . ' ' . $time, $fallback);
     }
 
     /**
@@ -77,17 +89,18 @@ class TimezoneService
      *
      * @param string $date Y-m-d
      * @param array $slots Array of ['start' => 'H:i', 'end' => 'H:i']
+     * @param string|null $fallback Fallback timezone if user timezone is not set
      * @return array{slots: array, start_date: string|null}
      */
-    public function convertSlotsToUtc(string $date, array $slots): array
+    public function convertSlotsToUtc(string $date, array $slots, ?string $fallback = null): array
     {
         $newSlots = [];
         $firstSlotStartUtc = null;
 
         foreach ($slots as $index => $slot) {
             if (isset($slot['start']) && isset($slot['end'])) {
-                $startUtc = $this->convertSlotToUtc($date, $slot['start']);
-                $endUtc = $this->convertSlotToUtc($date, $slot['end']);
+                $startUtc = $this->convertSlotToUtc($date, $slot['start'], $fallback);
+                $endUtc = $this->convertSlotToUtc($date, $slot['end'], $fallback);
 
                 if ($startUtc && $endUtc) {
                     $newSlots[$index] = [
@@ -112,11 +125,12 @@ class TimezoneService
      * Convert a UTC datetime to User TZ and return date and time parts.
      *
      * @param Carbon|string|null $utcDatetime
+     * @param string|null $fallback Fallback timezone if user timezone is not set
      * @return array{date: string|null, time: string|null}
      */
-    public function getUserTimeParts($utcDatetime): array
+    public function getUserTimeParts($utcDatetime, ?string $fallback = null): array
     {
-        $userTime = $this->toUserTime($utcDatetime);
+        $userTime = $this->toUserTime($utcDatetime, $fallback);
         
         if (!$userTime) {
             return ['date' => null, 'time' => null];

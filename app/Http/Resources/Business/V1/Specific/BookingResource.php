@@ -23,8 +23,11 @@ class BookingResource extends JsonResource
         $startUtc = \Carbon\Carbon::parse($this->start_date->format('Y-m-d') . ' ' . $this->start_time->format('H:i:s'), 'UTC');
         $endUtc = \Carbon\Carbon::parse($this->end_date->format('Y-m-d') . ' ' . $this->end_time->format('H:i:s'), 'UTC');
 
-        $startParts = $timezoneService->getUserTimeParts($startUtc);
-        $endParts = $timezoneService->getUserTimeParts($endUtc);
+        $fallbackTz = $this->tenant->timezone ?? ($this->court->tenant->timezone ?? null);
+        
+        // TimezoneService will automatically prioritize user's timezone if set
+        $startParts = $timezoneService->getUserTimeParts($startUtc, $fallbackTz);
+        $endParts = $timezoneService->getUserTimeParts($endUtc, $fallbackTz);
 
         return [
             'id' => EasyHashAction::encode($this->id, 'booking-id'),

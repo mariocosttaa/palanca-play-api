@@ -136,7 +136,15 @@ class Court extends Model
         return $dates;
     }
 
-    public function getAvailableSlots($date, $excludeBookingId = null)
+    /**
+     * Get available time slots for a specific date.
+     * 
+     * @param string|\Carbon\Carbon $date
+     * @param int|null $excludeBookingId Optional booking ID to ignore (for updates)
+     * @param int|null $excludeUserId Optional user ID to bypass buffer checks for sequential bookings
+     * @return \Illuminate\Support\Collection
+     */
+    public function getAvailableSlots($date, $excludeBookingId = null, $excludeUserId = null)
     {
         $date      = \Carbon\Carbon::parse($date);
         $dayOfWeek = $date->format('l');
@@ -169,77 +177,105 @@ class Court extends Model
             return collect();
         }
 
-        $startTime = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time);
-        $endTime   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
-        $breaks    = $availability->breaks ?? [];
-
-        // 2. Get Existing Bookings
-        $bookingsQuery = $this->bookings()
-            ->whereDate('start_date', $date->format('Y-m-d'))
-            ->where(function ($query) {
-                $query->where('status', '!=', BookingStatusEnum::CANCELLED);
-            });
-
-        if ($excludeBookingId) {
-            $bookingsQuery->where('id', '!=', $excludeBookingId);
+        $tenantTimezone = $this->tenant->timezone ?? 'UTC';
+        $startTime = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time, $tenantTimezone)->setTimezone('UTC');
+        $endTime   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time, $tenantTimezone)->setTimezone('UTC');
+        
+        // Handle overnight operating hours
+        if ($endTime->lt($startTime)) {
+            $endTime->addDay();
         }
 
-        $bookings = $bookingsQuery->get();
+        $breaks    = $availability->breaks ?? [];
 
-        // 3. Generate Slots
-        // Use court type's interval and buffer time settings
-        $interval = $this->courtType->interval_time_minutes ?? $this->tenant->booking_interval_minutes ?? 60;
-        $buffer   = $this->courtType->buffer_time_minutes ?? 0;
-        $slots    = collect();
+            // 2. Get Existing Bookings
+            $bookingsQuery = $this->bookings()
+                ->whereDate('start_date', $date->format('Y-m-d'))
+                ->where(function ($query) {
+                    $query->where('status', '!=', BookingStatusEnum::CANCELLED);
+                });
 
-        $currentSlotStart = $startTime->copy();
-
-        while ($currentSlotStart->copy()->addMinutes($interval)->lte($endTime)) {
-            $currentSlotEnd = $currentSlotStart->copy()->addMinutes($interval);
-
-            $collisionEndTime = null;
-
-            // Check against breaks
-            foreach ($breaks as $break) {
-                $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
-                $breakEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
-
-                // If slot overlaps with break
-                if ($currentSlotStart->lt($breakEnd) && $currentSlotEnd->gt($breakStart)) {
-                    $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($breakEnd) : $breakEnd;
-                }
+            if ($excludeBookingId) {
+                $bookingsQuery->where('id', '!=', $excludeBookingId);
             }
 
-            // Check against bookings
-            foreach ($bookings as $booking) {
-                $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'));
-                $bookingEnd   = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'));
+            $bookings = $bookingsQuery->get();
 
-                // Apply buffer to booking end
-                $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
+            // 3. Generate Slots
+            // Use court type's interval and buffer time settings
+            $interval = $this->courtType->interval_time_minutes ?? $this->tenant->booking_interval_minutes ?? 60;
+            $buffer   = $this->courtType->buffer_time_minutes ?? 0;
+            $slots    = collect();
 
-                // Check overlap
-                // Slot overlaps if: SlotStart < BookingEndWithBuffer AND SlotEnd > BookingStart
-                if ($currentSlotStart->lt($bookingEndWithBuffer) && $currentSlotEnd->gt($bookingStart)) {
-                    $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($bookingEndWithBuffer) : $bookingEndWithBuffer;
+            $currentSlotStart = $startTime->copy();
+
+            while ($currentSlotStart->copy()->addMinutes($interval)->lte($endTime)) {
+                $currentSlotEnd = $currentSlotStart->copy()->addMinutes($interval);
+
+                $collisionEndTime = null;
+
+                // Check against breaks
+                foreach ($breaks as $break) {
+                    $breakStart = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['start']);
+                    $breakEnd   = \Carbon\Carbon::parse($date->format('Y-m-d') . ' ' . $break['end']);
+
+                    // If slot overlaps with break
+                    if ($currentSlotStart->lt($breakEnd) && $currentSlotEnd->gt($breakStart)) {
+                        $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($breakEnd) : $breakEnd;
+                    }
                 }
-            }
+
+                // Check against bookings
+                foreach ($bookings as $booking) {
+                    // Bookings are stored in UTC. We use the casted attributes which Laravel 
+                    // handles with the app timezone, so we convert them back to UTC.
+                    $bookingStart = $booking->start_date->copy()->setTimeFrom($booking->start_time)->setTimezone('UTC');
+                    $bookingEnd   = $booking->end_date->copy()->setTimeFrom($booking->end_time)->setTimezone('UTC');
+
+                    // Apply buffer to booking end
+                    $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
+                    
+                    // Calculate current slot end with buffer
+                    $currentSlotEndWithBuffer = $currentSlotEnd->copy()->addMinutes($buffer);
+
+                    // Special case: If it's the same user, we ignore the buffer for the overlap check.
+                    // ONLY if the bookings are perfectly sequential (no gap).
+                    if ($excludeUserId && $booking->user_id == $excludeUserId) {
+                        if ($currentSlotStart->format('H:i') === $bookingEnd->format('H:i') || 
+                            $currentSlotEnd->format('H:i') === $bookingStart->format('H:i')) {
+                            $bookingEndWithBuffer = $bookingEnd;
+                            $currentSlotEndWithBuffer = $currentSlotEnd;
+                        }
+                    }
+
+                    // Check overlap
+                    // Slot overlaps if: SlotStart < BookingEndWithBuffer AND SlotEndWithBuffer > BookingStart
+                    if ($currentSlotStart->lt($bookingEndWithBuffer) && $currentSlotEndWithBuffer->gt($bookingStart)) {
+                        // For same user, we only skip to the end of the booking, not the buffer.
+                        // This allows the next iteration to check the sequential slot (which will bypass the buffer).
+                        $skipTo = ($excludeUserId && $booking->user_id == $excludeUserId) ? $bookingEnd : $bookingEndWithBuffer;
+                        $collisionEndTime = $collisionEndTime ? $collisionEndTime->max($skipTo) : $skipTo;
+                    }
+                }
 
             if ($collisionEndTime) {
                 // If collision, move start time to the end of the collision
-                // Ensure we actually advance to avoid infinite loops (though collision end should be > current start)
+                // Ensure we actually advance to avoid infinite loops
                 if ($collisionEndTime->lte($currentSlotStart)) {
-                    $currentSlotStart->addMinutes($interval); // Fallback to avoid infinite loop
+                    $currentSlotStart->addMinutes(1); // Fallback to avoid infinite loop
                 } else {
-                    $currentSlotStart = $collisionEndTime;
+                    $currentSlotStart = $collisionEndTime->copy();
                 }
                 continue;
             }
 
             // No collision, add slot
+            // Return slots in the user's timezone (or tenant's if no user context)
+            $displayTimezone = app(\App\Services\TimezoneService::class)->getContextTimezone($this->tenant->timezone);
+            
             $slots->push([
-                'start' => $currentSlotStart->format('H:i'),
-                'end'   => $currentSlotEnd->format('H:i'),
+                'start' => $currentSlotStart->copy()->setTimezone($displayTimezone)->format('H:i'),
+                'end'   => $currentSlotEnd->copy()->setTimezone($displayTimezone)->format('H:i'),
             ]);
 
             $currentSlotStart->addMinutes($interval);
@@ -274,8 +310,7 @@ class Court extends Model
         $utcStart = \Carbon\Carbon::parse($date . ' ' . $startTime, 'UTC');
         $utcEnd = \Carbon\Carbon::parse($date . ' ' . $endTime, 'UTC');
 
-        // Get Tenant Timezone
-        // If tenant has no timezone set, default to UTC (or app default)
+        // Get Tenant Timezone (using the column, not the relationship)
         $tenantTimezone = $this->tenant->timezone ?? 'UTC';
 
         // Convert UTC inputs to Tenant Timezone for Operating Hours check
@@ -354,32 +389,49 @@ class Court extends Model
         // Use court type's buffer time setting
         $buffer = $this->courtType->buffer_time_minutes ?? 0;
 
+        // Calculate requested end with buffer
+        $utcEndWithBuffer = $utcEnd->copy()->addMinutes($buffer);
+
         foreach ($bookings as $booking) {
-            // Bookings are stored in UTC
-            $bookingStart = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'), 'UTC');
-            $bookingEnd   = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC');
+            // Bookings are stored in UTC. We use the casted attributes which Laravel 
+            // handles with the app timezone, so we convert them back to UTC.
+            $bookingStart = $booking->start_date->copy()->setTimeFrom($booking->start_time)->setTimezone('UTC');
+            $bookingEnd   = $booking->end_date->copy()->setTimeFrom($booking->end_time)->setTimezone('UTC');
 
-            // Calculate buffer end
+            // Calculate existing booking buffer end
             $bookingEndWithBuffer = $bookingEnd->copy()->addMinutes($buffer);
+            
+            // Local copy of requested end with buffer for this specific booking check
+            $currentUtcEndWithBuffer = $utcEnd->copy()->addMinutes($buffer);
 
-            // Special case: If it's the same user and sequential booking (starts exactly when previous ends)
-            // We ignore the buffer for the overlap check
+            // Special case: If it's the same user, we ignore the buffer for the overlap check
+            // ONLY if the bookings are perfectly sequential (no gap)
             if ($excludeUserId && $booking->user_id == $excludeUserId) {
-                // If the requested start time is EXACTLY the booking end time,
-                // we treat the booking end as the effective end (ignoring buffer)
-                // This allows [13:00-14:00] then [14:00-15:00] for same user
-                if ($utcStart->eq($bookingEnd)) {
+                if ($utcStart->format('H:i') === $bookingEnd->format('H:i') || 
+                    $utcEnd->format('H:i') === $bookingStart->format('H:i')) {
                     $bookingEndWithBuffer = $bookingEnd;
+                    $currentUtcEndWithBuffer = $utcEnd;
                 }
             }
 
-            if ($utcStart->lt($bookingEndWithBuffer) && $utcEnd->gt($bookingStart)) {
-                // Return error in Local Time for better UX
-                $bookingStartLocal = $bookingStart->copy()->setTimezone($tenantTimezone);
-                $bookingEndLocal = $bookingEnd->copy()->setTimezone($tenantTimezone);
+            if ($utcStart->lt($bookingEndWithBuffer) && $currentUtcEndWithBuffer->gt($bookingStart)) {
+                // Return error in User Timezone (or Tenant fallback) for better UX
+                $displayTimezone = app(\App\Services\TimezoneService::class)->getContextTimezone($tenantTimezone);
                 
-                return 'Este horário já está reservado ('
+                $bookingStartLocal = $bookingStart->copy()->setTimezone($displayTimezone);
+                $bookingEndLocal = $bookingEnd->copy()->setTimezone($displayTimezone);
+                
+                $message = 'Este horário já está reservado ('
                 . $bookingStartLocal->format('H:i') . ' - ' . $bookingEndLocal->format('H:i') . ').';
+
+                // If the overlap is only with the buffer, make it clear in the error message.
+                // This helps users understand why a slot starting exactly when another ends is blocked.
+                if (($utcStart->gte($bookingEnd) && $utcStart->lt($bookingEndWithBuffer)) || 
+                    ($utcEnd->lte($bookingStart) && $currentUtcEndWithBuffer->gt($bookingStart))) {
+                    $message .= ' (Incluindo intervalo de manutenção de ' . $buffer . ' min).';
+                }
+
+                return $message;
             }
         }
 

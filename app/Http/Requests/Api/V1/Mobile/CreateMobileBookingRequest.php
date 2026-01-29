@@ -30,7 +30,12 @@ class CreateMobileBookingRequest extends FormRequest
             $startDate = $this->input('start_date');
             $slots = $this->input('slots');
 
-            $result = $timezoneService->convertSlotsToUtc($startDate, $slots);
+            // Find court to get tenant timezone as fallback
+            $court = \App\Models\Court::with('tenant')->find($this->input('court_id'));
+            $fallbackTz = $court?->tenant?->timezone;
+
+            // TimezoneService will automatically prioritize user's timezone if set
+            $result = $timezoneService->convertSlotsToUtc($startDate, $slots, $fallbackTz);
 
             if (!empty($result['slots'])) {
                 $this->merge([
@@ -110,10 +115,13 @@ class CreateMobileBookingRequest extends FormRequest
 
         // Check each requested slot using checkAvailability
         foreach ($slots as $index => $requestedSlot) {
+            // Check each requested slot. We pass the user ID to allow sequential 
+            // bookings by the same user (bypassing the maintenance buffer).
             $error = $court->checkAvailability(
                 $date,
                 $requestedSlot['start'],
-                $requestedSlot['end']
+                $requestedSlot['end'],
+                $this->user()?->id
             );
             
             if ($error) {

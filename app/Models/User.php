@@ -90,6 +90,11 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     // Accessors
+    public function getTimezoneStringAttribute()
+    {
+        return $this->timezone?->name;
+    }
+
     public function getPhoneFormattedAttribute()
     {
         if ($this->calling_code && $this->phone) {
