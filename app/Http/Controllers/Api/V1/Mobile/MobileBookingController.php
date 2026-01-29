@@ -48,7 +48,7 @@ class MobileBookingController extends Controller
     {
         try {
             $request->validate([
-                'status' => 'nullable|string|in:upcoming,past,cancelled',
+                'status' => 'nullable|string|in:upcoming,past,cancelled,completed,confirmed,pending',
                 'court_id' => 'nullable|string',
                 'modality' => 'nullable|string',
             ]);
@@ -66,11 +66,18 @@ class MobileBookingController extends Controller
                             ->where('status', '!=', BookingStatusEnum::CANCELLED);
                         break;
                     case 'past':
+                    case 'completed':
                         $query->where('start_date', '<', now()->format('Y-m-d'))
                             ->where('status', '!=', BookingStatusEnum::CANCELLED);
                         break;
                     case 'cancelled':
                         $query->where('status', BookingStatusEnum::CANCELLED);
+                        break;
+                    case 'confirmed':
+                        $query->where('status', BookingStatusEnum::CONFIRMED);
+                        break;
+                    case 'pending':
+                        $query->where('status', BookingStatusEnum::PENDING);
                         break;
                 }
             }
@@ -95,6 +102,8 @@ class MobileBookingController extends Controller
 
             return MobileBookingResource::collection($bookings);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar agendamentos', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erro ao buscar agendamentos'], 500);
