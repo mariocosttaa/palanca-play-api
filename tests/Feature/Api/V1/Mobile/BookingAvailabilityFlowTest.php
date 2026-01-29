@@ -2,6 +2,7 @@
 
 use App\Actions\General\EasyHashAction;
 use App\Enums\BookingStatusEnum;
+use App\Models\Booking;
 use App\Models\Court;
 use App\Models\CourtAvailability;
 use App\Models\CourtType;
@@ -206,16 +207,26 @@ test('it fails when trying to book non-sequential slots', function () {
     // Pick 2 non-sequential slots (1st and 3rd)
     $pickedSlots = [$slots[0], $slots[2]];
 
-    // 3. Create a booking (expect failure)
+    // 3. Create a booking (should now succeed and split into two)
     $bookingResponse = $this->postJson('/api/v1/bookings', [
         'court_id' => $courtIdHashId,
         'start_date' => $date,
         'slots' => $pickedSlots,
     ]);
 
-    $bookingResponse->assertStatus(422);
-    $bookingResponse->assertJsonValidationErrors(['slots']);
-    $bookingResponse->assertJsonFragment(['Os horários devem ser contíguos (sem intervalos entre eles)']);
+    $bookingResponse->assertStatus(201);
+    
+    // Verify that 2 bookings were created for the court on that date
+    $this->assertDatabaseCount('bookings', 2);
+    
+    $bookingsOnDate = Booking::where('court_id', $court->id)
+        ->whereDate('start_date', $date)
+        ->orderBy('start_time')
+        ->get();
+        
+    expect($bookingsOnDate)->toHaveCount(2);
+    expect($bookingsOnDate[0]->start_time->format('H:i'))->toBe($slots[0]['start']);
+    expect($bookingsOnDate[1]->start_time->format('H:i'))->toBe($slots[2]['start']);
 });
 
 test('it verifies that buffer time is respected for different users but ignored for the same user', function () {
