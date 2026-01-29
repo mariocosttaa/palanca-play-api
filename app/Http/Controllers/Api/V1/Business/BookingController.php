@@ -151,6 +151,15 @@ class BookingController extends Controller
             $tenant = $request->tenant;
             $data   = $request->validated();
 
+            // Always calculate price from slots when provided (ignore any price from frontend)
+            if (isset($data['slots']) && is_array($data['slots'])) {
+                $court = \App\Models\Court::with('courtType')->find($data['court_id']);
+                if ($court && $court->courtType) {
+                    $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+                    $data['price']    = $pricePerInterval * count($data['slots']);
+                }
+            }
+
             $booking = $this->createBookingService->create($tenant, $data, \App\Enums\BookingApiContextEnum::BUSINESS);
 
             return new BookingResource($booking);
@@ -239,6 +248,25 @@ class BookingController extends Controller
 
             $tenant = $request->tenant;
             $data   = $request->validated();
+
+            // Always recalculate price from slots when provided (ignore any price from frontend)
+            if (isset($data['slots']) && is_array($data['slots'])) {
+                // We need the court to calculate price. Use new court_id if provided, else use existing booking's court.
+                $courtId = $data['court_id'] ?? null;
+                
+                if ($courtId) {
+                    $court = \App\Models\Court::with('courtType')->find($courtId);
+                } else {
+                    // Fetch existing booking to get court_id if not in request
+                     $existingBooking = Booking::with('court.courtType')->find($decodedBookingId);
+                     $court = $existingBooking->court;
+                }
+
+                if ($court && $court->courtType) {
+                    $pricePerInterval = $court->courtType->price_per_interval ?? 0;
+                    $data['price']    = $pricePerInterval * count($data['slots']);
+                }
+            }
 
             $booking = $this->updateBookingService->update($tenant, $decodedBookingId, $data, \App\Enums\BookingApiContextEnum::BUSINESS);
 
