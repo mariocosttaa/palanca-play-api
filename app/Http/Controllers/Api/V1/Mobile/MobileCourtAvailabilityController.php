@@ -21,6 +21,7 @@ class MobileCourtAvailabilityController extends Controller
      * @urlParam court_id string required The HashID of the court. Example: crt_abc123
      * @queryParam start_date string required The start date (Y-m-d). Example: 2025-12-01
      * @queryParam end_date string required The end date (Y-m-d). Example: 2025-12-31
+     * @queryParam booking_id string Optional HashID of the booking to exclude (for updates). Example: abc123
      * 
      * @response array{data: array{dates: array<int, string>, count: int}}
      */
@@ -30,6 +31,7 @@ class MobileCourtAvailabilityController extends Controller
             $validated = $request->validate([
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after_or_equal:start_date',
+                'booking_id' => 'nullable|string',
             ]);
 
             // Validate date range doesn't exceed 90 days
@@ -42,10 +44,16 @@ class MobileCourtAvailabilityController extends Controller
 
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
             
+            // Decode booking_id if present
+            $excludeBookingId = null;
+            if (!empty($validated['booking_id'])) {
+                $excludeBookingId = EasyHashAction::decode($validated['booking_id'], 'booking-id');
+            }
+            
             $court = Court::active()
                 ->findOrFail($courtId);
 
-            $dates = $court->getAvailableDates($validated['start_date'], $validated['end_date']);
+            $dates = $court->getAvailableDates($validated['start_date'], $validated['end_date'], $excludeBookingId);
 
             return response()->json([
                 'data' => [
@@ -70,6 +78,7 @@ class MobileCourtAvailabilityController extends Controller
      * 
      * @urlParam court_id string required The HashID of the court. Example: crt_abc123
      * @urlParam date string required The date (Y-m-d). Example: 2025-12-25
+     * @queryParam booking_id string Optional HashID of the booking to exclude (for updates). Example: abc123
      * 
      * @response array{data: array{date: string, slots: array<int, string>, count: int, interval_minutes: int, buffer_minutes: int}}
      */
@@ -77,15 +86,25 @@ class MobileCourtAvailabilityController extends Controller
     {
         try {
             // Validate date format
-            $validator = \Illuminate\Support\Facades\Validator::make(['date' => $date], [
-                'date' => 'required|date',
-            ]);
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                array_merge(['date' => $date], $request->all()), 
+                [
+                    'date' => 'required|date',
+                    'booking_id' => 'nullable|string',
+                ]
+            );
 
             if ($validator->fails()) {
                 abort(422, $validator->errors()->first());
             }
 
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
+            
+            // Decode booking_id if present
+            $excludeBookingId = null;
+            if ($request->has('booking_id')) {
+                $excludeBookingId = EasyHashAction::decode($request->booking_id, 'booking-id');
+            }
             
             $court = Court::active()
                 ->with('tenant')
@@ -94,7 +113,8 @@ class MobileCourtAvailabilityController extends Controller
             // Pass the authenticated user ID to allow them to see slots that would 
             // otherwise be blocked by their own booking buffers.
             $userId = $request->user()?->id;
-            $slots = $court->getAvailableSlots($date, null, $userId);
+            
+            $slots = $court->getAvailableSlots($date, $excludeBookingId, $userId);
 
             return response()->json([
                 'data' => [

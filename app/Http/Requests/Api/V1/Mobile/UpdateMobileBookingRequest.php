@@ -153,13 +153,16 @@ class UpdateMobileBookingRequest extends FormRequest
             return;
         }
 
+        // Get authenticated user ID to allow sequential bookings (ignoring buffers)
+        $userId = $this->user()?->id;
+
         // Check each requested slot using checkAvailability
         foreach ($slots as $index => $requestedSlot) {
             $error = $court->checkAvailability(
                 $date,
                 $requestedSlot['start'],
                 $requestedSlot['end'],
-                null, // excludeUserId
+                $userId, // excludeUserId
                 $bookingId // excludeBookingId (to allow updating same booking)
             );
             
