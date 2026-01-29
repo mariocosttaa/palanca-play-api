@@ -33,6 +33,27 @@ class CreateBookingRequest extends FormRequest
             ]);
         }
 
+        // Handle slots input
+        if ($this->has('slots') && is_array($this->input('slots'))) {
+            $slots = $this->input('slots');
+            if (count($slots) > 0) {
+                // Take start from the first slot
+                $firstSlot = $slots[0];
+                // Take end from the last slot
+                $lastSlot = $slots[count($slots) - 1];
+
+                if (isset($firstSlot['start']) && isset($lastSlot['end'])) {
+                    // Update request with extracted times, but keep slots for price calculation in controller if needed
+                    $this->merge([
+                        'start_time' => $firstSlot['start'],
+                        'end_time'   => $lastSlot['end'],
+                        // If start date is provided in request use it, otherwise we can't infer it easily from H:i slots alone 
+                        // without context, but normally start_date is passed separately.
+                    ]);
+                }
+            }
+        }
+
         // Convert dates to UTC
         if ($this->has(['start_date', 'start_time', 'end_time'])) {
             $timezoneService = app(\App\Services\TimezoneService::class);
@@ -51,10 +72,6 @@ class CreateBookingRequest extends FormRequest
                     'start_date' => $startUtc->format('Y-m-d'),
                     'start_time' => $startUtc->format('H:i'),
                     'end_time' => $endUtc->format('H:i'),
-                    // We might need to handle end_date if we support it, but for now
-                    // we are limited by the request structure.
-                    // If the conversion pushes it to the next day, start_date will update.
-                    // If it crosses midnight in UTC, end_time will be < start_time, which will fail validation.
                 ]);
             }
         }
@@ -71,8 +88,9 @@ class CreateBookingRequest extends FormRequest
             'court_id' => 'required|exists:courts,id',
             'client_id' => 'required|exists:users,id',
             'start_date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
+            'slots' => 'nullable|array|min:1',
+            'start_time' => 'required_without:slots|date_format:H:i',
+            'end_time' => 'required_without:slots|date_format:H:i|after:start_time',
             'price' => 'nullable|integer|min:0',
             'status' => ['nullable', Rule::enum(BookingStatusEnum::class)],
             'payment_status' => ['nullable', Rule::enum(PaymentStatusEnum::class)],
@@ -95,5 +113,80 @@ class CreateBookingRequest extends FormRequest
             'end_time.required' => 'A hora de término é obrigatória.',
             'end_time.after' => 'A hora de término deve ser após a hora de início.',
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            // Validate slots if provided
+            if (!$validator->errors()->any() && $this->has('slots')) {
+                $this->validateSlotsContiguity($validator);
+                $this->validateSlotsAvailability($validator);
+            }
+        });
+    }
+
+    /**
+     * Validate that slots are contiguous (no gaps between them)
+     */
+    protected function validateSlotsContiguity($validator)
+    {
+        $slots = $this->input('slots');
+        
+        if (count($slots) > 1) {
+            for ($i = 0; $i < count($slots) - 1; $i++) {
+                $currentEnd = $slots[$i]['end'];
+                $nextStart = $slots[$i + 1]['start'];
+                
+                if ($currentEnd !== $nextStart) {
+                    $validator->errors()->add(
+                        'slots',
+                        'Os horários devem ser contíguos (sem intervalos entre eles)'
+                    );
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate that all slots are available
+     */
+    protected function validateSlotsAvailability($validator)
+    {
+        $courtId = $this->input('court_id');
+        $date = $this->input('start_date');
+        $slots = $this->input('slots');
+        $userId = $this->input('client_id');
+
+        if (!$courtId || !$date) {
+            return;
+        }
+
+        $court = \App\Models\Court::with('tenant')->find($courtId);
+        
+        if (!$court) {
+            return;
+        }
+
+        // Check each requested slot using checkAvailability
+        foreach ($slots as $index => $requestedSlot) {
+            $error = $court->checkAvailability(
+                $date,
+                $requestedSlot['start'],
+                $requestedSlot['end'],
+                $userId // excludeUserId to allow sequential bookings for same user
+            );
+            
+            if ($error) {
+                $validator->errors()->add(
+                    "slots.{$index}",
+                    $error
+                );
+            }
+        }
     }
 }

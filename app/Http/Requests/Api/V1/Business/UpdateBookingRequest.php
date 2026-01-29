@@ -46,6 +46,25 @@ class UpdateBookingRequest extends FormRequest
             ]);
         }
 
+        // Handle slots input
+        if ($this->has('slots') && is_array($this->input('slots'))) {
+            $slots = $this->input('slots');
+            if (count($slots) > 0) {
+                // Take start from the first slot
+                $firstSlot = $slots[0];
+                // Take end from the last slot
+                $lastSlot = $slots[count($slots) - 1];
+
+                if (isset($firstSlot['start']) && isset($lastSlot['end'])) {
+                    // Update request with extracted times, but keep slots for price calculation in controller
+                    $this->merge([
+                        'start_time' => $firstSlot['start'],
+                        'end_time'   => $lastSlot['end'],
+                    ]);
+                }
+            }
+        }
+
         // Handle Timezone Conversion
         if ($this->hasAny(['start_date', 'start_time', 'end_time'])) {
             $bookingId = $this->booking_id ?? EasyHashAction::decode($this->route('booking_id'), 'booking-id');
@@ -106,8 +125,9 @@ class UpdateBookingRequest extends FormRequest
         return [
             'court_id'       => ['sometimes', 'integer', Rule::exists(Court::class, 'id')],
             'start_date'     => 'sometimes|date|after_or_equal:today',
-            'start_time'     => 'sometimes|date_format:H:i',
-            'end_time'       => 'sometimes|date_format:H:i|after:start_time',
+            'slots'          => 'sometimes|array|min:1',
+            'start_time'     => 'sometimes|required_without:slots|date_format:H:i',
+            'end_time'       => 'sometimes|required_without:slots|date_format:H:i|after:start_time',
             'price'          => 'sometimes|integer|min:0',
             'status'         => ['sometimes', Rule::enum(BookingStatusEnum::class)],
             'payment_status' => ['sometimes', Rule::enum(PaymentStatusEnum::class)],
@@ -151,6 +171,69 @@ class UpdateBookingRequest extends FormRequest
                     $validator->errors()->add('court_id', 'A quadra selecionada não pertence ao mesmo estabelecimento.');
                 }
             }
+
+            // Validate slots if provided
+            if (!$validator->errors()->any() && $this->has('slots')) {
+                $this->validateSlotsContiguity($validator);
+                $this->validateSlotsAvailability($validator, $booking);
+            }
         });
+    }
+
+    /**
+     * Validate that slots are contiguous (no gaps between them)
+     */
+    protected function validateSlotsContiguity($validator)
+    {
+        $slots = $this->input('slots');
+        
+        if (count($slots) > 1) {
+            for ($i = 0; $i < count($slots) - 1; $i++) {
+                $currentEnd = $slots[$i]['end'];
+                $nextStart = $slots[$i + 1]['start'];
+                
+                if ($currentEnd !== $nextStart) {
+                    $validator->errors()->add(
+                        'slots',
+                        'Os horários devem ser contíguos (sem intervalos entre eles)'
+                    );
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate that all slots are available
+     */
+    protected function validateSlotsAvailability($validator, Booking $booking)
+    {
+        $courtId = $this->input('court_id') ?? $booking->court_id;
+        $date = $this->input('start_date') ?? \Carbon\Carbon::parse($booking->start_date)->format('Y-m-d');
+        $slots = $this->input('slots');
+
+        $court = Court::with('tenant')->find($courtId);
+        
+        if (!$court) {
+            return;
+        }
+
+        // Check each requested slot using checkAvailability
+        foreach ($slots as $index => $requestedSlot) {
+            $error = $court->checkAvailability(
+                $date,
+                $requestedSlot['start'],
+                $requestedSlot['end'],
+                $booking->user_id, // excludeUserId to allow sequential bookings for same user
+                $booking->id // excludeBookingId (to allow updating same booking)
+            );
+            
+            if ($error) {
+                $validator->errors()->add(
+                    "slots.{$index}",
+                    $error
+                );
+            }
+        }
     }
 }
