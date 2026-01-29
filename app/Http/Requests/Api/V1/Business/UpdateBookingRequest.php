@@ -46,70 +46,68 @@ class UpdateBookingRequest extends FormRequest
             ]);
         }
 
-        // Handle slots input
+        // Handle slots input and identify contiguous blocks
         if ($this->has('slots') && is_array($this->input('slots'))) {
             $slots = $this->input('slots');
             if (count($slots) > 0) {
-                // Take start from the first slot
+                // If we want to split, we should probably only set start_time/end_time 
+                // for the FIRST contiguous block for the main booking update.
                 $firstSlot = $slots[0];
-                // Take end from the last slot
-                $lastSlot = $slots[count($slots) - 1];
-
-                if (isset($firstSlot['start']) && isset($lastSlot['end'])) {
-                    // Update request with extracted times, but keep slots for price calculation in controller
-                    $this->merge([
-                        'start_time' => $firstSlot['start'],
-                        'end_time'   => $lastSlot['end'],
-                    ]);
-                }
+                $this->merge([
+                    'start_time' => $firstSlot['start'],
+                    'end_time'   => $firstSlot['end'],
+                ]);
+                
+                // We'll calculate the actual end_time of the first block in the service
+                // or here if we detect the first block.
             }
         }
 
         // Handle Timezone Conversion
-        if ($this->hasAny(['start_date', 'start_time', 'end_time'])) {
+        if ($this->hasAny(['start_date', 'start_time', 'end_time', 'slots'])) {
             $bookingId = $this->booking_id ?? EasyHashAction::decode($this->route('booking_id'), 'booking-id');
             $booking = Booking::find($bookingId);
 
             if ($booking) {
                 $timezoneService = app(\App\Services\TimezoneService::class);
+                $newStartDate = $this->input('start_date') ?? \Carbon\Carbon::parse($booking->start_date)->format('Y-m-d');
 
-                // 1. Get current values in User TZ
-                // Note: We assume the DB values are in UTC (which they will be after this feature is live)
-                // If they are currently not UTC, this might shift them, but we are migrating.
-                // Actually, for existing data, it might be messy if we don't migrate DB.
-                // But let's assume we are starting fresh or data is compatible.
-                
-                // We need to construct the full datetime from DB to convert it correctly
-                $currentStartUtc = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->start_time->format('H:i:s'), 'UTC');
-                $currentEndUtc = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $booking->end_time->format('H:i:s'), 'UTC');
-                // Note: end_date is assumed same as start_date in DB currently.
+                // Helper to convert time from User TZ to UTC
+                $convertToUtc = function($timeString) use ($timezoneService, $newStartDate) {
+                    $dateTimeString = $newStartDate . ' ' . $timeString;
+                    $utcDateTime = $timezoneService->toUTC($dateTimeString);
+                    return $utcDateTime ? $utcDateTime->format('H:i') : $timeString;
+                };
 
-                $currentStartUser = $timezoneService->toUserTime($currentStartUtc);
-                $currentEndUser = $timezoneService->toUserTime($currentEndUtc);
-                
-                // Parse back to Carbon to extract date/time parts in User TZ
-                $startUserCarbon = \Carbon\Carbon::parse($currentStartUser);
-                $endUserCarbon = \Carbon\Carbon::parse($currentEndUser);
+                // Convert primary fields if present
+                if ($this->has('start_time')) {
+                    $this->merge(['start_time' => $convertToUtc($this->input('start_time'))]);
+                }
+                if ($this->has('end_time')) {
+                    $this->merge(['end_time' => $convertToUtc($this->input('end_time'))]);
+                }
 
-                // 2. Overlay Input Data
-                $newStartDate = $this->input('start_date', $startUserCarbon->format('Y-m-d'));
-                $newStartTime = $this->input('start_time', $startUserCarbon->format('H:i'));
-                $newEndTime = $this->input('end_time', $endUserCarbon->format('H:i'));
+                // If slots are provided, convert EACH slot start/end
+                if ($this->has('slots') && is_array($this->input('slots'))) {
+                    $slots = $this->input('slots');
+                    $convertedSlots = array_map(function($slot) use ($convertToUtc) {
+                        return [
+                            'start' => $convertToUtc($slot['start']),
+                            'end'   => $convertToUtc($slot['end']),
+                        ];
+                    }, $slots);
+                    
+                    $this->merge(['slots' => $convertedSlots]);
 
-                // 3. Convert back to UTC
-                $newStartString = $newStartDate . ' ' . $newStartTime;
-                // For end time, we use the NEW start date as base (User TZ assumption of single day)
-                $newEndString = $newStartDate . ' ' . $newEndTime;
-
-                $newStartUtc = $timezoneService->toUTC($newStartString);
-                $newEndUtc = $timezoneService->toUTC($newEndString);
-
-                if ($newStartUtc && $newEndUtc) {
-                    $this->merge([
-                        'start_date' => $newStartUtc->format('Y-m-d'),
-                        'start_time' => $newStartUtc->format('H:i'),
-                        'end_time' => $newEndUtc->format('H:i'),
-                    ]);
+                    // After conversion, we need to update start_time and end_time for the main booking
+                    // We'll update them to the start/end of the first block in the service, 
+                    // but let's set them here to the first slot for consistency.
+                    if (count($convertedSlots) > 0) {
+                        $this->merge([
+                            'start_time' => $convertedSlots[0]['start'],
+                            'end_time'   => $convertedSlots[0]['end'],
+                        ]);
+                    }
                 }
             }
         }
@@ -117,6 +115,8 @@ class UpdateBookingRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
+     * 
+     * @bodyParam slots array Os horários a serem reservados. Se forem enviados horários não contíguos (com intervalos), o sistema poderá criar agendamentos adicionais separados automaticamente.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
@@ -173,34 +173,12 @@ class UpdateBookingRequest extends FormRequest
             }
 
             // Validate slots if provided
+            // Note: We don't validate contiguity here. If slots are non-contiguous,
+            // the frontend should create separate bookings for each contiguous range.
             if (!$validator->errors()->any() && $this->has('slots')) {
-                $this->validateSlotsContiguity($validator);
                 $this->validateSlotsAvailability($validator, $booking);
             }
         });
-    }
-
-    /**
-     * Validate that slots are contiguous (no gaps between them)
-     */
-    protected function validateSlotsContiguity($validator)
-    {
-        $slots = $this->input('slots');
-        
-        if (count($slots) > 1) {
-            for ($i = 0; $i < count($slots) - 1; $i++) {
-                $currentEnd = $slots[$i]['end'];
-                $nextStart = $slots[$i + 1]['start'];
-                
-                if ($currentEnd !== $nextStart) {
-                    $validator->errors()->add(
-                        'slots',
-                        'Os horários devem ser contíguos (sem intervalos entre eles)'
-                    );
-                    break;
-                }
-            }
-        }
     }
 
     /**

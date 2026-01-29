@@ -98,35 +98,10 @@ class UpdateMobileBookingRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             if (!$validator->errors()->any() && $this->has('slots')) {
-                $this->validateSlotsContiguity($validator);
                 $this->validateSlotsAvailability($validator);
             }
         });
     }
-
-    /**
-     * Validate that slots are contiguous (no gaps between them)
-     */
-    protected function validateSlotsContiguity($validator)
-    {
-        $slots = $this->input('slots');
-        
-        if (count($slots) > 1) {
-            for ($i = 0; $i < count($slots) - 1; $i++) {
-                $currentEnd = $slots[$i]['end'];
-                $nextStart = $slots[$i + 1]['start'];
-                
-                if ($currentEnd !== $nextStart) {
-                    $validator->errors()->add(
-                        'slots',
-                        'Os horários devem ser contíguos (sem intervalos entre eles)'
-                    );
-                    break;
-                }
-            }
-        }
-    }
-
     /**
      * Validate that all slots are available
      */

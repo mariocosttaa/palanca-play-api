@@ -48,6 +48,8 @@ class CreateMobileBookingRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
+     * 
+     * @bodyParam slots array required Os horários a serem reservados. Se forem enviados horários não contíguos (com intervalos), o sistema criará múltiplos agendamentos separados automaticamente. Example: [{"start": "10:00", "end": "11:00"}, {"start": "12:00", "end": "13:00"}]
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
@@ -69,33 +71,9 @@ class CreateMobileBookingRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             if (!$validator->errors()->any()) {
-                $this->validateSlotsContiguity($validator);
                 $this->validateSlotsAvailability($validator);
             }
         });
-    }
-
-    /**
-     * Validate that slots are contiguous (no gaps between them)
-     */
-    protected function validateSlotsContiguity($validator)
-    {
-        $slots = $this->input('slots');
-        
-        if (count($slots) > 1) {
-            for ($i = 0; $i < count($slots) - 1; $i++) {
-                $currentEnd = $slots[$i]['end'];
-                $nextStart = $slots[$i + 1]['start'];
-                
-                if ($currentEnd !== $nextStart) {
-                    $validator->errors()->add(
-                        'slots',
-                        'Os horários devem ser contíguos (sem intervalos entre eles)'
-                    );
-                    break;
-                }
-            }
-        }
     }
 
     /**

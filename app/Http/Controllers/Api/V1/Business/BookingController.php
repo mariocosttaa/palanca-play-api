@@ -134,16 +134,12 @@ class BookingController extends Controller
      *
      * Creates a new booking for a court at a specific date and time.
      *
-     * @response 201 {"data": {"id": "mGbnVK9ryOK1y4Y6XlQgJ", "court_id": "2pX9g4KPNdz6dojQYaw16", "user_id": "W39mX2xdzrz8a5lVQLRoE", "start_date": "2025-12-22", "end_date": "2025-12-22", "start_time": "09:00", "end_time": "10:00", "price": 0, "currency": "aoa", "is_pending": false, "is_cancelled": false, "is_paid": false, "paid_at_venue": false, "created_at": "2025-12-22T14:37:53.000000Z"}}
+     * **Note:** When using the `slots` parameter, the price is automatically calculated based on the
+     * number of slots and the court's price_per_interval.
+     * 
+     * **Slot Splitting:**
+     * Se forem enviados horários não contíguos (com intervalos), o sistema **automaticamente dividirá** a reserva em múltiplos agendamentos separados. Por exemplo, enviar 10:00-11:00 e 12:00-13:00 resultará em duas reservas distintas.
      *
-     * @responseExample 400 {"message": "Este horário já está reservado (10:00 - 11:00)."}
-     * @responseExample 400 {"message": "Horário solicitado está fora do horário de funcionamento da quadra (09:00 - 21:00)."}
-     * @responseExample 400 {"message": "Quadra não possui horário de funcionamento configurado para esta data."}
-     * @responseExample 400 {"message": "Quadra marcada como indisponível nesta data."}
-     * @responseExample 400 {"message": "Horário conflita com uma pausa configurada (12:00 - 13:00)."}
-     * @responseExample 400 {"message": "Cliente inválido ou não fornecido."}
-     * @responseExample 400 {"message": "Quadra inválida."}
-     * @responseExample 500 {"message": "Erro inesperado ao criar agendamento. Por favor, tente novamente."}
      */
     public function store(CreateBookingRequest $request): BookingResource
     {
@@ -229,9 +225,39 @@ class BookingController extends Controller
      * availability checks, allowing the booking to keep its current time or be rescheduled to a
      * different court.
      *
-     * Restrictions:
+     * **Slot Handling:**
+     * - When using the `slots` parameter, the system identifies contiguous blocks of time.
+     * - If non-contiguous slots are provided, the system **automatically splits** them into separate bookings.
+     * - The existing booking is updated with the first contiguous block, and NEW bookings are created for subsequent blocks.
+     * - Example: For `13:00-15:00` and `19:10-20:10`, the system creates two separate bookings.
+     * - Price is automatically recalculated for each separate booking.
+     * **Restrictions:**
      * - Bookings that have been marked as present cannot be updated, cancelled, or deleted.
      *   Users must contact support for assistance with these bookings.
+     *
+     * @bodyParam court_id string optional The court ID (hashed). Example: "2pX9g4KPNdz6dojQYaw16"
+     * @bodyParam start_date string optional The booking start date (Y-m-d format). Example: "2026-02-02"
+     * @bodyParam slots array Os horários a serem reservados. Se forem enviados horários não contíguos (com intervalos), o sistema criará múltiplos agendamentos separados automaticamente. Example: [{"start": "13:00", "end": "14:00"}, {"start": "14:00", "end": "15:00"}]
+     * @bodyParam slots.*.start string The slot start time (H:i format). Example: "13:00"
+     * @bodyParam slots.*.end string The slot end time (H:i format). Example: "14:00"
+     * @bodyParam start_time string optional The booking start time (H:i format). Required if slots not provided. Example: "13:00"
+     * @bodyParam end_time string optional The booking end time (H:i format). Required if slots not provided. Example: "15:00"
+     * @bodyParam price integer optional The booking price in cents (auto-calculated from slots). Example: 5000
+     * @bodyParam status string optional The booking status (confirmed, pending, cancelled). Example: "confirmed"
+     * @bodyParam payment_status string optional The payment status (paid, pending). Example: "pending"
+     * @bodyParam payment_method string optional The payment method (from_app, at_venue, cash, card, transfer). Required when payment_status is paid. Example: "card"
+     *
+     * @response 200 {"data": {"id": "ml62oqxbyKQBDdYn8PGWw", "court_id": "2pX9g4KPNdz6dojQYaw16", "user_id": "W39mX2xdzrz8a5lVQLRoE", "start_date": "2026-02-02", "end_date": "2026-02-02", "start_time": "13:00", "end_time": "15:00", "price": 5000, "currency": "aoa", "status": "confirmed", "payment_status": "pending", "created_at": "2026-01-29T14:37:53.000000Z"}}
+     *
+     * @responseExample 400 {"message": "Este horário já está reservado (13:00 - 14:00)."}
+     * @responseExample 400 {"message": "Horário solicitado está fora do horário de funcionamento da quadra (09:00 - 21:00)."}
+     * @responseExample 400 {"message": "Quadra não possui horário de funcionamento configurado para esta data."}
+     * @responseExample 400 {"message": "Quadra marcada como indisponível nesta data."}
+     * @responseExample 400 {"message": "Horário conflita com uma pausa configurada (12:00 - 13:00)."}
+     * @responseExample 400 {"message": "Não é possível modificar um agendamento onde o cliente já esteve presente. Por favor, entre em contato com o suporte para assistência."}
+     * @responseExample 404 {"message": "Agendamento não encontrado"}
+     * @responseExample 422 {"message": "Os horários devem ser contíguos (sem intervalos entre eles)", "errors": {"slots": ["Os horários devem ser contíguos (sem intervalos entre eles)"]}}
+     * @responseExample 500 {"message": "Erro inesperado ao atualizar agendamento. Por favor, tente novamente."}
      *
      * @return \App\Http\Resources\Business\V1\Specific\BookingResource
      */

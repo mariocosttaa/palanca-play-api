@@ -79,6 +79,8 @@ class CreateBookingRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
+     * 
+     * @bodyParam slots array Os horários a serem reservados (opcional se start_time/end_time fornecidos). Se forem enviados horários não contíguos (com intervalos), o sistema criará múltiplos agendamentos separados automaticamente.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
@@ -91,7 +93,6 @@ class CreateBookingRequest extends FormRequest
             'slots' => 'nullable|array|min:1',
             'start_time' => 'required_without:slots|date_format:H:i',
             'end_time' => 'required_without:slots|date_format:H:i|after:start_time',
-            'price' => 'nullable|integer|min:0',
             'status' => ['nullable', Rule::enum(BookingStatusEnum::class)],
             'payment_status' => ['nullable', Rule::enum(PaymentStatusEnum::class)],
             'payment_method' => [
@@ -123,33 +124,9 @@ class CreateBookingRequest extends FormRequest
         $validator->after(function ($validator) {
             // Validate slots if provided
             if (!$validator->errors()->any() && $this->has('slots')) {
-                $this->validateSlotsContiguity($validator);
                 $this->validateSlotsAvailability($validator);
             }
         });
-    }
-
-    /**
-     * Validate that slots are contiguous (no gaps between them)
-     */
-    protected function validateSlotsContiguity($validator)
-    {
-        $slots = $this->input('slots');
-        
-        if (count($slots) > 1) {
-            for ($i = 0; $i < count($slots) - 1; $i++) {
-                $currentEnd = $slots[$i]['end'];
-                $nextStart = $slots[$i + 1]['start'];
-                
-                if ($currentEnd !== $nextStart) {
-                    $validator->errors()->add(
-                        'slots',
-                        'Os horários devem ser contíguos (sem intervalos entre eles)'
-                    );
-                    break;
-                }
-            }
-        }
     }
 
     /**
