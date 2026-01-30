@@ -58,21 +58,40 @@ class CreateBookingRequest extends FormRequest
         if ($this->has(['start_date', 'start_time', 'end_time'])) {
             $timezoneService = app(\App\Services\TimezoneService::class);
             
-            // Parse start datetime in user timezone
-            $startString = $this->input('start_date') . ' ' . $this->input('start_time');
-            $startUtc = $timezoneService->toUTC($startString);
+            // Handle slots conversion if present
+            if ($this->has('slots') && is_array($this->input('slots'))) {
+                $conversionResult = $timezoneService->convertSlotsToUtc(
+                    $this->input('start_date'), 
+                    $this->input('slots')
+                );
+                
+                if (!empty($conversionResult['slots'])) {
+                    $this->merge([
+                        'slots' => $conversionResult['slots'],
+                        // Update the base start_date/time/end_time from the converted slots 
+                        // as they are more accurate (they might have shifted the date)
+                        'start_date' => $conversionResult['start_date'],
+                        'start_time' => $conversionResult['slots'][0]['start'],
+                        'end_time' => $conversionResult['slots'][count($conversionResult['slots']) - 1]['end'],
+                    ]);
+                }
+            } else {
+                // Parse start datetime in user timezone
+                $startString = $this->input('start_date') . ' ' . $this->input('start_time');
+                $startUtc = $timezoneService->toUTC($startString);
 
-            // Parse end datetime in user timezone
-            // Assuming end time is on the same day as start time (as per current validation rules)
-            $endString = $this->input('start_date') . ' ' . $this->input('end_time');
-            $endUtc = $timezoneService->toUTC($endString);
+                // Parse end datetime in user timezone
+                // Assuming end time is on the same day as start time (as per current validation rules)
+                $endString = $this->input('start_date') . ' ' . $this->input('end_time');
+                $endUtc = $timezoneService->toUTC($endString);
 
-            if ($startUtc && $endUtc) {
-                $this->merge([
-                    'start_date' => $startUtc->format('Y-m-d'),
-                    'start_time' => $startUtc->format('H:i'),
-                    'end_time' => $endUtc->format('H:i'),
-                ]);
+                if ($startUtc && $endUtc) {
+                    $this->merge([
+                        'start_date' => $startUtc->format('Y-m-d'),
+                        'start_time' => $startUtc->format('H:i'),
+                        'end_time' => $endUtc->format('H:i'),
+                    ]);
+                }
             }
         }
     }

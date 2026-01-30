@@ -89,23 +89,17 @@ class UpdateBookingRequest extends FormRequest
 
                 // If slots are provided, convert EACH slot start/end
                 if ($this->has('slots') && is_array($this->input('slots'))) {
-                    $slots = $this->input('slots');
-                    $convertedSlots = array_map(function($slot) use ($convertToUtc) {
-                        return [
-                            'start' => $convertToUtc($slot['start']),
-                            'end'   => $convertToUtc($slot['end']),
-                        ];
-                    }, $slots);
+                    $conversionResult = $timezoneService->convertSlotsToUtc(
+                        $newStartDate,
+                        $this->input('slots')
+                    );
                     
-                    $this->merge(['slots' => $convertedSlots]);
-
-                    // After conversion, we need to update start_time and end_time for the main booking
-                    // We'll update them to the start/end of the first block in the service, 
-                    // but let's set them here to the first slot for consistency.
-                    if (count($convertedSlots) > 0) {
+                    if (!empty($conversionResult['slots'])) {
                         $this->merge([
-                            'start_time' => $convertedSlots[0]['start'],
-                            'end_time'   => $convertedSlots[0]['end'],
+                            'slots' => $conversionResult['slots'],
+                            'start_date' => $conversionResult['start_date'],
+                            'start_time' => $conversionResult['slots'][0]['start'],
+                            'end_time' => $conversionResult['slots'][count($conversionResult['slots']) - 1]['end'],
                         ]);
                     }
                 }
