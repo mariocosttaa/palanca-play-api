@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\V1\Mobile;
 
 use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Shared\V1\General\CourtResourceGeneral;
+use App\Http\Resources\Api\V1\Mobile\MobileCourtResource;
 use App\Models\Court;
 use Illuminate\Http\Request;
 
@@ -24,7 +24,7 @@ class MobileCourtController extends Controller
      * @queryParam tenant_id string optional Filter by specific tenant HashID. Example: ten_abc123
      * @queryParam court_type_id string optional Filter by specific court type HashID. Example: ct_abc123
      * 
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Shared\V1\General\CourtResourceGeneral>
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection<\App\Http\Resources\Api\V1\Mobile\MobileCourtResource>
      */
     public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
@@ -73,7 +73,7 @@ class MobileCourtController extends Controller
 
             $courts = $query->paginate(20);
 
-            return CourtResourceGeneral::collection($courts);
+            return MobileCourtResource::collection($courts);
 
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar quadras', ['error' => $e->getMessage()]);
@@ -86,7 +86,7 @@ class MobileCourtController extends Controller
      * 
      * @urlParam court_id string required The HashID of the court. Example: crt_abc123
      */
-    public function show(Request $request, string $courtIdHashId): CourtResourceGeneral
+    public function show(Request $request, string $courtIdHashId): MobileCourtResource
     {
         try {
             $courtId = EasyHashAction::decode($courtIdHashId, 'court-id');
@@ -95,7 +95,7 @@ class MobileCourtController extends Controller
                 ->with(['images', 'courtType', 'tenant.country'])
                 ->findOrFail($courtId);
 
-            return new CourtResourceGeneral($court);
+            return new MobileCourtResource($court);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             abort(404, 'Quadra não encontrada.');

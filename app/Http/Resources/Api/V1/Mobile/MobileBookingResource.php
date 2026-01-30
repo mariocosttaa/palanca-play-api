@@ -2,6 +2,7 @@
 namespace App\Http\Resources\Api\V1\Mobile;
 
 use App\Http\Resources\Business\V1\Specific\BookingResource;
+use App\Http\Resources\Api\V1\Mobile\MobileCourtResource;
 use Illuminate\Http\Request;
 
 class MobileBookingResource extends BookingResource
@@ -14,6 +15,8 @@ class MobileBookingResource extends BookingResource
     public function toArray(Request $request): array
     {
         $data = parent::toArray($request);
+
+        $data['court'] = new MobileCourtResource($this->whenLoaded('court'));
 
         $data['qr_code'] = $this->qr_code ? config('app.url') . '/' . $this->qr_code : null;
 
