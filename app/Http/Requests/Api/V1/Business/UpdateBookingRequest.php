@@ -148,7 +148,9 @@ class UpdateBookingRequest extends FormRequest
 
             // Prevent changing payment status if payment method is from_app
             // Only bookings paid through the app cannot have their payment status changed
-            if ($booking->payment_method !== null && $booking->payment_method === PaymentMethodEnum::FROM_APP && ($this->has('payment_status') || $this->has('payment_method'))) {
+            if ($booking->payment_method === PaymentMethodEnum::FROM_APP && 
+                $booking->payment_status === PaymentStatusEnum::PAID && 
+                ($this->has('payment_status') || $this->has('payment_method'))) {
                 $validator->errors()->add('payment_status', 'Não é possível alterar o status de pagamento de um agendamento pago pelo aplicativo.');
             }
 

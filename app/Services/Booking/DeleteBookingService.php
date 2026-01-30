@@ -81,9 +81,16 @@ class DeleteBookingService
             );
         }
 
-        // Prevent deletion if booking was paid from app (can only cancel, not delete)
-        // Only block if payment is actually PAID/confirmed. Pending payments can be deleted.
-        if ($booking->payment_method === PaymentMethodEnum::FROM_APP && $booking->payment_status === PaymentStatusEnum::PAID) {
+        // Prevent deletion if booking is already paid (regardless of origin)
+        if ($booking->payment_status === PaymentStatusEnum::PAID) {
+            throw new HttpException(
+                400,
+                'Não é possível excluir um agendamento que já se encontra pago.'
+            );
+        }
+
+        // Prevent deletion if booking was created via app (regardless of payment status)
+        if ($booking->payment_method === PaymentMethodEnum::FROM_APP) {
             throw new HttpException(
                 400,
                 'Não é possível excluir um agendamento realizado pelo aplicativo. Por favor, efetue o cancelamento do mesmo.'

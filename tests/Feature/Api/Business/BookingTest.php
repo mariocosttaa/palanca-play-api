@@ -457,12 +457,13 @@ test('can delete booking with card payment method', function () {
         'booking_id' => EasyHashAction::encode($booking->id, 'booking-id'),
     ]));
 
-    $response->assertStatus(200);
-    $response->assertJson(['message' => 'Agendamento removido com sucesso']);
-    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+    // Should fail with 400 because it is PAID
+    $response->assertStatus(400);
+    $response->assertJson(['message' => 'Não é possível excluir um agendamento que já se encontra pago.']);
+    $this->assertDatabaseHas('bookings', ['id' => $booking->id]);
 
-    // Verify QR code file is deleted
-    Storage::disk('public')->assertMissing($qrCodePath);
+    // Verify QR code still exists
+    Storage::disk('public')->assertExists($qrCodePath);
 });
 
 test('can delete booking with cash payment method', function () {
@@ -503,12 +504,13 @@ test('can delete booking with cash payment method', function () {
         'booking_id' => EasyHashAction::encode($booking->id, 'booking-id'),
     ]));
 
-    $response->assertStatus(200);
-    $response->assertJson(['message' => 'Agendamento removido com sucesso']);
-    $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+    // Should fail with 400 because it is PAID
+    $response->assertStatus(400);
+    $response->assertJson(['message' => 'Não é possível excluir um agendamento que já se encontra pago.']);
+    $this->assertDatabaseHas('bookings', ['id' => $booking->id]);
 
-    // Verify QR code file is deleted
-    Storage::disk('public')->assertMissing($qrCodePath);
+    // Verify QR code still exists
+    Storage::disk('public')->assertExists($qrCodePath);
 });
 
 test('can delete booking with null payment method', function () {
@@ -586,7 +588,7 @@ test('cannot delete booking paid from app', function () {
 
     $response->assertStatus(400);
     $response->assertJson([
-        'message' => 'Não é possível excluir um agendamento que foi pago pelo aplicativo. Você pode cancelar o agendamento alterando o status para cancelado.',
+        'message' => 'Não é possível excluir um agendamento que já se encontra pago.',
     ]);
     $this->assertDatabaseHas('bookings', ['id' => $booking->id]);
 });
@@ -643,7 +645,7 @@ test('deleting booking also deletes associated QR code file', function () {
         'court_id'       => $court->id,
         'user_id'        => $client->id,
         'payment_method' => PaymentMethodEnum::CASH,
-        'payment_status' => PaymentStatusEnum::PAID,
+        'payment_status' => PaymentStatusEnum::PENDING,
         'present'        => false,
     ]);
 
@@ -692,7 +694,7 @@ test('deleting booking without QR code does not cause errors', function () {
         'court_id'       => $court->id,
         'user_id'        => $client->id,
         'payment_method' => PaymentMethodEnum::CASH,
-        'payment_status' => PaymentStatusEnum::PAID,
+        'payment_status' => PaymentStatusEnum::PENDING,
         'present'        => false,
         'qr_code'        => null,
     ]);
