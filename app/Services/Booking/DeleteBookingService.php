@@ -3,6 +3,7 @@
 namespace App\Services\Booking;
 
 use App\Enums\PaymentMethodEnum;
+use App\Enums\PaymentStatusEnum;
 use App\Models\Booking;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Log;
@@ -81,10 +82,11 @@ class DeleteBookingService
         }
 
         // Prevent deletion if booking was paid from app (can only cancel, not delete)
-        if ($booking->payment_method !== null && $booking->payment_method === PaymentMethodEnum::FROM_APP) {
+        // Only block if payment is actually PAID/confirmed. Pending payments can be deleted.
+        if ($booking->payment_method === PaymentMethodEnum::FROM_APP && $booking->payment_status === PaymentStatusEnum::PAID) {
             throw new HttpException(
                 400,
-                'Não é possível excluir um agendamento que foi pago pelo aplicativo. Você pode cancelar o agendamento alterando o status para cancelado.'
+                'Não é possível excluir um agendamento realizado pelo aplicativo. Por favor, efetue o cancelamento do mesmo.'
             );
         }
     }
