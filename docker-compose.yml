@@ -8,10 +8,12 @@ services:
     container_name: palanca_api
     restart: always
     environment:
-      - APP_ENV=${APP_ENV:-local}
+      - APP_ENV=${APP_ENV:-production}
       - CONTAINER_ROLE=app
+    # In some production environments like Coolify, you might want to let the platform handle ports.
+    # Using 8001 as fallback if 8000 is taken.
     ports:
-      - "8000:80"
+      - "${APP_PORT:-8001}:80"
     volumes:
       - .:/var/www/html
     networks:
@@ -25,7 +27,7 @@ services:
     container_name: palanca_worker
     restart: always
     environment:
-      - APP_ENV=${APP_ENV:-local}
+      - APP_ENV=${APP_ENV:-production}
       - CONTAINER_ROLE=worker
     volumes:
       - .:/var/www/html
@@ -42,22 +44,12 @@ services:
     container_name: palanca_scheduler
     restart: always
     environment:
-      - APP_ENV=${APP_ENV:-local}
+      - APP_ENV=${APP_ENV:-production}
       - CONTAINER_ROLE=scheduler
     volumes:
       - .:/var/www/html
     depends_on:
       - api
-    networks:
-      - palanca_network
-
-  # Mailhog - Email testing service
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: palanca_mailhog
-    ports:
-      - "1025:1025"  # SMTP server
-      - "8025:8025"  # Web UI
     networks:
       - palanca_network
 

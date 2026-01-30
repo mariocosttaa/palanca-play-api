@@ -38,6 +38,10 @@ FROM php:8.3-fpm-alpine
 
 WORKDIR /var/www/html
 
+# Define build-time environment variable
+ARG APP_ENV=production
+ENV APP_ENV=$APP_ENV
+
 # Install runtime dependencies
 RUN apk add --no-cache \
     nginx \
