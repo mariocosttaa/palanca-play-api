@@ -1,6 +1,56 @@
-version: '3.8'
 
 services:
+  # API / Application Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palanca_api
+    restart: always
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - CONTAINER_ROLE=app
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+    networks:
+      - palanca_network
+
+  # Queue Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palanca_worker
+    restart: always
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - CONTAINER_ROLE=worker
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - api
+    networks:
+      - palanca_network
+
+  # Scheduler
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palanca_scheduler
+    restart: always
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - CONTAINER_ROLE=scheduler
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - api
+    networks:
+      - palanca_network
+
   # Mailhog - Email testing service
   mailhog:
     image: mailhog/mailhog:latest
