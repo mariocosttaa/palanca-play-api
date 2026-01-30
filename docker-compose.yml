@@ -12,10 +12,13 @@ services:
     environment:
       - APP_ENV=production
       - CONTAINER_ROLE=app
+      - DB_DATABASE=/var/www/html/storage/database.sqlite
     ports:
       - "${APP_PORT:-8001}:80"
     networks:
       - palanca_network
+    volumes:
+      - app_storage:/var/www/html/storage
 
   # Queue Worker
   worker:
@@ -29,10 +32,13 @@ services:
     environment:
       - APP_ENV=production
       - CONTAINER_ROLE=worker
+      - DB_DATABASE=/var/www/html/storage/database.sqlite
     depends_on:
       - api
     networks:
       - palanca_network
+    volumes:
+      - app_storage:/var/www/html/storage
 
   # Scheduler
   scheduler:
@@ -46,11 +52,17 @@ services:
     environment:
       - APP_ENV=production
       - CONTAINER_ROLE=scheduler
+      - DB_DATABASE=/var/www/html/storage/database.sqlite
     depends_on:
       - api
     networks:
       - palanca_network
+    volumes:
+      - app_storage:/var/www/html/storage
 
 networks:
   palanca_network:
     driver: bridge
+
+volumes:
+  app_storage:

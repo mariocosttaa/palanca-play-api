@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
         $middleware->alias([
             'tenant.show' => \App\Http\Middleware\EnsureTenantAccess::class,
             'mobile.cors' => \App\Http\Middleware\MobileCorsMiddleware::class,
