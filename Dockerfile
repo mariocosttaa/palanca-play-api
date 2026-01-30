@@ -1,6 +1,7 @@
 # Stage 1: Build PHP dependencies
 FROM php:8.3-fpm-alpine as php-builder
 
+ARG APP_ENV=production
 WORKDIR /var/www/html
 
 # Install system dependencies
@@ -24,10 +25,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy application files
 COPY . .
 
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+# Install dependencies based on environment
+RUN if [ "$APP_ENV" = "production" ]; then \
+        composer install --no-dev --optimize-autoloader --no-scripts; \
+    else \
+        composer install --optimize-autoloader --no-scripts; \
+    fi
 
-# Stage 2: Build Node assets (if needed, though this app seems to be an API)
+# Stage 2: Build Node assets
 FROM node:20-alpine as node-builder
 WORKDIR /app
 COPY . .
@@ -51,7 +56,9 @@ RUN apk add --no-cache \
     oniguruma \
     icu \
     bash \
-    libpq
+    libpq \
+    git \
+    unzip
 
 # Install PHP extensions needed for runtime
 RUN apk add --no-cache --virtual .build-deps \
@@ -62,6 +69,9 @@ RUN apk add --no-cache --virtual .build-deps \
     postgresql-dev \
     && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd intl \
     && apk del .build-deps
+
+# Install Composer in the final image as well for convenience
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Copy from builder
 COPY --from=php-builder /var/www/html /var/www/html

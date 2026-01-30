@@ -11,8 +11,6 @@ storage/framework/views/*.php
 storage/logs/*.log
 public/hot
 public/storage
-tests
-phpunit.xml
 .editorconfig
 .gitignore
 README.md
