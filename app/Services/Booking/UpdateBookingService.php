@@ -108,6 +108,24 @@ class UpdateBookingService
             $booking->update($data);
             $booking->load('court');
 
+            // Ensure QR code exists on update
+            if (!$booking->qr_code) {
+                try {
+                    $bookingIdHashed = \App\Actions\General\EasyHashAction::encode($booking->id, 'booking-id');
+                    $qrCodeInfo      = \App\Actions\General\QrCodeAction::create(
+                        $tenant->id,
+                        $booking->id,
+                        $bookingIdHashed
+                    );
+                    $booking->update(['qr_code' => $qrCodeInfo->url]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to generate QR code on booking update', [
+                        'booking_id' => $booking->id,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+            }
+
             return $booking;
         } catch (HttpException $e) {
             throw $e;
@@ -175,6 +193,24 @@ class UpdateBookingService
 
         // Update the booking
         $booking->update($updateData);
+
+        // Ensure QR code exists on update
+        if (!$booking->qr_code) {
+            try {
+                $bookingIdHashed = \App\Actions\General\EasyHashAction::encode($booking->id, 'booking-id');
+                $qrCodeInfo      = \App\Actions\General\QrCodeAction::create(
+                    $booking->tenant_id,
+                    $booking->id,
+                    $bookingIdHashed
+                );
+                $booking->update(['qr_code' => $qrCodeInfo->url]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to generate QR code on booking update with slots', [
+                    'booking_id' => $booking->id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -215,7 +251,8 @@ class UpdateBookingService
                 $startDate,
                 $startTime,
                 $endTime,
-                $originalBooking->user_id
+                $originalBooking->user_id,
+                $originalBooking->id
             );
 
             if ($availabilityError) {
@@ -225,11 +262,25 @@ class UpdateBookingService
             // Create the new booking
             $newBooking = Booking::create($newBookingData);
             
-            // Generate QR code for the new booking (using logic similar to CreateBookingService)
-            $createService = app(\App\Services\Booking\CreateBookingService::class);
-            // We can't easily call protected method generateQrCode from here, 
-            // but we can manually trigger it if needed or refactor.
-            // For now, let's assume the user priority is the split working.
+            // Generate QR code for the new booking
+            try {
+                $bookingIdHashed = \App\Actions\General\EasyHashAction::encode($newBooking->id, 'booking-id');
+                $qrCodeInfo      = \App\Actions\General\QrCodeAction::create(
+                    $tenant->id,
+                    $newBooking->id,
+                    $bookingIdHashed
+                );
+
+                // Update booking with QR code path
+                $newBooking->update(['qr_code' => $qrCodeInfo->url]);
+            } catch (\Exception $qrException) {
+                // Log QR generation error but don't fail the booking
+                Log::error('Failed to generate QR code for split booking', [
+                    'booking_id' => $newBooking->id,
+                    'tenant_id'  => $tenant->id,
+                    'error'      => $qrException->getMessage(),
+                ]);
+            }
         }
     }
 
