@@ -12,10 +12,11 @@ RUN apk add --no-cache \
     unzip \
     git \
     oniguruma-dev \
-    icu-dev
+    icu-dev \
+    postgresql-dev
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl
+RUN docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd intl
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -45,7 +46,8 @@ RUN apk add --no-cache \
     libxml2 \
     oniguruma \
     icu \
-    bash
+    bash \
+    libpq
 
 # Install PHP extensions needed for runtime
 RUN apk add --no-cache --virtual .build-deps \
@@ -53,7 +55,8 @@ RUN apk add --no-cache --virtual .build-deps \
     libxml2-dev \
     oniguruma-dev \
     icu-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl \
+    postgresql-dev \
+    && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd intl \
     && apk del .build-deps
 
 # Copy from builder
